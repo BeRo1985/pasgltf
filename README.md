@@ -1,2 +1,2 @@
 # pasgltf
-Object-Pascal GLTF loader 
+Object-Pascal GLTF loader (still in progress)
