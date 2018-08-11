@@ -1047,6 +1047,20 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Empty:boolean read GetEmpty;
             end;
             TSamplers=TObjectList<TSampler>;
+            TScene=class(TBaseExtensionsExtrasObject)
+             public
+              type TNodes=TList<TPasGLTFUInt32>;
+             private
+              fName:TPasGLTFUTF8String;
+              fNodes:TScene.TNodes;
+             public
+              constructor Create; override;
+              destructor Destroy; override;
+             published
+              property Name:TPasGLTFUTF8String read fName write fName;
+              property Nodes:TScene.TNodes read fNodes;
+            end;
+            TScenes=TObjectList<TScene>;
       public
 
      end;
@@ -1706,6 +1720,21 @@ begin
          (fMinFilter=TMinFilter.None) and
          (fWrapS=TWrappingMode.Repeat_) and
          (fWrapT=TWrappingMode.Repeat_);
+end;
+
+{ TPasGLTF.TScene }
+
+constructor TPasGLTF.TScene.Create;
+begin
+ inherited Create;
+ fName:='';
+ fNodes:=TPasGLTF.TScene.TNodes.Create;
+end;
+
+destructor TPasGLTF.TScene.Destroy;
+begin
+ FreeAndNil(fNodes);
+ inherited Destroy;
 end;
 
 end.
