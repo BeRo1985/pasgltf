@@ -968,7 +968,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Weights:TWeights read fWeights;
               property Primitives:TPrimitives read fPrimitives;
             end;
-            TMeshs=TObjectList<TMesh>;
+            TMeshes=TObjectList<TMesh>;
             TNode=class(TBaseExtensionsExtrasObject)
              public
               type TChildren=TList<TPasGLTFInt32>;
@@ -1093,6 +1093,45 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Source:TPasGLTFInt32 read fSource write fSource;
             end;
             TTextures=TObjectList<TTexture>;
+            TDocument=class(TBaseExtensionsExtrasObject)
+             private
+              fAsset:TAsset;
+              fAccessors:TAccessors;
+              fBuffers:TBuffers;
+              fBufferViews:TBufferViews;
+              fCameras:TCameras;
+              fImages:TImages;
+              fNodes:TNodes;
+              fMaterials:TMaterials;
+              fMeshes:TMeshes;
+              fSamplers:TSamplers;
+              fSkins:TSkins;
+              fScenes:TScenes;
+              fTextures:TSkins;
+              fScene:TPasGLTFInt32;
+              fExtensionsUsed:TStringList;
+              fExtensionsRequired:TStringList;
+             public
+              constructor Create; override;
+              destructor Destroy; override;
+             published
+              property Asset:TAsset read fAsset;
+              property Accessors:TAccessors read fAccessors;
+              property Buffers:TBuffers read fBuffers;
+              property BufferViews:TBufferViews read fBufferViews;
+              property Cameras:TCameras read fCameras;
+              property Images:TImages read fImages;
+              property Materials:TMaterials read fMaterials;
+              property Meshes:TMeshes read fMeshes;
+              property Nodes:TNodes read fNodes;
+              property Samplers:TSamplers read fSamplers;
+              property Scenes:TScenes read fScenes;
+              property Skins:TSkins read fSkins;
+              property Textures:TSkins read fTextures;
+              property Scene:TPasGLTFInt32 read fScene write fScene;
+              property ExtensionsUsed:TStringList read fExtensionsUsed;
+              property ExtensionsRequired:TStringList read fExtensionsRequired;
+            end;
       public
 
      end;
@@ -1798,6 +1837,49 @@ end;
 
 destructor TPasGLTF.TTexture.Destroy;
 begin
+ inherited Destroy;
+end;
+
+{ TPasGLTF.TDocument }
+
+constructor TPasGLTF.TDocument.Create;
+begin
+ inherited Create;
+ fAsset:=TAsset.Create;
+ fAccessors:=TAccessors.Create(true);
+ fBuffers:=TBuffers.Create(true);
+ fBufferViews:=TBufferViews.Create(true);
+ fCameras:=TCameras.Create(true);
+ fImages:=TImages.Create(true);
+ fNodes:=TNodes.Create(true);
+ fMaterials:=TMaterials.Create(true);
+ fMeshes:=TMeshes.Create(true);
+ fSamplers:=TSamplers.Create(true);
+ fSkins:=TSkins.Create(true);
+ fScenes:=TScenes.Create(true);
+ fTextures:=TSkins.Create(true);
+ fScene:=-1;
+ fExtensionsUsed:=TStringList.Create;
+ fExtensionsRequired:=TStringList.Create;
+end;
+
+destructor TPasGLTF.TDocument.Destroy;
+begin
+ FreeAndNil(fAsset);
+ FreeAndNil(fAccessors);
+ FreeAndNil(fBuffers);
+ FreeAndNil(fBufferViews);
+ FreeAndNil(fCameras);
+ FreeAndNil(fImages);
+ FreeAndNil(fNodes);
+ FreeAndNil(fMaterials);
+ FreeAndNil(fMeshes);
+ FreeAndNil(fSamplers);
+ FreeAndNil(fSkins);
+ FreeAndNil(fScenes);
+ FreeAndNil(fTextures);
+ FreeAndNil(fExtensionsUsed);
+ FreeAndNil(fExtensionsRequired);
  inherited Destroy;
 end;
 
