@@ -981,22 +981,56 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      property Extensions:TPasJSONItemObject read fExtensions;
                    end;
                    TPrimitives=TObjectList<TPrimitive>;
+                   TWeights=TList<TPasGLTFFloat>;
              private
               fName:TPasGLTFUTF8String;
-              fWeights:TPasGLTFFloatDynamicArray;
+              fWeights:TWeights;
               fPrimitives:TPrimitives;
               fExtensions:TPasJSONItemObject;
              public
               constructor Create; reintroduce;
               destructor Destroy; override;
              public
-              property Weights:TPasGLTFFloatDynamicArray read fWeights write fWeights;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
+              property Weights:TWeights read fWeights;
               property Primitives:TPrimitives read fPrimitives;
               property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TMeshs=TObjectList<TMesh>;
+            TNode=class
+             public
+              type TChildren=TList<TPasGLTFInt32>;
+                   TWeights=TList<TPasGLTFFloat>;
+             private
+              fName:TPasGLTFUTF8String;
+              fCamera:TPasGLTFInt32;
+              fMesh:TPasGLTFInt32;
+              fSkin:TPasGLTFInt32;
+              fMatrix:TMatrix;
+              fRotation:TVector4;
+              fScale:TVector3;
+              fTranslation:TVector3;
+              fChildren:TChildren;
+              fWeights:TWeights;
+              fExtensions:TPasJSONItemObject;
+             public
+              constructor Create; reintroduce;
+              destructor Destroy; override;
+             public
+              property Matrix:TMatrix read fMatrix write fMatrix;
+              property Rotation:TVector4 read fRotation write fRotation;
+              property Scale:TVector3 read fScale write fScale;
+              property Translation:TVector3 read fTranslation write fTranslation;
+             published
+              property Name:TPasGLTFUTF8String read fName write fName;
+              property Camera:TPasGLTFInt32 read fCamera write fCamera;
+              property Mesh:TPasGLTFInt32 read fMesh write fMesh;
+              property Skin:TPasGLTFInt32 read fSkin write fSkin;
+              property Children:TChildren read fChildren;
+              property Weights:TWeights read fWeights;
+              property Extensions:TPasJSONItemObject read fExtensions;
+            end;
       public
 
      end;
@@ -1619,14 +1653,41 @@ constructor TPasGLTF.TMesh.Create;
 begin
  inherited Create;
  fName:='';
- fWeights:=nil;
+ fWeights:=TWeights.Create;
  fPrimitives:=TPrimitives.Create(true);
  fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TMesh.Destroy;
 begin
+ FreeAndNil(fWeights);
  FreeAndNil(fPrimitives);
+ FreeAndNil(fExtensions);
+ inherited Destroy;
+end;
+
+{ TPasGLTF.TNode }
+
+constructor TPasGLTF.TNode.Create;
+begin
+ inherited Create;
+ fName:='';
+ fCamera:=-1;
+ fMesh:=-1;
+ fSkin:=-1;
+ fMatrix:=TDefaults.IdentityMatrix;
+ fRotation:=TDefaults.IdentityQuaternion;
+ fScale:=TDefaults.IdentityVector3;
+ fTranslation:=TDefaults.NullVector3;
+ fChildren:=TChildren.Create;
+ fWeights:=TWeights.Create;
+ fExtensions:=TPasJSONItemObject.Create;
+end;
+
+destructor TPasGLTF.TNode.Destroy;
+begin
+ FreeAndNil(fChildren);
+ FreeAndNil(fWeights);
  FreeAndNil(fExtensions);
  inherited Destroy;
 end;
