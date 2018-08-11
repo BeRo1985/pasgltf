@@ -442,6 +442,79 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
 
      EPasGLTFInvalidBase64=class(EPasGLTF);
 
+     TPasGLTFDynamicArray<T>=class
+      private
+       type TValueEnumerator=record
+             private
+              fDynamicArray:TPasGLTFDynamicArray<T>;
+              fIndex:TPasGLTFSizeInt;
+              function GetCurrent:T; inline;
+             public
+              constructor Create(const aDynamicArray:TPasGLTFDynamicArray<T>);
+              function MoveNext:boolean; inline;
+              property Current:T read GetCurrent;
+            end;
+      private
+       fItems:array of T;
+       fCount:TPasGLTFSizeInt;
+       fAllocated:TPasGLTFSizeInt;
+       procedure SetCount(const pNewCount:TPasGLTFSizeInt);
+       function GetItem(const pIndex:TPasGLTFSizeInt):T; inline;
+       procedure SetItem(const pIndex:TPasGLTFSizeInt;const pItem:T); inline;
+      protected
+      public
+       constructor Create;
+       destructor Destroy; override;
+       procedure Clear;
+       function Add(const pItem:T):TPasGLTFSizeInt;
+       procedure Insert(const pIndex:TPasGLTFSizeInt;const pItem:T);
+       procedure Delete(const pIndex:TPasGLTFSizeInt);
+       procedure Exchange(const pIndex,pWithIndex:TPasGLTFSizeInt); inline;
+       function GetEnumerator:TValueEnumerator;
+       function Memory:TPasGLTFPointer; inline;
+       property Count:TPasGLTFSizeInt read fCount write SetCount;
+       property Allocated:TPasGLTFSizeInt read fAllocated;
+       property Items[const pIndex:TPasGLTFSizeInt]:T read GetItem write SetItem; default;
+     end;
+
+     TPasGLTFObjectList<T:class>=class
+      private
+       type TValueEnumerator=record
+             private
+              fObjectList:TPasGLTFObjectList<T>;
+              fIndex:TPasGLTFSizeInt;
+              function GetCurrent:T; inline;
+             public
+              constructor Create(const aObjectList:TPasGLTFObjectList<T>);
+              function MoveNext:boolean; inline;
+              property Current:T read GetCurrent;
+            end;
+      private
+       fItems:array of T;
+       fCount:TPasGLTFSizeInt;
+       fAllocated:TPasGLTFSizeInt;
+       fOwnsObjects:boolean;
+       function RoundUpToPowerOfTwoSizeUInt(x:TPasGLTFSizeUInt):TPasGLTFSizeUInt;
+       procedure SetCount(const pNewCount:TPasGLTFSizeInt);
+       function GetItem(const pIndex:TPasGLTFSizeInt):T;
+       procedure SetItem(const pIndex:TPasGLTFSizeInt;const pItem:T);
+      public
+       constructor Create;
+       destructor Destroy; override;
+       procedure Clear;
+       function IndexOf(const pItem:T):TPasGLTFSizeInt;
+       function Add(const pItem:T):TPasGLTFSizeInt;
+       procedure Insert(const pIndex:TPasGLTFSizeInt;const pItem:T);
+       procedure Delete(const pIndex:TPasGLTFSizeInt);
+       procedure Remove(const pItem:T);
+       procedure Exchange(const pIndex,pWithIndex:TPasGLTFSizeInt);
+       function GetEnumerator:TValueEnumerator;
+       property Count:TPasGLTFSizeInt read fCount write SetCount;
+       property Allocated:TPasGLTFSizeInt read fAllocated;
+       property Items[const pIndex:TPasGLTFSizeInt]:T read GetItem write SetItem; default;
+       property OwnsObjects:boolean read fOwnsObjects write fOwnsObjects;
+     end;
+
      TPasGLTF=class
       public
        type TBase64=class
@@ -530,7 +603,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Extras:TPasJSONItemObject read fExtras;
             end;
             TAttributes=TDictionary<TPasGLTFUTF8String,TPasGLTFUInt32>;
-            TAttributesList=TObjectList<TAttributes>;
+            TAttributesList=TPasGLTFObjectList<TAttributes>;
             TAccessor=class(TBaseExtensionsExtrasObject)
              public
               type TComponentType=
@@ -630,7 +703,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Normalized:boolean read fNormalized write fNormalized default false;
               property Sparse:TSparse read fSparse;
             end;
-            TAccessors=TObjectList<TAccessor>;
+            TAccessors=TPasGLTFObjectList<TAccessor>;
             TAnimation=class(TBaseExtensionsExtrasObject)
              public
               type TChannel=class(TBaseExtensionsExtrasObject)
@@ -658,7 +731,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      property Sampler:TPasGLTFInt32 read fSampler write fSampler default -1;
                      property Target:TTarget read fTarget;
                    end;
-                   TChannels=TObjectList<TChannel>;
+                   TChannels=TPasGLTFObjectList<TChannel>;
                    TSampler=class(TBaseExtensionsExtrasObject)
                     public
                      type TType=
@@ -680,7 +753,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      property Output:TPasGLTFInt32 read fOutput write fOutput default -1;
                      property Interpolation:TType read fInterpolation write fInterpolation default TType.Linear;
                    end;
-                   TSamplers=TObjectList<TSampler>;
+                   TSamplers=TPasGLTFObjectList<TSampler>;
              private
               fName:TPasGLTFUTF8String;
               fChannels:TChannels;
@@ -693,7 +766,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Channels:TChannels read fChannels;
               property Samplers:TSamplers read fSamplers;
             end;
-            TAnimations=TObjectList<TAnimation>;
+            TAnimations=TPasGLTFObjectList<TAnimation>;
             TAsset=class(TBaseExtensionsExtrasObject)
              private
               fCopyright:TPasGLTFUTF8String;
@@ -732,7 +805,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Data:TMemoryStream read fData write fData;
               property EmbeddedResource:boolean read GetEmbeddedResource write SetEmbeddedResource;
             end;
-            TBuffers=TObjectList<TBuffer>;
+            TBuffers=TPasGLTFObjectList<TBuffer>;
             TBufferView=class(TBaseExtensionsExtrasObject)
              public
               type TTargetType=
@@ -760,7 +833,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property ByteStride:TPasGLTFUInt32 read fByteStride write fByteStride;
               property Target:TTargetType read fTarget write fTarget default TTargetType.None;
             end;
-            TBufferViews=TObjectList<TBufferView>;
+            TBufferViews=TPasGLTFObjectList<TBufferView>;
             TCamera=class(TBaseExtensionsExtrasObject)
              public
               type TType=
@@ -815,7 +888,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Orthographic:TOrthographic read fOrthographic;
               property Perspective:TPerspective read fPerspective;
             end;
-            TCameras=TObjectList<TCamera>;
+            TCameras=TPasGLTFObjectList<TCamera>;
             TImage=class(TBaseExtensionsExtrasObject)
              private
               fBufferView:TPasGLTFInt32;
@@ -839,7 +912,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property MimeType:TPasGLTFUTF8String read fMimeType write fMimeType;
               property EmbeddedResource:boolean read GetEmbeddedResource write SetEmbeddedResource;
             end;
-            TImages=TObjectList<TImage>;
+            TImages=TPasGLTFObjectList<TImage>;
             TMaterial=class(TBaseExtensionsExtrasObject)
              public
               type TAlphaMode=
@@ -921,7 +994,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property PBRMetallicRoughness:TPBRMetallicRoughness read fPBRMetallicRoughness;
               property EmissiveTexture:TTexture read fEmissiveTexture;
             end;
-            TMaterials=TObjectList<TMaterial>;
+            TMaterials=TPasGLTFObjectList<TMaterial>;
             TMesh=class(TBaseExtensionsExtrasObject)
              public
               type TPrimitive=class(TBaseExtensionsExtrasObject)
@@ -953,8 +1026,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      property Attributes:TAttributes read fAttributes;
                      property Targets:TAttributesList read fTargets;
                    end;
-                   TPrimitives=TObjectList<TPrimitive>;
-                   TWeights=TList<TPasGLTFFloat>;
+                   TPrimitives=TPasGLTFObjectList<TPrimitive>;
+                   TWeights=TPasGLTFDynamicArray<TPasGLTFFloat>;
              private
               fName:TPasGLTFUTF8String;
               fWeights:TWeights;
@@ -968,11 +1041,11 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Weights:TWeights read fWeights;
               property Primitives:TPrimitives read fPrimitives;
             end;
-            TMeshes=TObjectList<TMesh>;
+            TMeshes=TPasGLTFObjectList<TMesh>;
             TNode=class(TBaseExtensionsExtrasObject)
              public
-              type TChildren=TList<TPasGLTFInt32>;
-                   TWeights=TList<TPasGLTFFloat>;
+              type TChildren=TPasGLTFDynamicArray<TPasGLTFInt32>;
+                   TWeights=TPasGLTFDynamicArray<TPasGLTFFloat>;
              private
               fName:TPasGLTFUTF8String;
               fCamera:TPasGLTFInt32;
@@ -1000,7 +1073,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Children:TChildren read fChildren;
               property Weights:TWeights read fWeights;
             end;
-            TNodes=TObjectList<TNode>;
+            TNodes=TPasGLTFObjectList<TNode>;
             TSampler=class(TBaseExtensionsExtrasObject)
              public
               type TMagFilter=
@@ -1046,10 +1119,10 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property WrapT:TWrappingMode read fWrapT write fWrapT;
               property Empty:boolean read GetEmpty;
             end;
-            TSamplers=TObjectList<TSampler>;
+            TSamplers=TPasGLTFObjectList<TSampler>;
             TScene=class(TBaseExtensionsExtrasObject)
              public
-              type TNodes=TList<TPasGLTFUInt32>;
+              type TNodes=TPasGLTFDynamicArray<TPasGLTFUInt32>;
              private
               fName:TPasGLTFUTF8String;
               fNodes:TScene.TNodes;
@@ -1060,10 +1133,10 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Name:TPasGLTFUTF8String read fName write fName;
               property Nodes:TScene.TNodes read fNodes;
             end;
-            TScenes=TObjectList<TScene>;
+            TScenes=TPasGLTFObjectList<TScene>;
             TSkin=class(TBaseExtensionsExtrasObject)
              public
-              type TJoints=TList<TPasGLTFUInt32>;
+              type TJoints=TPasGLTFDynamicArray<TPasGLTFUInt32>;
              private
               fName:TPasGLTFUTF8String;
               fInverseBindMatrices:TPasGLTFInt32;
@@ -1078,7 +1151,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Skeleton:TPasGLTFInt32 read fSkeleton write fSkeleton;
               property Joints:TSkin.TJoints read fJoints;
             end;
-            TSkins=TObjectList<TSkin>;
+            TSkins=TPasGLTFObjectList<TSkin>;
             TTexture=class(TBaseExtensionsExtrasObject)
              private
               fName:TPasGLTFUTF8String;
@@ -1092,7 +1165,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Sampler:TPasGLTFInt32 read fSampler write fSampler;
               property Source:TPasGLTFInt32 read fSource write fSource;
             end;
-            TTextures=TObjectList<TTexture>;
+            TTextures=TPasGLTFObjectList<TTexture>;
             TDocument=class(TBaseExtensionsExtrasObject)
              private
               fAsset:TAsset;
@@ -1137,6 +1210,345 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
      end;
 
 implementation
+
+constructor TPasGLTFDynamicArray<T>.TValueEnumerator.Create(const aDynamicArray:TPasGLTFDynamicArray<T>);
+begin
+ fDynamicArray:=aDynamicArray;
+ fIndex:=-1;
+end;
+
+function TPasGLTFDynamicArray<T>.TValueEnumerator.MoveNext:boolean;
+begin
+ inc(fIndex);
+ result:=fIndex<fDynamicArray.fCount;
+end;
+
+function TPasGLTFDynamicArray<T>.TValueEnumerator.GetCurrent:T;
+begin
+ result:=fDynamicArray.fItems[fIndex];
+end;
+
+constructor TPasGLTFDynamicArray<T>.Create;
+begin
+ fItems:=nil;
+ fCount:=0;
+ fAllocated:=0;
+ inherited Create;
+end;
+
+destructor TPasGLTFDynamicArray<T>.Destroy;
+begin
+ SetLength(fItems,0);
+ fCount:=0;
+ fAllocated:=0;
+ inherited Destroy;
+end;
+
+procedure TPasGLTFDynamicArray<T>.Clear;
+begin
+ SetLength(fItems,0);
+ fCount:=0;
+ fAllocated:=0;
+end;
+
+procedure TPasGLTFDynamicArray<T>.SetCount(const pNewCount:TPasGLTFSizeInt);
+begin
+ if pNewCount<=0 then begin
+  SetLength(fItems,0);
+  fCount:=0;
+  fAllocated:=0;
+ end else begin
+  if pNewCount<fCount then begin
+   fCount:=pNewCount;
+   if (fCount+fCount)<fAllocated then begin
+    fAllocated:=fCount+fCount;
+    SetLength(fItems,fAllocated);
+   end;
+  end else begin
+   fCount:=pNewCount;
+   if fAllocated<fCount then begin
+    fAllocated:=fCount+fCount;
+    SetLength(fItems,fAllocated);
+   end;
+  end;
+ end;
+end;
+
+function TPasGLTFDynamicArray<T>.GetItem(const pIndex:TPasGLTFSizeInt):T;
+begin
+ result:=fItems[pIndex];
+end;
+
+procedure TPasGLTFDynamicArray<T>.SetItem(const pIndex:TPasGLTFSizeInt;const pItem:T);
+begin
+ fItems[pIndex]:=pItem;
+end;
+
+function TPasGLTFDynamicArray<T>.Add(const pItem:T):TPasGLTFSizeInt;
+begin
+ result:=fCount;
+ inc(fCount);
+ if fAllocated<fCount then begin
+  fAllocated:=fCount+fCount;
+  SetLength(fItems,fAllocated);
+ end;
+ fItems[result]:=pItem;
+end;
+
+procedure TPasGLTFDynamicArray<T>.Insert(const pIndex:TPasGLTFSizeInt;const pItem:T);
+begin
+ if pIndex>=0 then begin
+  if pIndex<fCount then begin
+   inc(fCount);
+   if fCount<fAllocated then begin
+    fAllocated:=fCount shl 1;
+    SetLength(fItems,fAllocated);
+   end;
+   Move(fItems[pIndex],fItems[pIndex+1],(fCount-pIndex)*SizeOf(T));
+   FillChar(fItems[pIndex],SizeOf(T),#0);
+  end else begin
+   fCount:=pIndex+1;
+   if fCount<fAllocated then begin
+    fAllocated:=fCount shl 1;
+    SetLength(fItems,fAllocated);
+   end;
+  end;
+  fItems[pIndex]:=pItem;
+ end;
+end;
+
+procedure TPasGLTFDynamicArray<T>.Delete(const pIndex:TPasGLTFSizeInt);
+begin
+ Finalize(fItems[pIndex]);
+ Move(fItems[pIndex+1],fItems[pIndex],(fCount-pIndex)*SizeOf(T));
+ dec(fCount);
+ FillChar(fItems[fCount],SizeOf(T),#0);
+ if fCount<(fAllocated shr 1) then begin
+  fAllocated:=fAllocated shr 1;
+  SetLength(fItems,fAllocated);
+ end;
+end;
+
+procedure TPasGLTFDynamicArray<T>.Exchange(const pIndex,pWithIndex:TPasGLTFSizeInt);
+var Temporary:T;
+begin
+ Temporary:=fItems[pIndex];
+ fItems[pIndex]:=fItems[pWithIndex];
+ fItems[pWithIndex]:=Temporary;
+end;
+
+function TPasGLTFDynamicArray<T>.Memory:TPasGLTFPointer;
+begin
+ result:=@fItems[0];
+end;
+
+function TPasGLTFDynamicArray<T>.GetEnumerator:TPasGLTFDynamicArray<T>.TValueEnumerator;
+begin
+ result:=TValueEnumerator.Create(self);
+end;
+
+constructor TPasGLTFObjectList<T>.TValueEnumerator.Create(const aObjectList:TPasGLTFObjectList<T>);
+begin
+ fObjectList:=aObjectList;
+ fIndex:=-1;
+end;
+
+function TPasGLTFObjectList<T>.TValueEnumerator.MoveNext:boolean;
+begin
+ inc(fIndex);
+ result:=fIndex<fObjectList.fCount;
+end;
+
+function TPasGLTFObjectList<T>.TValueEnumerator.GetCurrent:T;
+begin
+ result:=fObjectList.fItems[fIndex];
+end;
+
+constructor TPasGLTFObjectList<T>.Create;
+begin
+ inherited Create;
+ fItems:=nil;
+ fCount:=0;
+ fAllocated:=0;
+ fOwnsObjects:=true;
+end;
+
+destructor TPasGLTFObjectList<T>.Destroy;
+begin
+ Clear;
+ inherited Destroy;
+end;
+
+function TPasGLTFObjectList<T>.RoundUpToPowerOfTwoSizeUInt(x:TPasGLTFSizeUInt):TPasGLTFSizeUInt;
+begin
+ dec(x);
+ x:=x or (x shr 1);
+ x:=x or (x shr 2);
+ x:=x or (x shr 4);
+ x:=x or (x shr 8);
+ x:=x or (x shr 16);
+{$ifdef CPU64}
+ x:=x or (x shr 32);
+{$endif}
+ result:=x+1;
+end;
+
+procedure TPasGLTFObjectList<T>.Clear;
+var Index:TPasGLTFSizeInt;
+begin
+ if fOwnsObjects then begin
+  for Index:=fCount-1 downto 0 do begin
+   FreeAndNil(fItems[Index]);
+  end;
+ end;
+ fItems:=nil;
+ fCount:=0;
+ fAllocated:=0;
+end;
+
+procedure TPasGLTFObjectList<T>.SetCount(const pNewCount:TPasGLTFSizeInt);
+var Index,NewAllocated:TPasGLTFSizeInt;
+    Item:TPasGLTFPointer;
+begin
+ if fCount<pNewCount then begin
+  NewAllocated:=RoundUpToPowerOfTwoSizeUInt(pNewCount);
+  if fAllocated<NewAllocated then begin
+   SetLength(fItems,NewAllocated);
+   FillChar(fItems[fAllocated],(NewAllocated-fAllocated)*SizeOf(T),#0);
+   fAllocated:=NewAllocated;
+  end;
+  FillChar(fItems[fCount],(pNewCount-fCount)*SizeOf(T),#0);
+  fCount:=pNewCount;
+ end else if fCount>pNewCount then begin
+  if fOwnsObjects then begin
+   for Index:=fCount-1 downto pNewCount do begin
+    FreeAndNil(fItems[Index]);
+   end;
+  end;
+  fCount:=pNewCount;
+  if pNewCount<(fAllocated shr 2) then begin
+   if pNewCount=0 then begin
+    fItems:=nil;
+    fAllocated:=0;
+   end else begin
+    NewAllocated:=fAllocated shr 1;
+    SetLength(fItems,NewAllocated);
+    fAllocated:=NewAllocated;
+   end;
+  end;
+ end;
+end;
+
+function TPasGLTFObjectList<T>.GetItem(const pIndex:TPasGLTFSizeInt):T;
+begin
+ if (pIndex<0) or (pIndex>=fCount) then begin
+  raise ERangeError.Create('Out of index range');
+ end;
+ result:=fItems[pIndex];
+end;
+
+procedure TPasGLTFObjectList<T>.SetItem(const pIndex:TPasGLTFSizeInt;const pItem:T);
+begin
+ if (pIndex<0) or (pIndex>=fCount) then begin
+  raise ERangeError.Create('Out of index range');
+ end;
+ fItems[pIndex]:=pItem;
+end;
+
+function TPasGLTFObjectList<T>.IndexOf(const pItem:T):TPasGLTFSizeInt;
+var Index:TPasGLTFSizeInt;
+begin
+ for Index:=0 to fCount-1 do begin
+  if fItems[Index]=pItem then begin
+   result:=Index;
+   exit;
+  end;
+ end;
+ result:=-1;
+end;
+
+function TPasGLTFObjectList<T>.Add(const pItem:T):TPasGLTFSizeInt;
+begin
+ result:=fCount;
+ inc(fCount);
+ if fAllocated<fCount then begin
+  fAllocated:=fCount+fCount;
+  SetLength(fItems,fAllocated);
+ end;
+ fItems[result]:=pItem;
+end;
+
+procedure TPasGLTFObjectList<T>.Insert(const pIndex:TPasGLTFSizeInt;const pItem:T);
+var OldCount:TPasGLTFSizeInt;
+begin
+ if pIndex>=0 then begin
+  OldCount:=fCount;
+  if fCount<pIndex then begin
+   fCount:=pIndex+1;
+  end else begin
+   inc(fCount);
+  end;
+  if fAllocated<fCount then begin
+   fAllocated:=fCount shl 1;
+   SetLength(fItems,fAllocated);
+  end;
+  if OldCount<fCount then begin
+   FillChar(fItems[OldCount],(fCount-OldCount)*SizeOf(T),#0);
+  end;
+  if pIndex<OldCount then begin
+   System.Move(fItems[pIndex],fItems[pIndex+1],(OldCount-pIndex)*SizeOf(T));
+   FillChar(fItems[pIndex],SizeOf(T),#0);
+  end;
+  fItems[pIndex]:=pItem;
+ end;
+end;
+
+procedure TPasGLTFObjectList<T>.Delete(const pIndex:TPasGLTFSizeInt);
+var Old:T;
+begin
+ if (pIndex<0) or (pIndex>=fCount) then begin
+  raise ERangeError.Create('Out of index range');
+ end;
+ Old:=fItems[pIndex];
+ dec(fCount);
+ FillChar(fItems[pIndex],SizeOf(T),#0);
+ if pIndex<>fCount then begin
+  System.Move(fItems[pIndex+1],fItems[pIndex],(fCount-pIndex)*SizeOf(T));
+  FillChar(fItems[fCount],SizeOf(T),#0);
+ end;
+ if fCount<(fAllocated shr 1) then begin
+  fAllocated:=fAllocated shr 1;
+  SetLength(fItems,fAllocated);
+ end;
+ if fOwnsObjects then begin
+  FreeAndNil(Old);
+ end;
+end;
+
+procedure TPasGLTFObjectList<T>.Remove(const pItem:T);
+var Index:TPasGLTFSizeInt;
+begin
+ Index:=IndexOf(pItem);
+ if Index>=0 then begin
+  Delete(Index);
+ end;
+end;
+
+procedure TPasGLTFObjectList<T>.Exchange(const pIndex,pWithIndex:TPasGLTFSizeInt);
+var Temporary:T;
+begin
+ if ((pIndex<0) or (pIndex>=fCount)) or ((pWithIndex<0) or (pWithIndex>=fCount)) then begin
+  raise ERangeError.Create('Out of index range');
+ end;
+ Temporary:=fItems[pIndex];
+ fItems[pIndex]:=fItems[pWithIndex];
+ fItems[pWithIndex]:=Temporary;
+end;
+
+function TPasGLTFObjectList<T>.GetEnumerator:TPasGLTFObjectList<T>.TValueEnumerator;
+begin
+ result:=TValueEnumerator.Create(self);
+end;
 
 { TPasGLTF.TBase64 }
 
@@ -1397,8 +1809,8 @@ constructor TPasGLTF.TAnimation.Create;
 begin
  inherited Create;
  fName:='';
- fChannels:=TChannels.Create(true);
- fSamplers:=TSamplers.Create(true);
+ fChannels:=TChannels.Create;
+ fSamplers:=TSamplers.Create;
 end;
 
 destructor TPasGLTF.TAnimation.Destroy;
@@ -1733,7 +2145,7 @@ begin
  inherited Create;
  fName:='';
  fWeights:=TWeights.Create;
- fPrimitives:=TPrimitives.Create(true);
+ fPrimitives:=TPrimitives.Create;
 end;
 
 destructor TPasGLTF.TMesh.Destroy;
@@ -1846,18 +2258,18 @@ constructor TPasGLTF.TDocument.Create;
 begin
  inherited Create;
  fAsset:=TAsset.Create;
- fAccessors:=TAccessors.Create(true);
- fBuffers:=TBuffers.Create(true);
- fBufferViews:=TBufferViews.Create(true);
- fCameras:=TCameras.Create(true);
- fImages:=TImages.Create(true);
- fNodes:=TNodes.Create(true);
- fMaterials:=TMaterials.Create(true);
- fMeshes:=TMeshes.Create(true);
- fSamplers:=TSamplers.Create(true);
- fSkins:=TSkins.Create(true);
- fScenes:=TScenes.Create(true);
- fTextures:=TSkins.Create(true);
+ fAccessors:=TAccessors.Create;
+ fBuffers:=TBuffers.Create;
+ fBufferViews:=TBufferViews.Create;
+ fCameras:=TCameras.Create;
+ fImages:=TImages.Create;
+ fNodes:=TNodes.Create;
+ fMaterials:=TMaterials.Create;
+ fMeshes:=TMeshes.Create;
+ fSamplers:=TSamplers.Create;
+ fSkins:=TSkins.Create;
+ fScenes:=TScenes.Create;
+ fTextures:=TSkins.Create;
  fScene:=-1;
  fExtensionsUsed:=TStringList.Create;
  fExtensionsRequired:=TStringList.Create;
