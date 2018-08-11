@@ -857,6 +857,94 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property EmbeddedResource:boolean read GetEmbeddedResource write SetEmbeddedResource;
             end;
             TImages=TObjectList<TImage>;
+            TMaterial=class
+             public
+              type TAlphaMode=
+                    (
+                     Opaque=0,
+                     Mask=1,
+                     Blend=2
+                    );
+                   PAlphaMode=^TAlphaMode;
+                   TTexture=class
+                    private
+                     fIndex:TPasGLTFInt32;
+                     fTexCoord:TPasGLTFInt32;
+                     fExtensions:TPasJSONItemObject;
+                     function GetEmpty:boolean;
+                    public
+                     constructor Create; reintroduce; virtual;
+                     destructor Destroy; override;
+                    published
+                     property Extensions:TPasJSONItemObject read fExtensions;
+                     property Empty:boolean read GetEmpty;
+                   end;
+                   TNormalTexture=class(TTexture)
+                    private
+                     fScale:TPasGLTFFloat;
+                    public
+                     constructor Create; override;
+                    published
+                     property Scale:TPasGLTFFloat read fScale write fScale;
+                   end;
+                   TOcclusionTexture=class(TTexture)
+                    private
+                     fStrength:TPasGLTFFloat;
+                    public
+                     constructor Create; override;
+                    published
+                     property Strength:TPasGLTFFloat read fStrength write fStrength;
+                   end;
+                   TPBRMetallicRoughness=class
+                    private
+                     fBaseColorFactor:TVector4;
+                     fBaseColorTexture:TTexture;
+                     fRoughnessFactor:TPasGLTFFloat;
+                     fMetallicFactor:TPasGLTFFloat;
+                     fMetallicRoughnessTexture:TTexture;
+                     fExtensions:TPasJSONItemObject;
+                     function GetEmpty:boolean;
+                    public
+                     constructor Create; reintroduce;
+                     destructor Destroy; override;
+                    public
+                     property BaseColorFactor:TVector4 read fBaseColorFactor write fBaseColorFactor;
+                    published
+                     property BaseColorTexture:TTexture read fBaseColorTexture;
+                     property RoughnessFactor:TPasGLTFFloat read fRoughnessFactor write fRoughnessFactor;
+                     property MetallicFactor:TPasGLTFFloat read fMetallicFactor write fMetallicFactor;
+                     property MetallicRoughnessTexture:TTexture read fMetallicRoughnessTexture;
+                     property Extensions:TPasJSONItemObject read fExtensions;
+                     property Empty:boolean read GetEmpty;
+                   end;
+             private
+              fName:TPasGLTFUTF8String;
+              fAlphaCutOff:TPasGLTFFloat;
+              fAlphaMode:TAlphaMode;
+              fDoubleSided:boolean;
+              fNormalTexture:TNormalTexture;
+              fOcclusionTexture:TOcclusionTexture;
+              fPBRMetallicRoughness:TPBRMetallicRoughness;
+              fEmissiveTexture:TTexture;
+              fEmissiveFactor:TVector3;
+              fExtensions:TPasJSONItemObject;
+             public
+              constructor Create; reintroduce;
+              destructor Destroy; override;
+             public
+              property EmissiveFactor:TVector3 read fEmissiveFactor write fEmissiveFactor;
+             published
+              property Name:TPasGLTFUTF8String read fName write fName;
+              property AlphaCutOff:TPasGLTFFloat read fAlphaCutOff write fAlphaCutOff;
+              property AlphaMode:TAlphaMode read fAlphaMode write fAlphaMode;
+              property DoubleSided:boolean read fDoubleSided write fDoubleSided;
+              property NormalTexture:TNormalTexture read fNormalTexture;
+              property OcclusionTexture:TOcclusionTexture read fOcclusionTexture;
+              property PBRMetallicRoughness:TPBRMetallicRoughness read fPBRMetallicRoughness;
+              property EmissiveTexture:TTexture read fEmissiveTexture;
+              property Extensions:TPasJSONItemObject read fExtensions;
+            end;
+            TMaterials=TObjectList<TMaterial>;
       public
 
      end;
@@ -1357,6 +1445,99 @@ begin
    fEmbeddedResource:=false;
   end;
  end;
+end;
+
+{ TPasGLTF.TMaterial.TTexture }
+
+constructor TPasGLTF.TMaterial.TTexture.Create;
+begin
+ inherited Create;
+ fIndex:=-1;
+ fTexCoord:=0;
+ fExtensions:=TPasJSONItemObject.Create;
+end;
+
+destructor TPasGLTF.TMaterial.TTexture.Destroy;
+begin
+ FreeAndNil(fExtensions);
+ inherited Destroy;
+end;
+
+function TPasGLTF.TMaterial.TTexture.GetEmpty:boolean;
+begin
+ result:=fIndex<0;
+end;
+
+{ TPasGLTF.TMaterial.TNormalTexture }
+
+constructor TPasGLTF.TMaterial.TNormalTexture.Create;
+begin
+ inherited Create;
+ fScale:=TDefaults.IdentityScalar;
+end;
+
+{ TPasGLTF.TMaterial.TOcclusionTexture }
+
+constructor TPasGLTF.TMaterial.TOcclusionTexture.Create;
+begin
+ inherited Create;
+ fStrength:=TDefaults.IdentityScalar;
+end;
+
+{ TPasGLTF.TMaterial.TPBRMetallicRoughness }
+
+constructor TPasGLTF.TMaterial.TPBRMetallicRoughness.Create;
+begin
+ inherited Create;
+ fBaseColorFactor:=TDefaults.IdentityVector4;
+ fBaseColorTexture:=TTexture.Create;
+ fRoughnessFactor:=TDefaults.IdentityScalar;
+ fMetallicFactor:=TDefaults.IdentityScalar;
+ fMetallicRoughnessTexture:=TTexture.Create;
+ fExtensions:=TPasJSONItemObject.Create;
+end;
+
+destructor TPasGLTF.TMaterial.TPBRMetallicRoughness.Destroy;
+begin
+ FreeAndNil(fBaseColorTexture);
+ FreeAndNil(fMetallicRoughnessTexture);
+ FreeAndNil(fExtensions);
+ inherited Destroy;
+end;
+
+function TPasGLTF.TMaterial.TPBRMetallicRoughness.GetEmpty:boolean;
+begin
+ result:=fBaseColorTexture.Empty and
+         fMetallicRoughnessTexture.Empty and
+         SameValue(fRoughnessFactor,TDefaults.IdentityScalar) and
+         SameValue(fMetallicFactor,TDefaults.IdentityScalar);
+end;
+
+{ TPasGLTF.TMaterial }
+
+constructor TPasGLTF.TMaterial.Create;
+begin
+ inherited Create;
+ fName:='';
+ fAlphaCutOff:=TDefaults.MaterialAlphaCutoff;
+ fAlphaMode:=TAlphaMode.Opaque;
+ fDoubleSided:=TDefaults.MaterialDoubleSided;
+ fNormalTexture:=TNormalTexture.Create;
+ fOcclusionTexture:=TOcclusionTexture.Create;
+ fPBRMetallicRoughness:=TPBRMetallicRoughness.Create;
+ fEmissiveTexture:=TTexture.Create;
+ fEmissiveFactor:=TDefaults.NullVector3;
+ fExtensions:=TPasJSONItemObject.Create;
+end;
+
+destructor TPasGLTF.TMaterial.Destroy;
+begin
+ FreeAndNil(fNormalTexture);
+ FreeAndNil(fOcclusionTexture);
+ FreeAndNil(fPBRMetallicRoughness);
+ FreeAndNil(fEmissiveTexture);
+ FreeAndNil(fExtensions);
+ inherited Destroy;
 end;
 
 end.
