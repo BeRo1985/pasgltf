@@ -831,6 +831,32 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TCameras=TObjectList<TCamera>;
+            TImage=class
+             private
+              fBufferView:TPasGLTFInt32;
+              fName:TPasGLTFUTF8String;
+              fURI:TPasGLTFUTF8String;
+              fMimeType:TPasGLTFUTF8String;
+              fExtensions:TPasJSONItemObject;
+              fEmbeddedResource:boolean;
+              function GetEmbeddedResource:boolean;
+              procedure SetEmbeddedResource(const aEmbeddedResource:boolean);
+              function GetURI:TPasGLTFUTF8String;
+              procedure SetURI(const aURI:TPasGLTFUTF8String);
+             public
+              constructor Create; reintroduce;
+              destructor Destroy; override;
+              function GetEmbeddedResourceData(const aStream:TStream):boolean;
+              procedure SetEmbeddedResourceData(const aStream:TStream);
+             published
+              property BufferView:TPasGLTFInt32 read fBufferView write fBufferView;
+              property Name:TPasGLTFUTF8String read fName write fName;
+              property URI:TPasGLTFUTF8String read GetURI write SetURI;
+              property MimeType:TPasGLTFUTF8String read fMimeType write fMimeType;
+              property Extensions:TPasJSONItemObject read fExtensions;
+              property EmbeddedResource:boolean read GetEmbeddedResource write SetEmbeddedResource;
+            end;
+            TImages=TObjectList<TImage>;
       public
 
      end;
@@ -1260,6 +1286,77 @@ begin
  FreeAndNil(fPerspective);
  FreeAndNil(fExtensions);
  inherited Destroy;
+end;
+
+{ TPasGLTF.TImage }
+
+constructor TPasGLTF.TImage.Create;
+begin
+ inherited Create;
+ fBufferView:=-1;
+ fName:='';
+ fURI:='';
+ fMimeType:='';
+ fExtensions:=TPasJSONItemObject.Create;
+ fEmbeddedResource:=false;
+end;
+
+destructor TPasGLTF.TImage.Destroy;
+begin
+ FreeAndNil(fExtensions);
+ inherited Destroy;
+end;
+
+function TPasGLTF.TImage.GetEmbeddedResource:boolean;
+begin
+ result:=fEmbeddedResource;
+end;
+
+procedure TPasGLTF.TImage.SetEmbeddedResource(const aEmbeddedResource:boolean);
+begin
+ if fEmbeddedResource<>aEmbeddedResource then begin
+  fEmbeddedResource:=aEmbeddedResource;
+ end;
+end;
+
+function TPasGLTF.TImage.GetEmbeddedResourceData(const aStream:TStream):boolean;
+var mt:TPasGLTFUTF8String;
+begin
+ result:=fEmbeddedResource;
+ if result then begin
+  if pos(MimeTypeImagePNG,fURI)=1 then begin
+   mt:=MimeTypeImagePNG;
+  end else if pos(MimeTypeImageJPG,fURI)=1 then begin
+   mt:=MimeTypeImageJPG;
+  end;
+  if aStream is TMemoryStream then begin
+   TMemoryStream(aStream).Clear;
+  end;
+  result:=TBase64.Decode(copy(fURI,length(mt)+1,length(fURI)-(length(mt)+1)),aStream);
+ end;
+end;
+
+procedure TPasGLTF.TImage.SetEmbeddedResourceData(const aStream:TStream);
+begin
+ fURI:=fMimeType+','+TBase64.Encode(aStream);
+ fEmbeddedResource:=true;
+end;
+
+function TPasGLTF.TImage.GetURI:TPasGLTFUTF8String;
+begin
+ result:=fURI;
+end;
+
+procedure TPasGLTF.TImage.SetURI(const aURI:TPasGLTFUTF8String);
+begin
+ if fURI<>aURI then begin
+  fURI:=aURI;
+  if (pos(MimeTypeImagePNG,fURI)=1) or (pos(MimeTypeImageJPG,fURI)=1) then begin
+   fEmbeddedResource:=true;
+  end else begin
+   fEmbeddedResource:=false;
+  end;
+ end;
 end;
 
 end.
