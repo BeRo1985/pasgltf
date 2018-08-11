@@ -518,9 +518,20 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     IdentityQuaternion:TVector4=(0.0,0.0,0.0,1.0);
                     IdentityMatrix:TMatrix=(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
             end;
+            TBaseExtensionsExtrasObject=class
+             private
+              fExtensions:TPasJSONItemObject;
+              fExtras:TPasJSONItemObject;
+             public
+              constructor Create; reintroduce; virtual;
+              destructor Destroy; override;
+             protected
+              property Extensions:TPasJSONItemObject read fExtensions;
+              property Extras:TPasJSONItemObject read fExtras;
+            end;
             TAttributes=TDictionary<TPasGLTFUTF8String,TPasGLTFUInt32>;
             TAttributesList=TObjectList<TAttributes>;
-            TAccessor=class
+            TAccessor=class(TBaseExtensionsExtrasObject)
              public
               type TComponentType=
                     (
@@ -549,54 +560,48 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                    PType=^TType;
                    TRawType=TPasGLTFUInt8;
                    PRawType=^TRawType;
-                   TSparse=class
+                   TSparse=class(TBaseExtensionsExtrasObject)
                     public
-                     type TIndices=class
+                     type TIndices=class(TBaseExtensionsExtrasObject)
                            private
                             fComponentType:TComponentType;
                             fBufferView:TPasGLTFUInt32;
                             fByteOffset:TPasGLTFUInt32;
-                            fExtensions:TPasJSONItemObject;
                             fEmpty:boolean;
                            public
-                            constructor Create; reintroduce;
+                            constructor Create; override;
                             destructor Destroy; override;
                            published
                             property ComponentType:TComponentType read fComponentType write fComponentType default TComponentType.None;
                             property BufferView:TPasGLTFUInt32 read fBufferView write fBufferView default 0;
                             property ByteOffset:TPasGLTFUInt32 read fByteOffset write fByteOffset default 0;
-                            property Extensions:TPasJSONItemObject read fExtensions;
                             property Empty:boolean read fEmpty;
                           end;
-                          TValues=class
+                          TValues=class(TBaseExtensionsExtrasObject)
                            private
                             fBufferView:TPasGLTFUInt32;
                             fByteOffset:TPasGLTFUInt32;
-                            fExtensions:TPasJSONItemObject;
                             fEmpty:boolean;
                            public
-                            constructor Create; reintroduce;
+                            constructor Create; override;
                             destructor Destroy; override;
                            published
                             property BufferView:TPasGLTFUInt32 read fBufferView write fBufferView default 0;
                             property ByteOffset:TPasGLTFUInt32 read fByteOffset write fByteOffset default 0;
-                            property Extensions:TPasJSONItemObject read fExtensions;
                             property Empty:boolean read fEmpty;
                           end;
                     private
                      fCount:TPasGLTFInt32;
                      fIndices:TIndices;
                      fValues:TValues;
-                     fExtensions:TPasJSONItemObject;
                      function GetEmpty:boolean;
                     public
-                     constructor Create; reintroduce;
+                     constructor Create; override;
                      destructor Destroy; override;
                     published
                      property Count:TPasGLTFInt32 read fCount write fCount default 0;
                      property Indices:TIndices read fIndices;
                      property Values:TValues read fValues;
-                     property Extensions:TPasJSONItemObject read fExtensions;
                      property Empty:boolean read GetEmpty;
                    end;
              private
@@ -610,9 +615,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fMinArray:TPasGLTFFloatDynamicArray;
               fMaxArray:TPasGLTFFloatDynamicArray;
               fSparse:TSparse;
-              fExtensions:TPasJSONItemObject;
              public
-              constructor Create; reintroduce;
+              constructor Create; override;
               destructor Destroy; override;
              public
               property MinArray:TPasGLTFFloatDynamicArray read fMinArray write fMinArray;
@@ -625,42 +629,37 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Count:TPasGLTFUInt32 read fCount write fCount default 0;
               property Normalized:boolean read fNormalized write fNormalized default false;
               property Sparse:TSparse read fSparse;
-              property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TAccessors=TObjectList<TAccessor>;
-            TAnimation=class
+            TAnimation=class(TBaseExtensionsExtrasObject)
              public
-              type TChannel=class
+              type TChannel=class(TBaseExtensionsExtrasObject)
                     public
-                     type TTarget=class
+                     type TTarget=class(TBaseExtensionsExtrasObject)
                            private
                             fNode:TPasGLTFInt32;
                             fPath:TPasGLTFUTF8String;
-                            fExtensions:TPasJSONItemObject;
                             fEmpty:boolean;
                            public
-                            constructor Create; reintroduce;
+                            constructor Create; override;
                             destructor Destroy; override;
                            published
                             property Node:TPasGLTFInt32 read fNode write fNode default -1;
                             property Path:TPasGLTFUTF8String read fPath write fPath;
-                            property Extensions:TPasJSONItemObject read fExtensions;
                             property Empty:boolean read fEmpty;
                           end;
                     private
                      fSampler:TPasGLTFInt32;
                      fTarget:TTarget;
-                     fExtensions:TPasJSONItemObject;
                     public
-                     constructor Create; reintroduce;
+                     constructor Create; override;
                      destructor Destroy; override;
                     published
                      property Sampler:TPasGLTFInt32 read fSampler write fSampler default -1;
                      property Target:TTarget read fTarget;
-                     property Extensions:TPasJSONItemObject read fExtensions;
                    end;
                    TChannels=TObjectList<TChannel>;
-                   TSampler=class
+                   TSampler=class(TBaseExtensionsExtrasObject)
                     public
                      type TType=
                            (
@@ -673,65 +672,58 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      fInput:TPasGLTFInt32;
                      fOutput:TPasGLTFInt32;
                      fInterpolation:TType;
-                     fExtensions:TPasJSONItemObject;
                     public
-                     constructor Create; reintroduce;
+                     constructor Create; override;
                      destructor Destroy; override;
                     published
                      property Input:TPasGLTFInt32 read fInput write fInput default -1;
                      property Output:TPasGLTFInt32 read fOutput write fOutput default -1;
                      property Interpolation:TType read fInterpolation write fInterpolation default TType.Linear;
-                     property Extensions:TPasJSONItemObject read fExtensions;
                    end;
                    TSamplers=TObjectList<TSampler>;
              private
               fName:TPasGLTFUTF8String;
               fChannels:TChannels;
               fSamplers:TSamplers;
-              fExtensions:TPasJSONItemObject;
              public
-              constructor Create; reintroduce;
+              constructor Create; override;
               destructor Destroy; override;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
               property Channels:TChannels read fChannels;
               property Samplers:TSamplers read fSamplers;
-              property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TAnimations=TObjectList<TAnimation>;
-            TAsset=class
+            TAsset=class(TBaseExtensionsExtrasObject)
              private
               fCopyright:TPasGLTFUTF8String;
               fGenerator:TPasGLTFUTF8String;
               fMinVersion:TPasGLTFUTF8String;
               fVersion:TPasGLTFUTF8String;
-              fExtensions:TPasJSONItemObject;
               fEmpty:boolean;
              public
-              constructor Create; reintroduce;
+              constructor Create; override;
               destructor Destroy; override;
              published
               property Copyright:TPasGLTFUTF8String read fCopyright write fCopyright;
               property Generator:TPasGLTFUTF8String read fGenerator write fGenerator;
               property MinVersion:TPasGLTFUTF8String read fMinVersion write fMinVersion;
               property Version:TPasGLTFUTF8String read fVersion write fVersion;
-              property Extensions:TPasJSONItemObject read fExtensions;
               property Empty:boolean read fEmpty;
             end;
-            TBuffer=class
+            TBuffer=class(TBaseExtensionsExtrasObject)
              private
               fByteLength:TPasGLTFUInt32;
               fName:TPasGLTFUTF8String;
               fURI:TPasGLTFUTF8String;
               fData:TMemoryStream;
-              fExtensions:TPasJSONItemObject;
               fEmbeddedResource:boolean;
               function GetEmbeddedResource:boolean;
               procedure SetEmbeddedResource(const aEmbeddedResource:boolean);
               function GetURI:TPasGLTFUTF8String;
               procedure SetURI(const aURI:TPasGLTFUTF8String);
              public
-              constructor Create; reintroduce;
+              constructor Create; override;
               destructor Destroy; override;
              published
               property ByteLength:TPasGLTFUInt32 read fByteLength write fByteLength;
@@ -739,10 +731,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property URI:TPasGLTFUTF8String read GetURI write SetURI;
               property Data:TMemoryStream read fData write fData;
               property EmbeddedResource:boolean read GetEmbeddedResource write SetEmbeddedResource;
-              property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TBuffers=TObjectList<TBuffer>;
-            TBufferView=class
+            TBufferView=class(TBaseExtensionsExtrasObject)
              public
               type TTargetType=
                     (
@@ -758,9 +749,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fByteLength:TPasGLTFUInt32;
               fByteStride:TPasGLTFUInt32;
               fTarget:TTargetType;
-              fExtensions:TPasJSONItemObject;
              public
-              constructor Create; reintroduce;
+              constructor Create; override;
               destructor Destroy; override;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
@@ -769,10 +759,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property ByteLength:TPasGLTFUInt32 read fByteLength write fByteLength;
               property ByteStride:TPasGLTFUInt32 read fByteStride write fByteStride;
               property Target:TTargetType read fTarget write fTarget default TTargetType.None;
-              property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TBufferViews=TObjectList<TBufferView>;
-            TCamera=class
+            TCamera=class(TBaseExtensionsExtrasObject)
              public
               type TType=
                     (
@@ -780,73 +769,66 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      Orthographic=1,
                      Perspective=2
                     );
-                   TOrthographic=class
+                   TOrthographic=class(TBaseExtensionsExtrasObject)
                     private
                      fXMag:TPasGLTFFloat;
                      fYMag:TPasGLTFFloat;
                      fZNear:TPasGLTFFloat;
                      fZFar:TPasGLTFFloat;
-                     fExtensions:TPasJSONItemObject;
                      fEmpty:boolean;
                     public
-                     constructor Create; reintroduce;
+                     constructor Create; override;
                      destructor Destroy; override;
                     published
                      property XMag:TPasGLTFFloat read fXMag write fXMag;
                      property YMag:TPasGLTFFloat read fYMag write fYMag;
                      property ZNear:TPasGLTFFloat read fZNear write fZNear;
                      property ZFar:TPasGLTFFloat read fZFar write fZFar;
-                     property Extensions:TPasJSONItemObject read fExtensions;
                      property Empty:boolean read fEmpty;
                    end;
-                   TPerspective=class
+                   TPerspective=class(TBaseExtensionsExtrasObject)
                     private
                      fAspectRatio:TPasGLTFFloat;
                      fYFov:TPasGLTFFloat;
                      fZNear:TPasGLTFFloat;
                      fZFar:TPasGLTFFloat;
-                     fExtensions:TPasJSONItemObject;
                      fEmpty:boolean;
                     public
-                     constructor Create; reintroduce;
+                     constructor Create; override;
                      destructor Destroy; override;
                     published
                      property AspectRatio:TPasGLTFFloat read fAspectRatio write fAspectRatio;
                      property YFov:TPasGLTFFloat read fYFov write fYFov;
                      property ZNear:TPasGLTFFloat read fZNear write fZNear;
                      property ZFar:TPasGLTFFloat read fZFar write fZFar;
-                     property Extensions:TPasJSONItemObject read fExtensions;
                      property Empty:boolean read fEmpty;
                    end;
              private
               fType:TType;
               fOrthographic:TOrthographic;
               fPerspective:TPerspective;
-              fExtensions:TPasJSONItemObject;
              public
-              constructor Create; reintroduce;
+              constructor Create; override;
               destructor Destroy; override;
              published
               property Type_:TType read fType write fType;
               property Orthographic:TOrthographic read fOrthographic;
               property Perspective:TPerspective read fPerspective;
-              property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TCameras=TObjectList<TCamera>;
-            TImage=class
+            TImage=class(TBaseExtensionsExtrasObject)
              private
               fBufferView:TPasGLTFInt32;
               fName:TPasGLTFUTF8String;
               fURI:TPasGLTFUTF8String;
               fMimeType:TPasGLTFUTF8String;
-              fExtensions:TPasJSONItemObject;
               fEmbeddedResource:boolean;
               function GetEmbeddedResource:boolean;
               procedure SetEmbeddedResource(const aEmbeddedResource:boolean);
               function GetURI:TPasGLTFUTF8String;
               procedure SetURI(const aURI:TPasGLTFUTF8String);
              public
-              constructor Create; reintroduce;
+              constructor Create; override;
               destructor Destroy; override;
               function GetEmbeddedResourceData(const aStream:TStream):boolean;
               procedure SetEmbeddedResourceData(const aStream:TStream);
@@ -855,11 +837,10 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Name:TPasGLTFUTF8String read fName write fName;
               property URI:TPasGLTFUTF8String read GetURI write SetURI;
               property MimeType:TPasGLTFUTF8String read fMimeType write fMimeType;
-              property Extensions:TPasJSONItemObject read fExtensions;
               property EmbeddedResource:boolean read GetEmbeddedResource write SetEmbeddedResource;
             end;
             TImages=TObjectList<TImage>;
-            TMaterial=class
+            TMaterial=class(TBaseExtensionsExtrasObject)
              public
               type TAlphaMode=
                     (
@@ -868,17 +849,15 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      Blend=2
                     );
                    PAlphaMode=^TAlphaMode;
-                   TTexture=class
+                   TTexture=class(TBaseExtensionsExtrasObject)
                     private
                      fIndex:TPasGLTFInt32;
                      fTexCoord:TPasGLTFInt32;
-                     fExtensions:TPasJSONItemObject;
                      function GetEmpty:boolean;
                     public
-                     constructor Create; reintroduce; virtual;
+                     constructor Create; override;
                      destructor Destroy; override;
                     published
-                     property Extensions:TPasJSONItemObject read fExtensions;
                      property Empty:boolean read GetEmpty;
                    end;
                    TNormalTexture=class(TTexture)
@@ -897,17 +876,16 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     published
                      property Strength:TPasGLTFFloat read fStrength write fStrength;
                    end;
-                   TPBRMetallicRoughness=class
+                   TPBRMetallicRoughness=class(TBaseExtensionsExtrasObject)
                     private
                      fBaseColorFactor:TVector4;
                      fBaseColorTexture:TTexture;
                      fRoughnessFactor:TPasGLTFFloat;
                      fMetallicFactor:TPasGLTFFloat;
                      fMetallicRoughnessTexture:TTexture;
-                     fExtensions:TPasJSONItemObject;
                      function GetEmpty:boolean;
                     public
-                     constructor Create; reintroduce;
+                     constructor Create; override;
                      destructor Destroy; override;
                     public
                      property BaseColorFactor:TVector4 read fBaseColorFactor write fBaseColorFactor;
@@ -916,7 +894,6 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      property RoughnessFactor:TPasGLTFFloat read fRoughnessFactor write fRoughnessFactor;
                      property MetallicFactor:TPasGLTFFloat read fMetallicFactor write fMetallicFactor;
                      property MetallicRoughnessTexture:TTexture read fMetallicRoughnessTexture;
-                     property Extensions:TPasJSONItemObject read fExtensions;
                      property Empty:boolean read GetEmpty;
                    end;
              private
@@ -929,9 +906,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fPBRMetallicRoughness:TPBRMetallicRoughness;
               fEmissiveTexture:TTexture;
               fEmissiveFactor:TVector3;
-              fExtensions:TPasJSONItemObject;
              public
-              constructor Create; reintroduce;
+              constructor Create; override;
               destructor Destroy; override;
              public
               property EmissiveFactor:TVector3 read fEmissiveFactor write fEmissiveFactor;
@@ -944,12 +920,11 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property OcclusionTexture:TOcclusionTexture read fOcclusionTexture;
               property PBRMetallicRoughness:TPBRMetallicRoughness read fPBRMetallicRoughness;
               property EmissiveTexture:TTexture read fEmissiveTexture;
-              property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TMaterials=TObjectList<TMaterial>;
-            TMesh=class
+            TMesh=class(TBaseExtensionsExtrasObject)
              public
-              type TPrimitive=class
+              type TPrimitive=class(TBaseExtensionsExtrasObject)
                     public
                      type TMode=
                            (
@@ -968,9 +943,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      fMaterial:TPasGLTFInt32;
                      fAttributes:TAttributes;
                      fTargets:TAttributesList;
-                     fExtensions:TPasJSONItemObject;
                     public
-                     constructor Create; reintroduce;
+                     constructor Create; override;
                      destructor Destroy; override;
                     published
                      property Mode:TMode read fMode write fMode;
@@ -978,7 +952,6 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      property Material:TPasGLTFInt32 read fMaterial write fMaterial;
                      property Attributes:TAttributes read fAttributes;
                      property Targets:TAttributesList read fTargets;
-                     property Extensions:TPasJSONItemObject read fExtensions;
                    end;
                    TPrimitives=TObjectList<TPrimitive>;
                    TWeights=TList<TPasGLTFFloat>;
@@ -986,19 +959,17 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fName:TPasGLTFUTF8String;
               fWeights:TWeights;
               fPrimitives:TPrimitives;
-              fExtensions:TPasJSONItemObject;
              public
-              constructor Create; reintroduce;
+              constructor Create; override;
               destructor Destroy; override;
              public
              published
               property Name:TPasGLTFUTF8String read fName write fName;
               property Weights:TWeights read fWeights;
               property Primitives:TPrimitives read fPrimitives;
-              property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TMeshs=TObjectList<TMesh>;
-            TNode=class
+            TNode=class(TBaseExtensionsExtrasObject)
              public
               type TChildren=TList<TPasGLTFInt32>;
                    TWeights=TList<TPasGLTFFloat>;
@@ -1013,9 +984,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fTranslation:TVector3;
               fChildren:TChildren;
               fWeights:TWeights;
-              fExtensions:TPasJSONItemObject;
              public
-              constructor Create; reintroduce;
+              constructor Create; override;
               destructor Destroy; override;
              public
               property Matrix:TMatrix read fMatrix write fMatrix;
@@ -1029,8 +999,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Skin:TPasGLTFInt32 read fSkin write fSkin;
               property Children:TChildren read fChildren;
               property Weights:TWeights read fWeights;
-              property Extensions:TPasJSONItemObject read fExtensions;
             end;
+            TNodes=TObjectList<TNode>;
       public
 
      end;
@@ -1152,6 +1122,22 @@ begin
  end;
 end;
 
+{ TPasGLTF.TBaseExtensionsExtrasObject }
+
+constructor TPasGLTF.TBaseExtensionsExtrasObject.Create;
+begin
+ inherited Create;
+ fExtensions:=TPasJSONItemObject.Create;
+ fExtras:=TPasJSONItemObject.Create;
+end;
+
+destructor TPasGLTF.TBaseExtensionsExtrasObject.Destroy;
+begin
+ FreeAndNil(fExtensions);
+ FreeAndNil(fExtras);
+ inherited Destroy;
+end;
+
 { TPasGLTF.TAccessor.TSparse.TIndices }
 
 constructor TPasGLTF.TAccessor.TSparse.TIndices.Create;
@@ -1160,13 +1146,11 @@ begin
  fComponentType:=TComponentType.None;
  fBufferView:=0;
  fByteOffset:=0;
- fExtensions:=TPasJSONItemObject.Create;
  fEmpty:=false;
 end;
 
 destructor TPasGLTF.TAccessor.TSparse.TIndices.Destroy;
 begin
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1177,13 +1161,11 @@ begin
  inherited Create;
  fBufferView:=0;
  fByteOffset:=0;
- fExtensions:=TPasJSONItemObject.Create;
  fEmpty:=false;
 end;
 
 destructor TPasGLTF.TAccessor.TSparse.TValues.Destroy;
 begin
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1195,14 +1177,12 @@ begin
  fCount:=0;
  fIndices:=TIndices.Create;
  fValues:=TValues.Create;
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TAccessor.TSparse.Destroy;
 begin
  FreeAndNil(fIndices);
  FreeAndNil(fValues);
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1225,7 +1205,6 @@ begin
  fMinArray:=nil;
  fMaxArray:=nil;
  fSparse:=TSparse.Create;
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TAccessor.Destroy;
@@ -1233,7 +1212,6 @@ begin
  fMinArray:=nil;
  fMaxArray:=nil;
  FreeAndNil(fSparse);
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1244,13 +1222,11 @@ begin
  inherited Create;
  fNode:=-1;
  fPath:='';
- fExtensions:=TPasJSONItemObject.Create;
  fEmpty:=false;
 end;
 
 destructor TPasGLTF.TAnimation.TChannel.TTarget.Destroy;
 begin
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1261,13 +1237,11 @@ begin
  inherited Create;
  fSampler:=-1;
  fTarget:=TTarget.Create;
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TAnimation.TChannel.Destroy;
 begin
  FreeAndNil(fTarget);
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1279,12 +1253,10 @@ begin
  fInput:=-1;
  fOutput:=-1;
  fInterpolation:=TType.Linear;
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TAnimation.TSampler.Destroy;
 begin
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1296,14 +1268,12 @@ begin
  fName:='';
  fChannels:=TChannels.Create(true);
  fSamplers:=TSamplers.Create(true);
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TAnimation.Destroy;
 begin
  FreeAndNil(fChannels);
  FreeAndNil(fSamplers);
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1316,13 +1286,11 @@ begin
  fGenerator:='';
  fMinVersion:='';
  fVersion:='2.0';
- fExtensions:=TPasJSONItemObject.Create;
  fEmpty:=false;
 end;
 
 destructor TPasGLTF.TAsset.Destroy;
 begin
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1335,14 +1303,12 @@ begin
  fName:='';
  fURI:='';
  fData:=TMemoryStream.Create;
- fExtensions:=TPasJSONItemObject.Create;
  fEmbeddedResource:=false;
 end;
 
 destructor TPasGLTF.TBuffer.Destroy;
 begin
  FreeAndNil(fData);
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1396,12 +1362,10 @@ begin
  fByteLength:=0;
  fByteStride:=0;
  fTarget:=TTargetType.None;
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TBufferView.Destroy;
 begin
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1414,13 +1378,11 @@ begin
  fYMag:=TDefaults.FloatSentinel;
  fZNear:=-TDefaults.FloatSentinel;
  fZFar:=-TDefaults.FloatSentinel;
- fExtensions:=TPasJSONItemObject.Create;
  fEmpty:=false;
 end;
 
 destructor TPasGLTF.TCamera.TOrthographic.Destroy;
 begin
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1433,13 +1395,11 @@ begin
  fYFov:=0.0;
  fZNear:=0.0;
  fZFar:=0.0;
- fExtensions:=TPasJSONItemObject.Create;
  fEmpty:=false;
 end;
 
 destructor TPasGLTF.TCamera.TPerspective.Destroy;
 begin
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1451,14 +1411,12 @@ begin
  fType:=TType.None;
  fOrthographic:=TOrthographic.Create;
  fPerspective:=TPerspective.Create;
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TCamera.Destroy;
 begin
  FreeAndNil(fOrthographic);
  FreeAndNil(fPerspective);
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1471,13 +1429,11 @@ begin
  fName:='';
  fURI:='';
  fMimeType:='';
- fExtensions:=TPasJSONItemObject.Create;
  fEmbeddedResource:=false;
 end;
 
 destructor TPasGLTF.TImage.Destroy;
 begin
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1540,12 +1496,10 @@ begin
  inherited Create;
  fIndex:=-1;
  fTexCoord:=0;
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TMaterial.TTexture.Destroy;
 begin
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1580,14 +1534,12 @@ begin
  fRoughnessFactor:=TDefaults.IdentityScalar;
  fMetallicFactor:=TDefaults.IdentityScalar;
  fMetallicRoughnessTexture:=TTexture.Create;
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TMaterial.TPBRMetallicRoughness.Destroy;
 begin
  FreeAndNil(fBaseColorTexture);
  FreeAndNil(fMetallicRoughnessTexture);
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1613,7 +1565,6 @@ begin
  fPBRMetallicRoughness:=TPBRMetallicRoughness.Create;
  fEmissiveTexture:=TTexture.Create;
  fEmissiveFactor:=TDefaults.NullVector3;
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TMaterial.Destroy;
@@ -1622,7 +1573,6 @@ begin
  FreeAndNil(fOcclusionTexture);
  FreeAndNil(fPBRMetallicRoughness);
  FreeAndNil(fEmissiveTexture);
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1636,14 +1586,12 @@ begin
  fMaterial:=-1;
  fAttributes:=TAttributes.Create;
  fTargets:=TAttributesList.Create;
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TMesh.TPrimitive.Destroy;
 begin
  FreeAndNil(fAttributes);
  FreeAndNil(fTargets);
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1655,14 +1603,12 @@ begin
  fName:='';
  fWeights:=TWeights.Create;
  fPrimitives:=TPrimitives.Create(true);
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TMesh.Destroy;
 begin
  FreeAndNil(fWeights);
  FreeAndNil(fPrimitives);
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
@@ -1681,14 +1627,12 @@ begin
  fTranslation:=TDefaults.NullVector3;
  fChildren:=TChildren.Create;
  fWeights:=TWeights.Create;
- fExtensions:=TPasJSONItemObject.Create;
 end;
 
 destructor TPasGLTF.TNode.Destroy;
 begin
  FreeAndNil(fChildren);
  FreeAndNil(fWeights);
- FreeAndNil(fExtensions);
  inherited Destroy;
 end;
 
