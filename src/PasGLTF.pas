@@ -1061,6 +1061,24 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Nodes:TScene.TNodes read fNodes;
             end;
             TScenes=TObjectList<TScene>;
+            TSkin=class(TBaseExtensionsExtrasObject)
+             public
+              type TJoints=TList<TPasGLTFUInt32>;
+             private
+              fName:TPasGLTFUTF8String;
+              fInverseBindMatrices:TPasGLTFInt32;
+              fSkeleton:TPasGLTFInt32;
+              fJoints:TSkin.TJoints;
+             public
+              constructor Create; override;
+              destructor Destroy; override;
+             published
+              property Name:TPasGLTFUTF8String read fName write fName;
+              property InverseBindMatrices:TPasGLTFInt32 read fInverseBindMatrices write fInverseBindMatrices;
+              property Skeleton:TPasGLTFInt32 read fSkeleton write fSkeleton;
+              property Joints:TSkin.TJoints read fJoints;
+            end;
+            TSkins=TObjectList<TSkin>;
       public
 
      end;
@@ -1734,6 +1752,23 @@ end;
 destructor TPasGLTF.TScene.Destroy;
 begin
  FreeAndNil(fNodes);
+ inherited Destroy;
+end;
+
+{ TPasGLTF.TSkin }
+
+constructor TPasGLTF.TSkin.Create;
+begin
+ inherited Create;
+ fName:='';
+ fInverseBindMatrices:=-1;
+ fSkeleton:=-1;
+ fJoints:=TPasGLTF.TSkin.TJoints.Create;
+end;
+
+destructor TPasGLTF.TSkin.Destroy;
+begin
+ FreeAndNil(fJoints);
  inherited Destroy;
 end;
 
