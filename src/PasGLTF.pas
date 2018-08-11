@@ -295,7 +295,6 @@ interface
 uses SysUtils,
      Classes,
      Math,
-     Generics.Collections,
      PasJSON;
 
 type PPPasGLTFInt8=^PPasGLTFInt8;
@@ -515,6 +514,114 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
        property OwnsObjects:boolean read fOwnsObjects write fOwnsObjects;
      end;
 
+     TPasGLTFHashMapEntityIndices=array of TPasGLTFInt32;
+
+     TPasGLTFHashMapUInt128=array[0..1] of TPasGLTFUInt64;
+
+     TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>=class
+      public
+       const CELL_EMPTY=-1;
+             CELL_DELETED=-2;
+             ENT_EMPTY=-1;
+             ENT_DELETED=-2;
+       type TPasGLTFHashMapKey=TPasGLTFUTF8String;
+            PPasGLTFHashMapEntity=^TPasGLTFHashMapEntity;
+            TPasGLTFHashMapEntity=record
+             Key:TPasGLTFHashMapKey;
+             Value:TPasGLTFHashMapValue;
+            end;
+            TPasGLTFHashMapEntities=array of TPasGLTFHashMapEntity;
+      private
+       type TPasGLTFHashMapEntityEnumerator=record
+             private
+              fHashMap:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>;
+              fIndex:TPasGLTFSizeInt;
+              function GetCurrent:TPasGLTFHashMapEntity; inline;
+             public
+              constructor Create(const aHashMap:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+              function MoveNext:boolean; inline;
+              property Current:TPasGLTFHashMapEntity read GetCurrent;
+            end;
+            TPasGLTFHashMapKeyEnumerator=record
+             private
+              fHashMap:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>;
+              fIndex:TPasGLTFSizeInt;
+              function GetCurrent:TPasGLTFHashMapKey; inline;
+             public
+              constructor Create(const aHashMap:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+              function MoveNext:boolean; inline;
+              property Current:TPasGLTFHashMapKey read GetCurrent;
+            end;
+            TPasGLTFHashMapValueEnumerator=record
+             private
+              fHashMap:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>;
+              fIndex:TPasGLTFSizeInt;
+              function GetCurrent:TPasGLTFHashMapValue; inline;
+             public
+              constructor Create(const aHashMap:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+              function MoveNext:boolean; inline;
+              property Current:TPasGLTFHashMapValue read GetCurrent;
+            end;
+            TPasGLTFHashMapEntitiesObject=class
+             private
+              fOwner:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>;
+             public
+              constructor Create(const aOwner:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+              function GetEnumerator:TPasGLTFHashMapEntityEnumerator;
+            end;
+            TPasGLTFHashMapKeysObject=class
+             private
+              fOwner:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>;
+             public
+              constructor Create(const aOwner:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+              function GetEnumerator:TPasGLTFHashMapKeyEnumerator;
+            end;
+            TPasGLTFHashMapValuesObject=class
+             private
+              fOwner:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>;
+              function GetValue(const Key:TPasGLTFHashMapKey):TPasGLTFHashMapValue; inline;
+              procedure SetValue(const Key:TPasGLTFHashMapKey;const aValue:TPasGLTFHashMapValue); inline;
+             public
+              constructor Create(const aOwner:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+              function GetEnumerator:TPasGLTFHashMapValueEnumerator;
+              property Values[const Key:TPasGLTFHashMapKey]:TPasGLTFHashMapValue read GetValue write SetValue; default;
+            end;
+      private
+       fRealSize:TPasGLTFInt32;
+       fLogSize:TPasGLTFInt32;
+       fSize:TPasGLTFInt32;
+       fEntities:TPasGLTFHashMapEntities;
+       fEntityToCellIndex:TPasGLTFHashMapEntityIndices;
+       fCellToEntityIndex:TPasGLTFHashMapEntityIndices;
+       fDefaultValue:TPasGLTFHashMapValue;
+       fCanShrink:boolean;
+       fEntitiesObject:TPasGLTFHashMapEntitiesObject;
+       fKeysObject:TPasGLTFHashMapKeysObject;
+       fValuesObject:TPasGLTFHashMapValuesObject;
+       function HashData(const Data:TPasGLTFPointer;const DataLength:TPasGLTFUInt32):TPasGLTFUInt32;
+       function HashKey(const Key:TPasGLTFHashMapKey):TPasGLTFUInt32;
+       function CompareKey(const KeyA,KeyB:TPasGLTFHashMapKey):boolean;
+       function FindCell(const Key:TPasGLTFHashMapKey):TPasGLTFUInt32;
+       procedure Resize;
+      protected
+       function GetValue(const Key:TPasGLTFHashMapKey):TPasGLTFHashMapValue;
+       procedure SetValue(const Key:TPasGLTFHashMapKey;const Value:TPasGLTFHashMapValue);
+      public
+       constructor Create(const DefaultValue:TPasGLTFHashMapValue);
+       destructor Destroy; override;
+       procedure Clear;
+       function Add(const Key:TPasGLTFHashMapKey;const Value:TPasGLTFHashMapValue):PPasGLTFHashMapEntity;
+       function Get(const Key:TPasGLTFHashMapKey;const CreateIfNotExist:boolean=false):PPasGLTFHashMapEntity;
+       function TryGet(const Key:TPasGLTFHashMapKey;out Value:TPasGLTFHashMapValue):boolean;
+       function ExistKey(const Key:TPasGLTFHashMapKey):boolean;
+       function Delete(const Key:TPasGLTFHashMapKey):boolean;
+       property EntityValues[const Key:TPasGLTFHashMapKey]:TPasGLTFHashMapValue read GetValue write SetValue; default;
+       property Entities:TPasGLTFHashMapEntitiesObject read fEntitiesObject;
+       property Keys:TPasGLTFHashMapKeysObject read fKeysObject;
+       property Values:TPasGLTFHashMapValuesObject read fValuesObject;
+       property CanShrink:boolean read fCanShrink write fCanShrink;
+     end;
+
      TPasGLTF=class
       public
        type TBase64=class
@@ -602,7 +709,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Extensions:TPasJSONItemObject read fExtensions;
               property Extras:TPasJSONItemObject read fExtras;
             end;
-            TAttributes=TDictionary<TPasGLTFUTF8String,TPasGLTFUInt32>;
+            TAttributes=TPasGLTFUTF8StringHashMap<TPasGLTFUInt32>;
             TAttributesList=TPasGLTFObjectList<TAttributes>;
             TAccessor=class(TBaseExtensionsExtrasObject)
              public
@@ -1550,6 +1657,464 @@ begin
  result:=TValueEnumerator.Create(self);
 end;
 
+constructor TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapEntityEnumerator.Create(const aHashMap:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+begin
+ fHashMap:=aHashMap;
+ fIndex:=-1;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapEntityEnumerator.GetCurrent:TPasGLTFHashMapEntity;
+begin
+ result:=fHashMap.fEntities[fIndex];
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapEntityEnumerator.MoveNext:boolean;
+begin
+ repeat
+  inc(fIndex);
+  if fIndex<fHashMap.fSize then begin
+   if fHashMap.fEntityToCellIndex[fIndex]<>CELL_EMPTY then begin
+    result:=true;
+    exit;
+   end;
+  end else begin
+   break;
+  end;
+ until false;
+ result:=false;
+end;
+
+constructor TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapKeyEnumerator.Create(const aHashMap:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+begin
+ fHashMap:=aHashMap;
+ fIndex:=-1;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapKeyEnumerator.GetCurrent:TPasGLTFHashMapKey;
+begin
+ result:=fHashMap.fEntities[fIndex].Key;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapKeyEnumerator.MoveNext:boolean;
+begin
+ repeat
+  inc(fIndex);
+  if fIndex<fHashMap.fSize then begin
+   if fHashMap.fEntityToCellIndex[fIndex]<>CELL_EMPTY then begin
+    result:=true;
+    exit;
+   end;
+  end else begin
+   break;
+  end;
+ until false;
+ result:=false;
+end;
+
+constructor TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapValueEnumerator.Create(const aHashMap:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+begin
+ fHashMap:=aHashMap;
+ fIndex:=-1;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapValueEnumerator.GetCurrent:TPasGLTFHashMapValue;
+begin
+ result:=fHashMap.fEntities[fIndex].Value;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapValueEnumerator.MoveNext:boolean;
+begin
+ repeat
+  inc(fIndex);
+  if fIndex<fHashMap.fSize then begin
+   if fHashMap.fEntityToCellIndex[fIndex]<>CELL_EMPTY then begin
+    result:=true;
+    exit;
+   end;
+  end else begin
+   break;
+  end;
+ until false;
+ result:=false;
+end;
+
+constructor TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapEntitiesObject.Create(const aOwner:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+begin
+ inherited Create;
+ fOwner:=aOwner;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapEntitiesObject.GetEnumerator:TPasGLTFHashMapEntityEnumerator;
+begin
+ result:=TPasGLTFHashMapEntityEnumerator.Create(fOwner);
+end;
+
+constructor TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapKeysObject.Create(const aOwner:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+begin
+ inherited Create;
+ fOwner:=aOwner;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapKeysObject.GetEnumerator:TPasGLTFHashMapKeyEnumerator;
+begin
+ result:=TPasGLTFHashMapKeyEnumerator.Create(fOwner);
+end;
+
+constructor TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapValuesObject.Create(const aOwner:TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>);
+begin
+ inherited Create;
+ fOwner:=aOwner;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapValuesObject.GetEnumerator:TPasGLTFHashMapValueEnumerator;
+begin
+ result:=TPasGLTFHashMapValueEnumerator.Create(fOwner);
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapValuesObject.GetValue(const Key:TPasGLTFHashMapKey):TPasGLTFHashMapValue;
+begin
+ result:=fOwner.GetValue(Key);
+end;
+
+procedure TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TPasGLTFHashMapValuesObject.SetValue(const Key:TPasGLTFHashMapKey;const aValue:TPasGLTFHashMapValue);
+begin
+ fOwner.SetValue(Key,aValue);
+end;
+
+constructor TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.Create(const DefaultValue:TPasGLTFHashMapValue);
+begin
+ inherited Create;
+ fRealSize:=0;
+ fLogSize:=0;
+ fSize:=0;
+ fEntities:=nil;
+ fEntityToCellIndex:=nil;
+ fCellToEntityIndex:=nil;
+ fDefaultValue:=DefaultValue;
+ fCanShrink:=true;
+ fEntitiesObject:=TPasGLTFHashMapEntitiesObject.Create(self);
+ fKeysObject:=TPasGLTFHashMapKeysObject.Create(self);
+ fValuesObject:=TPasGLTFHashMapValuesObject.Create(self);
+ Resize;
+end;
+
+destructor TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.Destroy;
+var Counter:TPasGLTFInt32;
+begin
+ Clear;
+ for Counter:=0 to length(fEntities)-1 do begin
+  Finalize(fEntities[Counter].Key);
+  Finalize(fEntities[Counter].Value);
+ end;
+ SetLength(fEntities,0);
+ SetLength(fEntityToCellIndex,0);
+ SetLength(fCellToEntityIndex,0);
+ FreeAndNil(fEntitiesObject);
+ FreeAndNil(fKeysObject);
+ FreeAndNil(fValuesObject);
+ inherited Destroy;
+end;
+
+procedure TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.Clear;
+var Counter:TPasGLTFInt32;
+begin
+ for Counter:=0 to length(fEntities)-1 do begin
+  Finalize(fEntities[Counter].Key);
+  Finalize(fEntities[Counter].Value);
+ end;
+ if fCanShrink then begin
+  fRealSize:=0;
+  fLogSize:=0;
+  fSize:=0;
+  SetLength(fEntities,0);
+  SetLength(fEntityToCellIndex,0);
+  SetLength(fCellToEntityIndex,0);
+  Resize;
+ end else begin
+  for Counter:=0 to length(fCellToEntityIndex)-1 do begin
+   fCellToEntityIndex[Counter]:=ENT_EMPTY;
+  end;
+  for Counter:=0 to length(fEntityToCellIndex)-1 do begin
+   fEntityToCellIndex[Counter]:=CELL_EMPTY;
+  end;
+ end;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.HashData(const Data:TPasGLTFPointer;const DataLength:TPasGLTFUInt32):TPasGLTFUInt32;
+// xxHash32
+const PRIME32_1=TPasGLTFUInt32(2654435761);
+      PRIME32_2=TPasGLTFUInt32(2246822519);
+      PRIME32_3=TPasGLTFUInt32(3266489917);
+      PRIME32_4=TPasGLTFUInt32(668265263);
+      PRIME32_5=TPasGLTFUInt32(374761393);
+      Seed=TPasGLTFUInt32($1337c0d3);
+      v1Initialization=TPasGLTFUInt32(TPasGLTFUInt64(TPasGLTFUInt64(Seed)+TPasGLTFUInt64(PRIME32_1)+TPasGLTFUInt64(PRIME32_2)));
+      v2Initialization=TPasGLTFUInt32(TPasGLTFUInt64(TPasGLTFUInt64(Seed)+TPasGLTFUInt64(PRIME32_2)));
+      v3Initialization=TPasGLTFUInt32(TPasGLTFUInt64(TPasGLTFUInt64(Seed)+TPasGLTFUInt64(0)));
+      v4Initialization=TPasGLTFUInt32(TPasGLTFUInt64(TPasGLTFInt64(TPasGLTFInt64(Seed)-TPasGLTFInt64(PRIME32_1))));
+      HashInitialization=TPasGLTFUInt32(TPasGLTFUInt64(TPasGLTFUInt64(Seed)+TPasGLTFUInt64(PRIME32_5)));
+var v1,v2,v3,v4:TPasGLTFUInt32;
+    p,e,Limit:PPasGLTFUInt8;
+begin
+ p:=Data;
+ if DataLength>=16 then begin
+  v1:=v1Initialization;
+  v2:=v2Initialization;
+  v3:=v3Initialization;
+  v4:=v4Initialization;
+  e:=@PPasGLTFUInt8Array(Data)^[DataLength-16];
+  repeat
+{$if defined(fpc) or declared(ROLDWord)}
+   v1:=ROLDWord(v1+(TPasGLTFUInt32(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_2)),13)*TPasGLTFUInt32(PRIME32_1);
+{$else}
+   inc(v1,TPasGLTFUInt32(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_2));
+   v1:=((v1 shl 13) or (v1 shr 19))*TPasGLTFUInt32(PRIME32_1);
+{$ifend}
+   inc(p,SizeOf(TPasGLTFUInt32));
+{$if defined(fpc) or declared(ROLDWord)}
+   v2:=ROLDWord(v2+(TPasGLTFUInt32(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_2)),13)*TPasGLTFUInt32(PRIME32_1);
+{$else}
+   inc(v2,TPasGLTFUInt32(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_2));
+   v2:=((v2 shl 13) or (v2 shr 19))*TPasGLTFUInt32(PRIME32_1);
+{$ifend}
+   inc(p,SizeOf(TPasGLTFUInt32));
+{$if defined(fpc) or declared(ROLDWord)}
+   v3:=ROLDWord(v3+(TPasGLTFUInt32(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_2)),13)*TPasGLTFUInt32(PRIME32_1);
+{$else}
+   inc(v3,TPasGLTFUInt32(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_2));
+   v3:=((v3 shl 13) or (v3 shr 19))*TPasGLTFUInt32(PRIME32_1);
+{$ifend}
+   inc(p,SizeOf(TPasGLTFUInt32));
+{$if defined(fpc) or declared(ROLDWord)}
+   v4:=ROLDWord(v4+(TPasGLTFUInt32(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_2)),13)*TPasGLTFUInt32(PRIME32_1);
+{$else}
+   inc(v4,TPasGLTFUInt32(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_2));
+   v4:=((v4 shl 13) or (v4 shr 19))*TPasGLTFUInt32(PRIME32_1);
+{$ifend}
+   inc(p,SizeOf(TPasGLTFUInt32));
+  until {%H-}TPasGLTFPtrUInt(p)>{%H-}TPasGLTFPtrUInt(e);
+{$if defined(fpc) or declared(ROLDWord)}
+  result:=ROLDWord(v1,1)+ROLDWord(v2,7)+ROLDWord(v3,12)+ROLDWord(v4,18);
+{$else}
+  result:=((v1 shl 1) or (v1 shr 31))+
+          ((v2 shl 7) or (v2 shr 25))+
+          ((v3 shl 12) or (v3 shr 20))+
+          ((v4 shl 18) or (v4 shr 14));
+{$ifend}
+ end else begin
+  result:=HashInitialization;
+ end;
+ inc(result,DataLength);
+ e:=@PPasGLTFUInt8Array(Data)^[DataLength];
+ while ({%H-}TPasGLTFPtrUInt(p)+SizeOf(TPasGLTFUInt32))<={%H-}TPasGLTFPtrUInt(e) do begin
+{$if defined(fpc) or declared(ROLDWord)}
+  result:=ROLDWord(result+(TPasGLTFUInt32(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_3)),17)*TPasGLTFUInt32(PRIME32_4);
+{$else}
+  inc(result,TPasGLTFUInt32(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_3));
+  result:=((result shl 17) or (result shr 15))*TPasGLTFUInt32(PRIME32_4);
+{$ifend}
+  inc(p,SizeOf(TPasGLTFUInt32));
+ end;
+ while {%H-}TPasGLTFPtrUInt(p)<{%H-}TPasGLTFPtrUInt(e) do begin
+{$if defined(fpc) or declared(ROLDWord)}
+  result:=ROLDWord(result+(TPasGLTFUInt8(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_5)),11)*TPasGLTFUInt32(PRIME32_1);
+{$else}
+  inc(result,TPasGLTFUInt8(TPasGLTFPointer(p)^)*TPasGLTFUInt32(PRIME32_5));
+  result:=((result shl 11) or (result shr 21))*TPasGLTFUInt32(PRIME32_1);
+{$ifend}
+  inc(p,SizeOf(TPasGLTFUInt8));
+ end;
+ result:=(result xor (result shr 15))*TPasGLTFUInt32(PRIME32_2);
+ result:=(result xor (result shr 13))*TPasGLTFUInt32(PRIME32_3);
+ result:=result xor (result shr 16);
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.HashKey(const Key:TPasGLTFHashMapKey):TPasGLTFUInt32;
+begin
+ result:=HashData(PPasGLTFUInt8(@Key[1]),length(Key)*SizeOf(TPasGLTFRawByteChar));
+{$if defined(CPU386) or defined(CPUAMD64)}
+ // Special case: The hash value may be never zero
+ result:=result or (-TPasGLTFUInt32(ord(result=0) and 1));
+{$else}
+ if result=0 then begin
+  // Special case: The hash value may be never zero
+  result:=$ffffffff;
+ end;
+{$ifend}
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.CompareKey(const KeyA,KeyB:TPasGLTFHashMapKey):boolean;
+begin
+ result:=KeyA=KeyB;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.FindCell(const Key:TPasGLTFHashMapKey):TPasGLTFUInt32;
+var HashCode,Mask,Step:TPasGLTFUInt32;
+    Entity:TPasGLTFInt32;
+begin
+ HashCode:=HashKey(Key);
+ Mask:=(2 shl fLogSize)-1;
+ Step:=((HashCode shl 1)+1) and Mask;
+ if fLogSize<>0 then begin
+  result:=HashCode shr (32-fLogSize);
+ end else begin
+  result:=0;
+ end;
+ repeat
+  Entity:=fCellToEntityIndex[result];
+  if (Entity=ENT_EMPTY) or ((Entity<>ENT_DELETED) and CompareKey(fEntities[Entity].Key,Key)) then begin
+   exit;
+  end;
+  result:=(result+Step) and Mask;
+ until false;
+end;
+
+procedure TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.Resize;
+var NewLogSize,NewSize,Cell,Entity,Counter:TPasGLTFInt32;
+    OldEntities:TPasGLTFHashMapEntities;
+    OldCellToEntityIndex:TPasGLTFHashMapEntityIndices;
+    OldEntityToCellIndex:TPasGLTFHashMapEntityIndices;
+begin
+ NewLogSize:=0;
+ NewSize:=fRealSize;
+ while NewSize<>0 do begin
+  NewSize:=NewSize shr 1;
+  inc(NewLogSize);
+ end;
+ if NewLogSize<1 then begin
+  NewLogSize:=1;
+ end;
+ fSize:=0;
+ fRealSize:=0;
+ fLogSize:=NewLogSize;
+ OldEntities:=fEntities;
+ OldCellToEntityIndex:=fCellToEntityIndex;
+ OldEntityToCellIndex:=fEntityToCellIndex;
+ fEntities:=nil;
+ fCellToEntityIndex:=nil;
+ fEntityToCellIndex:=nil;
+ SetLength(fEntities,2 shl fLogSize);
+ SetLength(fCellToEntityIndex,2 shl fLogSize);
+ SetLength(fEntityToCellIndex,2 shl fLogSize);
+ for Counter:=0 to length(fCellToEntityIndex)-1 do begin
+  fCellToEntityIndex[Counter]:=ENT_EMPTY;
+ end;
+ for Counter:=0 to length(fEntityToCellIndex)-1 do begin
+  fEntityToCellIndex[Counter]:=CELL_EMPTY;
+ end;
+ for Counter:=0 to length(OldEntityToCellIndex)-1 do begin
+  Cell:=OldEntityToCellIndex[Counter];
+  if Cell>=0 then begin
+   Entity:=OldCellToEntityIndex[Cell];
+   if Entity>=0 then begin
+    Add(OldEntities[Counter].Key,OldEntities[Counter].Value);
+   end;
+  end;
+ end;
+ for Counter:=0 to length(OldEntities)-1 do begin
+  Finalize(OldEntities[Counter].Key);
+  Finalize(OldEntities[Counter].Value);
+ end;
+ SetLength(OldEntities,0);
+ SetLength(OldCellToEntityIndex,0);
+ SetLength(OldEntityToCellIndex,0);
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.Add(const Key:TPasGLTFHashMapKey;const Value:TPasGLTFHashMapValue):PPasGLTFHashMapEntity;
+var Entity:TPasGLTFInt32;
+    Cell:TPasGLTFUInt32;
+begin
+ result:=nil;
+ while fRealSize>=(1 shl fLogSize) do begin
+  Resize;
+ end;
+ Cell:=FindCell(Key);
+ Entity:=fCellToEntityIndex[Cell];
+ if Entity>=0 then begin
+  result:=@fEntities[Entity];
+  result^.Key:=Key;
+  result^.Value:=Value;
+  exit;
+ end;
+ Entity:=fSize;
+ inc(fSize);
+ if Entity<(2 shl fLogSize) then begin
+  fCellToEntityIndex[Cell]:=Entity;
+  fEntityToCellIndex[Entity]:=Cell;
+  inc(fRealSize);
+  result:=@fEntities[Entity];
+  result^.Key:=Key;
+  result^.Value:=Value;
+ end;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.Get(const Key:TPasGLTFHashMapKey;const CreateIfNotExist:boolean=false):PPasGLTFHashMapEntity;
+var Entity:TPasGLTFInt32;
+    Cell:TPasGLTFUInt32;
+    Value:TPasGLTFHashMapValue;
+begin
+ result:=nil;
+ Cell:=FindCell(Key);
+ Entity:=fCellToEntityIndex[Cell];
+ if Entity>=0 then begin
+  result:=@fEntities[Entity];
+ end else if CreateIfNotExist then begin
+  Initialize(Value);
+  result:=Add(Key,Value);
+ end;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.TryGet(const Key:TPasGLTFHashMapKey;out Value:TPasGLTFHashMapValue):boolean;
+var Entity:TPasGLTFInt32;
+begin
+ Entity:=fCellToEntityIndex[FindCell(Key)];
+ result:=Entity>=0;
+ if result then begin
+  Value:=fEntities[Entity].Value;
+ end else begin
+  Initialize(Value);
+ end;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.ExistKey(const Key:TPasGLTFHashMapKey):boolean;
+begin
+ result:=fCellToEntityIndex[FindCell(Key)]>=0;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.Delete(const Key:TPasGLTFHashMapKey):boolean;
+var Entity:TPasGLTFInt32;
+    Cell:TPasGLTFUInt32;
+begin
+ result:=false;
+ Cell:=FindCell(Key);
+ Entity:=fCellToEntityIndex[Cell];
+ if Entity>=0 then begin
+  Finalize(fEntities[Entity].Key);
+  Finalize(fEntities[Entity].Value);
+  fEntityToCellIndex[Entity]:=CELL_DELETED;
+  fCellToEntityIndex[Cell]:=ENT_DELETED;
+  result:=true;
+ end;
+end;
+
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.GetValue(const Key:TPasGLTFHashMapKey):TPasGLTFHashMapValue;
+var Entity:TPasGLTFInt32;
+    Cell:TPasGLTFUInt32;
+begin
+ Cell:=FindCell(Key);
+ Entity:=fCellToEntityIndex[Cell];
+ if Entity>=0 then begin
+  result:=fEntities[Entity].Value;
+ end else begin
+  result:=fDefaultValue;
+ end;
+end;
+
+procedure TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.SetValue(const Key:TPasGLTFHashMapKey;const Value:TPasGLTFHashMapValue);
+begin
+ Add(Key,Value);
+end;
+
 { TPasGLTF.TBase64 }
 
 class function TPasGLTF.TBase64.Encode(const aData;const aDataLength:TPasGLTFSizeInt):TPasGLTFRawByteString;
@@ -2127,7 +2692,7 @@ begin
  fMode:=TMode.Triangles;
  fIndices:=-1;
  fMaterial:=-1;
- fAttributes:=TAttributes.Create;
+ fAttributes:=TAttributes.Create(0);
  fTargets:=TAttributesList.Create;
 end;
 
