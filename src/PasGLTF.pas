@@ -740,8 +740,36 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TBuffers=TObjectList<TBuffer>;
-
-
+            TBufferView=class
+             public
+              type TTargetType=
+                    (
+                     None=0,
+                     ArrayBuffer=34962,
+                     ElementArrayBuffer=34963
+                    );
+                   PTargetType=^TTargetType;
+             private
+              fName:TPasGLTFUTF8String;
+              fBuffer:TPasGLTFInt32;
+              fByteOffset:TPasGLTFUInt32;
+              fByteLength:TPasGLTFUInt32;
+              fByteStride:TPasGLTFUInt32;
+              fTarget:TTargetType;
+              fExtensions:TPasJSONItemObject;
+             public
+              constructor Create; reintroduce;
+              destructor Destroy; override;
+             published
+              property Name:TPasGLTFUTF8String read fName write fName;
+              property Buffer:TPasGLTFInt32 read fBuffer write fBuffer;
+              property ByteOffset:TPasGLTFUInt32 read fByteOffset write fByteOffset;
+              property ByteLength:TPasGLTFUInt32 read fByteLength write fByteLength;
+              property ByteStride:TPasGLTFUInt32 read fByteStride write fByteStride;
+              property Target:TTargetType read fTarget write fTarget default TTargetType.None;
+              property Extensions:TPasJSONItemObject read fExtensions;
+            end;
+            TBufferViews=TObjectList<TBufferView>;
       public
 
      end;
@@ -1094,6 +1122,26 @@ begin
  end else begin
   fURI:=aURI;
  end;
+end;
+
+{ TPasGLTF.TBufferView }
+
+constructor TPasGLTF.TBufferView.Create;
+begin
+ inherited Create;
+ fName:='';
+ fBuffer:=-1;
+ fByteOffset:=0;
+ fByteLength:=0;
+ fByteStride:=0;
+ fTarget:=TTargetType.None;
+ fExtensions:=TPasJSONItemObject.Create;
+end;
+
+destructor TPasGLTF.TBufferView.Destroy;
+begin
+ FreeAndNil(fExtensions);
+ inherited Destroy;
 end;
 
 end.
