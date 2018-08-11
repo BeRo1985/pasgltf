@@ -770,6 +770,67 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TBufferViews=TObjectList<TBufferView>;
+            TCamera=class
+             public
+              type TType=
+                    (
+                     None=0,
+                     Orthographic=1,
+                     Perspective=2
+                    );
+                   TOrthographic=class
+                    private
+                     fXMag:TPasGLTFFloat;
+                     fYMag:TPasGLTFFloat;
+                     fZNear:TPasGLTFFloat;
+                     fZFar:TPasGLTFFloat;
+                     fExtensions:TPasJSONItemObject;
+                     fEmpty:boolean;
+                    public
+                     constructor Create; reintroduce;
+                     destructor Destroy; override;
+                    published
+                     property XMag:TPasGLTFFloat read fXMag write fXMag;
+                     property YMag:TPasGLTFFloat read fYMag write fYMag;
+                     property ZNear:TPasGLTFFloat read fZNear write fZNear;
+                     property ZFar:TPasGLTFFloat read fZFar write fZFar;
+                     property Extensions:TPasJSONItemObject read fExtensions;
+                     property Empty:boolean read fEmpty;
+                   end;
+                   TPerspective=class
+                    private
+                     fAspectRatio:TPasGLTFFloat;
+                     fYFov:TPasGLTFFloat;
+                     fZNear:TPasGLTFFloat;
+                     fZFar:TPasGLTFFloat;
+                     fExtensions:TPasJSONItemObject;
+                     fEmpty:boolean;
+                    public
+                     constructor Create; reintroduce;
+                     destructor Destroy; override;
+                    published
+                     property AspectRatio:TPasGLTFFloat read fAspectRatio write fAspectRatio;
+                     property YFov:TPasGLTFFloat read fYFov write fYFov;
+                     property ZNear:TPasGLTFFloat read fZNear write fZNear;
+                     property ZFar:TPasGLTFFloat read fZFar write fZFar;
+                     property Extensions:TPasJSONItemObject read fExtensions;
+                     property Empty:boolean read fEmpty;
+                   end;
+             private
+              fType:TType;
+              fOrthographic:TOrthographic;
+              fPerspective:TPerspective;
+              fExtensions:TPasJSONItemObject;
+             public
+              constructor Create; reintroduce;
+              destructor Destroy; override;
+             published
+              property Type_:TType read fType write fType;
+              property Orthographic:TOrthographic read fOrthographic;
+              property Perspective:TPerspective read fPerspective;
+              property Extensions:TPasJSONItemObject read fExtensions;
+            end;
+            TCameras=TObjectList<TCamera>;
       public
 
      end;
@@ -1140,6 +1201,63 @@ end;
 
 destructor TPasGLTF.TBufferView.Destroy;
 begin
+ FreeAndNil(fExtensions);
+ inherited Destroy;
+end;
+
+{ TPasGLTF.TCamera.TOrthographic }
+
+constructor TPasGLTF.TCamera.TOrthographic.Create;
+begin
+ inherited Create;
+ fXMag:=TDefaults.FloatSentinel;
+ fYMag:=TDefaults.FloatSentinel;
+ fZNear:=-TDefaults.FloatSentinel;
+ fZFar:=-TDefaults.FloatSentinel;
+ fExtensions:=TPasJSONItemObject.Create;
+ fEmpty:=false;
+end;
+
+destructor TPasGLTF.TCamera.TOrthographic.Destroy;
+begin
+ FreeAndNil(fExtensions);
+ inherited Destroy;
+end;
+
+{ TPasGLTF.TCamera.TPerspective }
+
+constructor TPasGLTF.TCamera.TPerspective.Create;
+begin
+ inherited Create;
+ fAspectRatio:=0.0;
+ fYFov:=0.0;
+ fZNear:=0.0;
+ fZFar:=0.0;
+ fExtensions:=TPasJSONItemObject.Create;
+ fEmpty:=false;
+end;
+
+destructor TPasGLTF.TCamera.TPerspective.Destroy;
+begin
+ FreeAndNil(fExtensions);
+ inherited Destroy;
+end;
+
+{ TPasGLTF.TCamera }
+
+constructor TPasGLTF.TCamera.Create;
+begin
+ inherited Create;
+ fType:=TType.None;
+ fOrthographic:=TOrthographic.Create;
+ fPerspective:=TPerspective.Create;
+ fExtensions:=TPasJSONItemObject.Create;
+end;
+
+destructor TPasGLTF.TCamera.Destroy;
+begin
+ FreeAndNil(fOrthographic);
+ FreeAndNil(fPerspective);
  FreeAndNil(fExtensions);
  inherited Destroy;
 end;
