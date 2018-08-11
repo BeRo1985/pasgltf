@@ -518,6 +518,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     IdentityQuaternion:TVector4=(0.0,0.0,0.0,1.0);
                     IdentityMatrix:TMatrix=(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
             end;
+            TAttributes=TDictionary<TPasGLTFUTF8String,TPasGLTFUInt32>;
+            TAttributesList=TObjectList<TAttributes>;
             TAccessor=class
              public
               type TComponentType=
@@ -945,6 +947,56 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Extensions:TPasJSONItemObject read fExtensions;
             end;
             TMaterials=TObjectList<TMaterial>;
+            TMesh=class
+             public
+              type TPrimitive=class
+                    public
+                     type TMode=
+                           (
+                            Points=0,
+                            Lines=1,
+                            LineLoop=2,
+                            LineStrip=3,
+                            Triangles=4,
+                            TriangleStrip=5,
+                            TriangleFan=6
+                           );
+                          PMode=^TMode;
+                    private
+                     fMode:TMode;
+                     fIndices:TPasGLTFInt32;
+                     fMaterial:TPasGLTFInt32;
+                     fAttributes:TAttributes;
+                     fTargets:TAttributesList;
+                     fExtensions:TPasJSONItemObject;
+                    public
+                     constructor Create; reintroduce;
+                     destructor Destroy; override;
+                    published
+                     property Mode:TMode read fMode write fMode;
+                     property Indices:TPasGLTFInt32 read fIndices write fIndices;
+                     property Material:TPasGLTFInt32 read fMaterial write fMaterial;
+                     property Attributes:TAttributes read fAttributes;
+                     property Targets:TAttributesList read fTargets;
+                     property Extensions:TPasJSONItemObject read fExtensions;
+                   end;
+                   TPrimitives=TObjectList<TPrimitive>;
+             private
+              fName:TPasGLTFUTF8String;
+              fWeights:TPasGLTFFloatDynamicArray;
+              fPrimitives:TPrimitives;
+              fExtensions:TPasJSONItemObject;
+             public
+              constructor Create; reintroduce;
+              destructor Destroy; override;
+             public
+              property Weights:TPasGLTFFloatDynamicArray read fWeights write fWeights;
+             published
+              property Name:TPasGLTFUTF8String read fName write fName;
+              property Primitives:TPrimitives read fPrimitives;
+              property Extensions:TPasJSONItemObject read fExtensions;
+            end;
+            TMeshs=TObjectList<TMesh>;
       public
 
      end;
@@ -1536,6 +1588,45 @@ begin
  FreeAndNil(fOcclusionTexture);
  FreeAndNil(fPBRMetallicRoughness);
  FreeAndNil(fEmissiveTexture);
+ FreeAndNil(fExtensions);
+ inherited Destroy;
+end;
+
+{ TPasGLTF.TMesh.TPrimitive }
+
+constructor TPasGLTF.TMesh.TPrimitive.Create;
+begin
+ inherited Create;
+ fMode:=TMode.Triangles;
+ fIndices:=-1;
+ fMaterial:=-1;
+ fAttributes:=TAttributes.Create;
+ fTargets:=TAttributesList.Create;
+ fExtensions:=TPasJSONItemObject.Create;
+end;
+
+destructor TPasGLTF.TMesh.TPrimitive.Destroy;
+begin
+ FreeAndNil(fAttributes);
+ FreeAndNil(fTargets);
+ FreeAndNil(fExtensions);
+ inherited Destroy;
+end;
+
+{ TPasGLTF.TMesh }
+
+constructor TPasGLTF.TMesh.Create;
+begin
+ inherited Create;
+ fName:='';
+ fWeights:=nil;
+ fPrimitives:=TPrimitives.Create(true);
+ fExtensions:=TPasJSONItemObject.Create;
+end;
+
+destructor TPasGLTF.TMesh.Destroy;
+begin
+ FreeAndNil(fPrimitives);
  FreeAndNil(fExtensions);
  inherited Destroy;
 end;
