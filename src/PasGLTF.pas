@@ -440,6 +440,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
 
      EPasGLTFInvalidDocument=class(EPasGLTF);
 
+     EPasGLTFInvalidBase64=class(EPasGLTF);
+
      TPasGLTF=class
       public
        type TBase64=class
@@ -623,6 +625,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Sparse:TSparse read fSparse;
               property Extensions:TPasJSONItemObject read fExtensions;
             end;
+            TAccessors=TObjectList<TAccessor>;
             TAnimation=class
              public
               type TChannel=class
@@ -693,6 +696,52 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Samplers:TSamplers read fSamplers;
               property Extensions:TPasJSONItemObject read fExtensions;
             end;
+            TAnimations=TObjectList<TAnimation>;
+            TAsset=class
+             private
+              fCopyright:TPasGLTFUTF8String;
+              fGenerator:TPasGLTFUTF8String;
+              fMinVersion:TPasGLTFUTF8String;
+              fVersion:TPasGLTFUTF8String;
+              fExtensions:TPasJSONItemObject;
+              fEmpty:boolean;
+             public
+              constructor Create; reintroduce;
+              destructor Destroy; override;
+             published
+              property Copyright:TPasGLTFUTF8String read fCopyright write fCopyright;
+              property Generator:TPasGLTFUTF8String read fGenerator write fGenerator;
+              property MinVersion:TPasGLTFUTF8String read fMinVersion write fMinVersion;
+              property Version:TPasGLTFUTF8String read fVersion write fVersion;
+              property Extensions:TPasJSONItemObject read fExtensions;
+              property Empty:boolean read fEmpty;
+            end;
+            TBuffer=class
+             private
+              fByteLength:TPasGLTFUInt32;
+              fName:TPasGLTFUTF8String;
+              fURI:TPasGLTFUTF8String;
+              fData:TMemoryStream;
+              fExtensions:TPasJSONItemObject;
+              fEmbeddedResource:boolean;
+              function GetEmbeddedResource:boolean;
+              procedure SetEmbeddedResource(const aEmbeddedResource:boolean);
+              function GetURI:TPasGLTFUTF8String;
+              procedure SetURI(const aURI:TPasGLTFUTF8String);
+             public
+              constructor Create; reintroduce;
+              destructor Destroy; override;
+             published
+              property ByteLength:TPasGLTFUInt32 read fByteLength write fByteLength;
+              property Name:TPasGLTFUTF8String read fName write fName;
+              property URI:TPasGLTFUTF8String read GetURI write SetURI;
+              property Data:TMemoryStream read fData write fData;
+              property EmbeddedResource:boolean read GetEmbeddedResource write SetEmbeddedResource;
+              property Extensions:TPasJSONItemObject read fExtensions;
+            end;
+            TBuffers=TObjectList<TBuffer>;
+
+
       public
 
      end;
@@ -967,6 +1016,84 @@ begin
  FreeAndNil(fSamplers);
  FreeAndNil(fExtensions);
  inherited Destroy;
+end;
+
+{ TPasGLTF.TAsset }
+
+constructor TPasGLTF.TAsset.Create;
+begin
+ inherited Create;
+ fCopyright:='';
+ fGenerator:='';
+ fMinVersion:='';
+ fVersion:='2.0';
+ fExtensions:=TPasJSONItemObject.Create;
+ fEmpty:=false;
+end;
+
+destructor TPasGLTF.TAsset.Destroy;
+begin
+ FreeAndNil(fExtensions);
+ inherited Destroy;
+end;
+
+{ TPasGLTF.TBuffer }
+
+constructor TPasGLTF.TBuffer.Create;
+begin
+ inherited Create;
+ fByteLength:=0;
+ fName:='';
+ fURI:='';
+ fData:=TMemoryStream.Create;
+ fExtensions:=TPasJSONItemObject.Create;
+ fEmbeddedResource:=false;
+end;
+
+destructor TPasGLTF.TBuffer.Destroy;
+begin
+ FreeAndNil(fData);
+ FreeAndNil(fExtensions);
+ inherited Destroy;
+end;
+
+function TPasGLTF.TBuffer.GetEmbeddedResource:boolean;
+begin
+ result:=fEmbeddedResource;
+end;
+
+procedure TPasGLTF.TBuffer.SetEmbeddedResource(const aEmbeddedResource:boolean);
+begin
+ if fEmbeddedResource<>aEmbeddedResource then begin
+  fEmbeddedResource:=aEmbeddedResource;
+  if aEmbeddedResource then begin
+   fURI:='';
+  end;
+ end;
+end;
+
+function TPasGLTF.TBuffer.GetURI:TPasGLTFUTF8String;
+begin
+ if fEmbeddedResource then begin
+  result:=MimeTypeApplicationOctet+','+TBase64.Encode(fData);
+ end else begin
+  result:=fURI;
+ end;
+end;
+
+procedure TPasGLTF.TBuffer.SetURI(const aURI:TPasGLTFUTF8String);
+begin
+ fEmbeddedResource:=pos(fURI,MimeTypeApplicationOctet)>0;
+ if fEmbeddedResource then begin
+  fData.Clear;
+  if not TBase64.Decode(copy(aURI,length(MimeTypeApplicationOctet)+1,length(aURI)-(length(MimeTypeApplicationOctet)+2)),fData) then begin
+   raise EPasGLTFInvalidBase64.Create('Invalid base64');
+  end;
+  fByteLength:=fData.Size;
+  fURI:='';
+ end else begin
+  fURI:=aURI;
+ end;
 end;
 
 end.
