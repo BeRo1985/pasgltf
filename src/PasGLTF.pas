@@ -1001,6 +1001,52 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Weights:TWeights read fWeights;
             end;
             TNodes=TObjectList<TNode>;
+            TSampler=class(TBaseExtensionsExtrasObject)
+             public
+              type TMagFilter=
+                    (
+                     None=0,
+                     Nearest=9728,
+                     Linear=9729
+                    );
+                   PMagFilter=^TMagFilter;
+                   TMinFilter=
+                    (
+                     None=0,
+                     Nearest=9728,
+                     Linear=9729,
+                     NearestMipMapNearest=9984,
+                     LinearMipMapNearest=9985,
+                     NearestMipMapLinear=9986,
+                     LinearMipMapLinear=9987
+                    );
+                   PMinFilter=^TMinFilter;
+                   TWrappingMode=
+                    (
+                     ClampToEdge=33071,
+                     MirroredRepeat=33648,
+                     Repeat_=10497
+                    );
+                    PWrappingMode=^TWrappingMode;
+             private
+              fName:TPasGLTFUTF8String;
+              fMagFilter:TMagFilter;
+              fMinFilter:TMinFilter;
+              fWrapS:TWrappingMode;
+              fWrapT:TWrappingMode;
+              function GetEmpty:boolean;
+             public
+              constructor Create; override;
+              destructor Destroy; override;
+             published
+              property Name:TPasGLTFUTF8String read fName write fName;
+              property MagFilter:TMagFilter read fMagFilter write fMagFilter;
+              property MinFilter:TMinFilter read fMinFilter write fMinFilter;
+              property WrapS:TWrappingMode read fWrapS write fWrapS;
+              property WrapT:TWrappingMode read fWrapT write fWrapT;
+              property Empty:boolean read GetEmpty;
+            end;
+            TSamplers=TObjectList<TSampler>;
       public
 
      end;
@@ -1634,6 +1680,32 @@ begin
  FreeAndNil(fChildren);
  FreeAndNil(fWeights);
  inherited Destroy;
+end;
+
+{ TPasGLTF.TSampler }
+
+constructor TPasGLTF.TSampler.Create;
+begin
+ inherited Create;
+ fName:='';
+ fMagFilter:=TMagFilter.None;
+ fMinFilter:=TMinFilter.None;
+ fWrapS:=TWrappingMode.Repeat_;
+ fWrapT:=TWrappingMode.Repeat_;
+end;
+
+destructor TPasGLTF.TSampler.Destroy;
+begin
+ inherited Destroy;
+end;
+
+function TPasGLTF.TSampler.GetEmpty:boolean;
+begin
+ result:=(length(fName)=0) and
+         (fMagFilter=TMagFilter.None) and
+         (fMinFilter=TMinFilter.None) and
+         (fWrapS=TWrappingMode.Repeat_) and
+         (fWrapT=TWrappingMode.Repeat_);
 end;
 
 end.
