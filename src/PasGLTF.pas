@@ -1079,6 +1079,20 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Joints:TSkin.TJoints read fJoints;
             end;
             TSkins=TObjectList<TSkin>;
+            TTexture=class(TBaseExtensionsExtrasObject)
+             private
+              fName:TPasGLTFUTF8String;
+              fSampler:TPasGLTFInt32;
+              fSource:TPasGLTFInt32;
+             public
+              constructor Create; override;
+              destructor Destroy; override;
+             published
+              property Name:TPasGLTFUTF8String read fName write fName;
+              property Sampler:TPasGLTFInt32 read fSampler write fSampler;
+              property Source:TPasGLTFInt32 read fSource write fSource;
+            end;
+            TTextures=TObjectList<TTexture>;
       public
 
      end;
@@ -1769,6 +1783,21 @@ end;
 destructor TPasGLTF.TSkin.Destroy;
 begin
  FreeAndNil(fJoints);
+ inherited Destroy;
+end;
+
+{ TPasGLTF.TTexture }
+
+constructor TPasGLTF.TTexture.Create;
+begin
+ inherited Create;
+ fName:='';
+ fSampler:=-1;
+ fSource:=-1;
+end;
+
+destructor TPasGLTF.TTexture.Destroy;
+begin
  inherited Destroy;
 end;
 
