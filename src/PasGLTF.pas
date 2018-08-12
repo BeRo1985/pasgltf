@@ -1300,6 +1300,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               constructor Create; override;
               destructor Destroy; override;
               procedure LoadFromJSON(const aJSONRootItem:TPasJSONItem);
+              procedure LoadFromBinary(const aStream:TStream);
              published
               property Asset:TAsset read fAsset;
               property Accessors:TAccessors read fAccessors;
@@ -3832,6 +3833,52 @@ begin
  if not HasAsset then begin
   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
  end;
+end;
+
+procedure TPasGLTF.TDocument.LoadFromBinary(const aStream:TStream);
+var GLBHeader:TGLBHeader;
+    OtherEndianness:boolean;
+ function SwapEndianness32(const aValue:TPasGLTFUInt32):TPasGLTFUInt32;
+ begin
+  if OtherEndianness then begin
+   result:=((aValue and $000000ff) shl 24) or
+           ((aValue and $0000ff00) shl 8) or
+           ((aValue and $00ff0000) shr 8) or
+           ((aValue and $24000000) shr 24);
+  end else begin
+   result:=aValue;
+  end;
+ end;
+var RawJSONRawByteString:TPasJSONRawByteString;
+begin
+ if not (assigned(aStream) and (aStream.Size>=GLBHeaderSize)) then begin
+  raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
+ end;
+ if aStream.Read(GLBHeader,SizeOf(TGLBHeader))<>SizeOf(TGLBHeader) then begin
+  raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
+ end;
+ if (GLBHeader.Magic<>GLBHeaderMagicNativeEndianness) and
+    (GLBHeader.Magic<>GLBHeaderMagicOtherEndianness) then begin
+  raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
+ end;
+ OtherEndianness:=GLBHeader.Magic=GLBHeaderMagicOtherEndianness;
+ if not ((not OtherEndianness) and (GLBHeader.JSONChunkHeader.ChunkType=GLBChunkJSONNativeEndianness)) or
+         (OtherEndianness and (GLBHeader.JSONChunkHeader.ChunkType=GLBChunkJSONOtherEndianness)) then begin
+  raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
+ end;
+ GLBHeader.Magic:=SwapEndianness32(GLBHeader.Magic);
+ GLBHeader.Version:=SwapEndianness32(GLBHeader.Version);
+ GLBHeader.Length:=SwapEndianness32(GLBHeader.Length);
+ GLBHeader.JSONChunkHeader.ChunkLength:=SwapEndianness32(GLBHeader.JSONChunkHeader.ChunkLength);
+ GLBHeader.JSONChunkHeader.ChunkType:=SwapEndianness32(GLBHeader.JSONChunkHeader.ChunkType);
+ if ((GLBHeader.JSONChunkHeader.ChunkLength+GLBHeaderSize)>GLBHeader.Length) or
+    (GLBHeader.JSONChunkHeader.ChunkLength<2) then begin
+  raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
+ end;
+ SetLength(RawJSONRawByteString,GLBHeader.JSONChunkHeader.ChunkLength);
+ aStream.ReadBuffer(RawJSONRawByteString[1],length(RawJSONRawByteString));
+ LoadFromJSON(TPasJSON.Parse(RawJSONRawByteString,[],TPasJSONEncoding.UTF8));
+
 end;
 
 end.
