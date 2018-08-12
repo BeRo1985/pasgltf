@@ -3298,6 +3298,103 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fImages.Add(ProcessImage(JSONItem));
   end;
  end;
+ procedure ProcessMaterials(const aJSONItem:TPasJSONItem);
+  function ProcessMaterial(const aJSONItem:TPasJSONItem):TMaterial;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem:TPasJSONItem;
+      Mode:TPasGLTFUTF8String;
+      Index:TPasGLTFSizeInt;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TMaterial.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fAlphaCutOff:=TPasJSON.GetNumber(JSONObject.Properties['alphaCutoff'],result.fAlphaCutOff);
+    begin
+     JSONItem:=JSONObject.Properties['alphaMode'];
+     if assigned(JSONItem) then begin
+      Mode:=TPasJSON.GetString(JSONItem,'NONE');
+      if Mode='OPAQUE' then begin
+       result.fAlphaMode:=TMaterial.TAlphaMode.Opaque;
+      end else if Mode='MASK' then begin
+       result.fAlphaMode:=TMaterial.TAlphaMode.Mask;
+      end else if Mode='BLEND' then begin
+       result.fAlphaMode:=TMaterial.TAlphaMode.Blend;
+      end else begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+     end;
+    end;
+    result.fDoubleSided:=TPasJSON.GetBoolean(JSONObject.Properties['doubleSided'],result.fDoubleSided);
+    begin
+     JSONItem:=JSONObject.Properties['emissiveFactor'];
+     if assigned(JSONItem) then begin
+      if not ((JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=3)) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for Index:=0 to 2 do begin
+       result.fEmissiveFactor[Index]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[Index],result.fEmissiveFactor[Index]);
+      end;
+     end;
+    end;
+    begin
+     JSONItem:=JSONObject.Properties['emissiveTexture'];
+     if assigned(JSONItem) then begin
+      if not (JSONItem is TPasJSONItemObject) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      ProcessExtensionsAndExtras(TPasJSONItemObject(JSONItem),result.fEmissiveTexture);
+      result.fEmissiveTexture.fIndex:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONItem).Properties['index'],'index'),result.fEmissiveTexture.fIndex);
+      result.fEmissiveTexture.fTexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],result.fEmissiveTexture.fTexCoord);
+     end;
+    end;
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    begin
+     JSONItem:=JSONObject.Properties['normalTexture'];
+     if assigned(JSONItem) then begin
+      if not (JSONItem is TPasJSONItemObject) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      ProcessExtensionsAndExtras(TPasJSONItemObject(JSONItem),result.fNormalTexture);
+      result.fNormalTexture.fIndex:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONItem).Properties['index'],'index'),result.fNormalTexture.fIndex);
+      result.fNormalTexture.fTexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],result.fNormalTexture.fTexCoord);
+      result.fNormalTexture.fScale:=TPasJSON.GetNumber(TPasJSONItemObject(JSONItem).Properties['scale'],result.fNormalTexture.fScale);
+     end;
+    end;
+    begin
+     JSONItem:=JSONObject.Properties['occlusionTexture'];
+     if assigned(JSONItem) then begin
+      if not (JSONItem is TPasJSONItemObject) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      ProcessExtensionsAndExtras(TPasJSONItemObject(JSONItem),result.fOcclusionTexture);
+      result.fOcclusionTexture.fIndex:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONItem).Properties['index'],'index'),result.fOcclusionTexture.fIndex);
+      result.fOcclusionTexture.fTexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],result.fOcclusionTexture.fTexCoord);
+      result.fOcclusionTexture.fStrength:=TPasJSON.GetNumber(TPasJSONItemObject(JSONItem).Properties['scale'],result.fOcclusionTexture.fStrength);
+     end;
+    end;
+    begin
+
+    end;
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fMaterials.Add(ProcessMaterial(JSONItem));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3325,6 +3422,7 @@ begin
   end else if JSONObjectProperty.Key='images' then begin
    ProcessImages(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='materials' then begin
+   ProcessMaterials(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='meshes' then begin
   end else if JSONObjectProperty.Key='nodes' then begin
   end else if JSONObjectProperty.Key='samplers' then begin
