@@ -2521,8 +2521,29 @@ begin
 end;
 
 procedure TPasGLTF.TImage.GetResourceData(const aStream:TStream);
+var BufferView:TBufferView;
+    Buffer:TBuffer;
 begin
- fDocument.LoadURISource(fURI,aStream);
+ if fBufferView>=0 then begin
+  if fBufferView<fDocument.fBufferViews.Count then begin
+   BufferView:=fDocument.fBufferViews[fBufferView];
+   if (BufferView.fBuffer>=0) and (BufferView.fBuffer<fDocument.fBuffers.Count) then begin
+    Buffer:=fDocument.fBuffers[BufferView.fBuffer];
+    if (BufferView.fByteOffset+BufferView.fByteLength)<=Buffer.fData.Size then begin
+     aStream.WriteBuffer(PPasGLTFUInt8Array(Buffer.fData.Memory)^[BufferView.fByteOffset],BufferView.fByteLength);
+     aStream.Seek(-BufferView.fByteLength,soCurrent);
+    end else begin
+     raise EInOutError.Create('I/O error');
+    end;
+   end else begin
+    raise EInOutError.Create('I/O error');
+   end;
+  end else begin
+   raise EInOutError.Create('I/O error');
+  end;
+ end else begin
+  fDocument.LoadURISource(fURI,aStream);
+ end;
 end;
 
 procedure TPasGLTF.TImage.SetEmbeddedResourceData(const aStream:TStream);
