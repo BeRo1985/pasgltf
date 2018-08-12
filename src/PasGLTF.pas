@@ -3536,6 +3536,94 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fMeshes.Add(ProcessMesh(JSONItem));
   end;
  end;
+ procedure ProcessNodes(const aJSONItem:TPasJSONItem);
+  function ProcessNode(const aJSONItem:TPasJSONItem):TNode;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem,JSONArrayItem:TPasJSONItem;
+      Index:TPasGLTFSizeInt;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TNode.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fCamera:=TPasJSON.GetInt64(JSONObject.Properties['camera'],result.fCamera);
+    begin
+     JSONItem:=JSONObject.Properties['children'];
+     if assigned(JSONItem) then begin
+      if not (JSONItem is TPasJSONItemArray) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for JSONArrayItem in TPasJSONItemArray(JSONItem) do begin
+       result.fChildren.Add(TPasJSON.GetInt64(JSONArrayItem));
+      end;
+     end;
+    end;
+    begin
+     JSONItem:=TPasJSONItemObject(JSONItem).Properties['matrix'];
+     if assigned(JSONItem) then begin
+      if not ((JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=16)) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for Index:=0 to 15 do begin
+       result.fMatrix[Index]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[Index],result.fMatrix[Index]);
+      end;
+     end;
+    end;
+    result.fMesh:=TPasJSON.GetInt64(JSONObject.Properties['mesh'],result.fMesh);
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    begin
+     JSONItem:=TPasJSONItemObject(JSONItem).Properties['rotation'];
+     if assigned(JSONItem) then begin
+      if not ((JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=4)) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for Index:=0 to 3 do begin
+       result.fRotation[Index]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[Index],result.fRotation[Index]);
+      end;
+     end;
+    end;
+    begin
+     JSONItem:=TPasJSONItemObject(JSONItem).Properties['scale'];
+     if assigned(JSONItem) then begin
+      if not ((JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=3)) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for Index:=0 to 2 do begin
+       result.fScale[Index]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[Index],result.fScale[Index]);
+      end;
+     end;
+    end;
+    result.fSkin:=TPasJSON.GetInt64(JSONObject.Properties['skin'],result.fSkin);
+    begin
+     JSONItem:=TPasJSONItemObject(JSONItem).Properties['translation'];
+     if assigned(JSONItem) then begin
+      if not ((JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=3)) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for Index:=0 to 2 do begin
+       result.fTranslation[Index]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[Index],result.fTranslation[Index]);
+      end;
+     end;
+    end;
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fNodes.Add(ProcessNode(JSONItem));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3567,6 +3655,7 @@ begin
   end else if JSONObjectProperty.Key='meshes' then begin
    ProcessMeshes(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='nodes' then begin
+   ProcessNodes(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='samplers' then begin
   end else if JSONObjectProperty.Key='scenes' then begin
   end else if JSONObjectProperty.Key='skins' then begin
