@@ -3133,18 +3133,21 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
+    HasAsset:boolean;
 begin
  if not (assigned(aJSONRootItem) and (aJSONRootItem is TPasJSONItemObject)) then begin
   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
  end;
  JSONObject:=TPasJSONItemObject(aJSONRootItem);
  ProcessExtensionsAndExtras(JSONObject,self);
+ HasAsset:=false;
  for JSONObjectProperty in JSONObject do begin
   if JSONObjectProperty.Key='accessors' then begin
    ProcessAccessors(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='animations' then begin
    ProcessAnimations(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='asset' then begin
+   HasAsset:=true;
    ProcessAsset(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='buffers' then begin
   end else if JSONObjectProperty.Key='bufferViews' then begin
@@ -3160,6 +3163,9 @@ begin
   end else if JSONObjectProperty.Key='extensionsUsed' then begin
   end else if JSONObjectProperty.Key='extensionsRequired' then begin
   end;
+ end;
+ if not HasAsset then begin
+  raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
  end;
 end;
 
