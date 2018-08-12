@@ -3509,6 +3509,17 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
       result.fPrimitives.Add(ProcessPrimitive(JSONArrayItem));
      end;
     end;
+    begin
+     JSONItem:=JSONObject.Properties['weights'];
+     if assigned(JSONItem) then begin
+      if not (JSONItem is TPasJSONItemArray) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for JSONArrayItem in TPasJSONItemArray(JSONItem) do begin
+       result.fWeights.Add(TPasJSON.GetNumber(JSONArrayItem,0.0));
+      end;
+     end;
+    end;
    except
     FreeAndNil(result);
     raise;
