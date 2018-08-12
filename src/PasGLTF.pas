@@ -598,7 +598,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
        fEntitiesObject:TPasGLTFHashMapEntitiesObject;
        fKeysObject:TPasGLTFHashMapKeysObject;
        fValuesObject:TPasGLTFHashMapValuesObject;
-       function HashData(const Data:TPasGLTFPointer;const DataLength:TPasGLTFUInt32):TPasGLTFUInt32;
+       function HashData(const Data:TPasGLTFPointer;const DataLength:TPasGLTFSizeUInt):TPasGLTFUInt32;
        function HashKey(const Key:TPasGLTFHashMapKey):TPasGLTFUInt32;
        function CompareKey(const KeyA,KeyB:TPasGLTFHashMapKey):boolean;
        function FindCell(const Key:TPasGLTFHashMapKey):TPasGLTFUInt32;
@@ -709,7 +709,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Extensions:TPasJSONItemObject read fExtensions;
               property Extras:TPasJSONItemObject read fExtras;
             end;
-            TAttributes=TPasGLTFUTF8StringHashMap<TPasGLTFUInt32>;
+            TAttributes=TPasGLTFUTF8StringHashMap<TPasGLTFSizeUInt>;
             TAttributesList=TPasGLTFObjectList<TAttributes>;
             TAccessor=class(TBaseExtensionsExtrasObject)
              public
@@ -745,33 +745,33 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      type TIndices=class(TBaseExtensionsExtrasObject)
                            private
                             fComponentType:TComponentType;
-                            fBufferView:TPasGLTFUInt32;
-                            fByteOffset:TPasGLTFUInt32;
+                            fBufferView:TPasGLTFSizeUInt;
+                            fByteOffset:TPasGLTFSizeUInt;
                             fEmpty:boolean;
                            public
                             constructor Create; override;
                             destructor Destroy; override;
                            published
                             property ComponentType:TComponentType read fComponentType write fComponentType default TComponentType.None;
-                            property BufferView:TPasGLTFUInt32 read fBufferView write fBufferView default 0;
-                            property ByteOffset:TPasGLTFUInt32 read fByteOffset write fByteOffset default 0;
+                            property BufferView:TPasGLTFSizeUInt read fBufferView write fBufferView default 0;
+                            property ByteOffset:TPasGLTFSizeUInt read fByteOffset write fByteOffset default 0;
                             property Empty:boolean read fEmpty;
                           end;
                           TValues=class(TBaseExtensionsExtrasObject)
                            private
-                            fBufferView:TPasGLTFUInt32;
-                            fByteOffset:TPasGLTFUInt32;
+                            fBufferView:TPasGLTFSizeUInt;
+                            fByteOffset:TPasGLTFSizeUInt;
                             fEmpty:boolean;
                            public
                             constructor Create; override;
                             destructor Destroy; override;
                            published
-                            property BufferView:TPasGLTFUInt32 read fBufferView write fBufferView default 0;
-                            property ByteOffset:TPasGLTFUInt32 read fByteOffset write fByteOffset default 0;
+                            property BufferView:TPasGLTFSizeUInt read fBufferView write fBufferView default 0;
+                            property ByteOffset:TPasGLTFSizeUInt read fByteOffset write fByteOffset default 0;
                             property Empty:boolean read fEmpty;
                           end;
                     private
-                     fCount:TPasGLTFInt32;
+                     fCount:TPasGLTFSizeInt;
                      fIndices:TIndices;
                      fValues:TValues;
                      function GetEmpty:boolean;
@@ -779,7 +779,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      constructor Create; override;
                      destructor Destroy; override;
                     published
-                     property Count:TPasGLTFInt32 read fCount write fCount default 0;
+                     property Count:TPasGLTFSizeInt read fCount write fCount default 0;
                      property Indices:TIndices read fIndices;
                      property Values:TValues read fValues;
                      property Empty:boolean read GetEmpty;
@@ -788,9 +788,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fName:TPasGLTFUTF8String;
               fComponentType:TComponentType;
               fType:TType;
-              fBufferView:TPasGLTFInt32;
-              fByteOffset:TPasGLTFUInt32;
-              fCount:TPasGLTFUInt32;
+              fBufferView:TPasGLTFSizeInt;
+              fByteOffset:TPasGLTFSizeUInt;
+              fCount:TPasGLTFSizeUInt;
               fNormalized:boolean;
               fMinArray:TPasGLTFFloatDynamicArray;
               fMaxArray:TPasGLTFFloatDynamicArray;
@@ -804,9 +804,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
              published
               property ComponentType:TComponentType read fComponentType write fComponentType default TComponentType.None;
               property Type_:TType read fType write fType default TType.None;
-              property BufferView:TPasGLTFInt32 read fBufferView write fBufferView default -1;
-              property ByteOffset:TPasGLTFUInt32 read fByteOffset write fByteOffset default 0;
-              property Count:TPasGLTFUInt32 read fCount write fCount default 0;
+              property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView default -1;
+              property ByteOffset:TPasGLTFSizeUInt read fByteOffset write fByteOffset default 0;
+              property Count:TPasGLTFSizeUInt read fCount write fCount default 0;
               property Normalized:boolean read fNormalized write fNormalized default false;
               property Sparse:TSparse read fSparse;
             end;
@@ -817,25 +817,25 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     public
                      type TTarget=class(TBaseExtensionsExtrasObject)
                            private
-                            fNode:TPasGLTFInt32;
+                            fNode:TPasGLTFSizeInt;
                             fPath:TPasGLTFUTF8String;
                             fEmpty:boolean;
                            public
                             constructor Create; override;
                             destructor Destroy; override;
                            published
-                            property Node:TPasGLTFInt32 read fNode write fNode default -1;
+                            property Node:TPasGLTFSizeInt read fNode write fNode default -1;
                             property Path:TPasGLTFUTF8String read fPath write fPath;
                             property Empty:boolean read fEmpty;
                           end;
                     private
-                     fSampler:TPasGLTFInt32;
+                     fSampler:TPasGLTFSizeInt;
                      fTarget:TTarget;
                     public
                      constructor Create; override;
                      destructor Destroy; override;
                     published
-                     property Sampler:TPasGLTFInt32 read fSampler write fSampler default -1;
+                     property Sampler:TPasGLTFSizeInt read fSampler write fSampler default -1;
                      property Target:TTarget read fTarget;
                    end;
                    TChannels=TPasGLTFObjectList<TChannel>;
@@ -849,15 +849,15 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                            );
                            PType=^TType;
                     private
-                     fInput:TPasGLTFInt32;
-                     fOutput:TPasGLTFInt32;
+                     fInput:TPasGLTFSizeInt;
+                     fOutput:TPasGLTFSizeInt;
                      fInterpolation:TType;
                     public
                      constructor Create; override;
                      destructor Destroy; override;
                     published
-                     property Input:TPasGLTFInt32 read fInput write fInput default -1;
-                     property Output:TPasGLTFInt32 read fOutput write fOutput default -1;
+                     property Input:TPasGLTFSizeInt read fInput write fInput default -1;
+                     property Output:TPasGLTFSizeInt read fOutput write fOutput default -1;
                      property Interpolation:TType read fInterpolation write fInterpolation default TType.Linear;
                    end;
                    TSamplers=TPasGLTFObjectList<TSampler>;
@@ -893,7 +893,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
             end;
             TBuffer=class(TBaseExtensionsExtrasObject)
              private
-              fByteLength:TPasGLTFUInt32;
+              fByteLength:TPasGLTFSizeUInt;
               fName:TPasGLTFUTF8String;
               fURI:TPasGLTFUTF8String;
               fData:TMemoryStream;
@@ -906,7 +906,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               constructor Create; override;
               destructor Destroy; override;
              published
-              property ByteLength:TPasGLTFUInt32 read fByteLength write fByteLength;
+              property ByteLength:TPasGLTFSizeUInt read fByteLength write fByteLength;
               property Name:TPasGLTFUTF8String read fName write fName;
               property URI:TPasGLTFUTF8String read GetURI write SetURI;
               property Data:TMemoryStream read fData write fData;
@@ -924,20 +924,20 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                    PTargetType=^TTargetType;
              private
               fName:TPasGLTFUTF8String;
-              fBuffer:TPasGLTFInt32;
-              fByteOffset:TPasGLTFUInt32;
-              fByteLength:TPasGLTFUInt32;
-              fByteStride:TPasGLTFUInt32;
+              fBuffer:TPasGLTFSizeInt;
+              fByteOffset:TPasGLTFSizeUInt;
+              fByteLength:TPasGLTFSizeUInt;
+              fByteStride:TPasGLTFSizeUInt;
               fTarget:TTargetType;
              public
               constructor Create; override;
               destructor Destroy; override;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
-              property Buffer:TPasGLTFInt32 read fBuffer write fBuffer;
-              property ByteOffset:TPasGLTFUInt32 read fByteOffset write fByteOffset;
-              property ByteLength:TPasGLTFUInt32 read fByteLength write fByteLength;
-              property ByteStride:TPasGLTFUInt32 read fByteStride write fByteStride;
+              property Buffer:TPasGLTFSizeInt read fBuffer write fBuffer;
+              property ByteOffset:TPasGLTFSizeUInt read fByteOffset write fByteOffset;
+              property ByteLength:TPasGLTFSizeUInt read fByteLength write fByteLength;
+              property ByteStride:TPasGLTFSizeUInt read fByteStride write fByteStride;
               property Target:TTargetType read fTarget write fTarget default TTargetType.None;
             end;
             TBufferViews=TPasGLTFObjectList<TBufferView>;
@@ -998,7 +998,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
             TCameras=TPasGLTFObjectList<TCamera>;
             TImage=class(TBaseExtensionsExtrasObject)
              private
-              fBufferView:TPasGLTFInt32;
+              fBufferView:TPasGLTFSizeInt;
               fName:TPasGLTFUTF8String;
               fURI:TPasGLTFUTF8String;
               fMimeType:TPasGLTFUTF8String;
@@ -1013,7 +1013,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               function GetEmbeddedResourceData(const aStream:TStream):boolean;
               procedure SetEmbeddedResourceData(const aStream:TStream);
              published
-              property BufferView:TPasGLTFInt32 read fBufferView write fBufferView;
+              property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView;
               property Name:TPasGLTFUTF8String read fName write fName;
               property URI:TPasGLTFUTF8String read GetURI write SetURI;
               property MimeType:TPasGLTFUTF8String read fMimeType write fMimeType;
@@ -1031,13 +1031,15 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                    PAlphaMode=^TAlphaMode;
                    TTexture=class(TBaseExtensionsExtrasObject)
                     private
-                     fIndex:TPasGLTFInt32;
-                     fTexCoord:TPasGLTFInt32;
+                     fIndex:TPasGLTFSizeInt;
+                     fTexCoord:TPasGLTFSizeInt;
                      function GetEmpty:boolean;
                     public
                      constructor Create; override;
                      destructor Destroy; override;
                     published
+                     property Index:TPasGLTFSizeInt read fIndex write fIndex;
+                     property TexCoord:TPasGLTFSizeInt read fTexCoord write fTexCoord;
                      property Empty:boolean read GetEmpty;
                    end;
                    TNormalTexture=class(TTexture)
@@ -1119,8 +1121,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                           PMode=^TMode;
                     private
                      fMode:TMode;
-                     fIndices:TPasGLTFInt32;
-                     fMaterial:TPasGLTFInt32;
+                     fIndices:TPasGLTFSizeInt;
+                     fMaterial:TPasGLTFSizeInt;
                      fAttributes:TAttributes;
                      fTargets:TAttributesList;
                     public
@@ -1128,8 +1130,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      destructor Destroy; override;
                     published
                      property Mode:TMode read fMode write fMode;
-                     property Indices:TPasGLTFInt32 read fIndices write fIndices;
-                     property Material:TPasGLTFInt32 read fMaterial write fMaterial;
+                     property Indices:TPasGLTFSizeInt read fIndices write fIndices;
+                     property Material:TPasGLTFSizeInt read fMaterial write fMaterial;
                      property Attributes:TAttributes read fAttributes;
                      property Targets:TAttributesList read fTargets;
                    end;
@@ -1151,13 +1153,13 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
             TMeshes=TPasGLTFObjectList<TMesh>;
             TNode=class(TBaseExtensionsExtrasObject)
              public
-              type TChildren=TPasGLTFDynamicArray<TPasGLTFInt32>;
+              type TChildren=TPasGLTFDynamicArray<TPasGLTFSizeInt>;
                    TWeights=TPasGLTFDynamicArray<TPasGLTFFloat>;
              private
               fName:TPasGLTFUTF8String;
-              fCamera:TPasGLTFInt32;
-              fMesh:TPasGLTFInt32;
-              fSkin:TPasGLTFInt32;
+              fCamera:TPasGLTFSizeInt;
+              fMesh:TPasGLTFSizeInt;
+              fSkin:TPasGLTFSizeInt;
               fMatrix:TMatrix;
               fRotation:TVector4;
               fScale:TVector3;
@@ -1174,9 +1176,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Translation:TVector3 read fTranslation write fTranslation;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
-              property Camera:TPasGLTFInt32 read fCamera write fCamera;
-              property Mesh:TPasGLTFInt32 read fMesh write fMesh;
-              property Skin:TPasGLTFInt32 read fSkin write fSkin;
+              property Camera:TPasGLTFSizeInt read fCamera write fCamera;
+              property Mesh:TPasGLTFSizeInt read fMesh write fMesh;
+              property Skin:TPasGLTFSizeInt read fSkin write fSkin;
               property Children:TChildren read fChildren;
               property Weights:TWeights read fWeights;
             end;
@@ -1229,7 +1231,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
             TSamplers=TPasGLTFObjectList<TSampler>;
             TScene=class(TBaseExtensionsExtrasObject)
              public
-              type TNodes=TPasGLTFDynamicArray<TPasGLTFUInt32>;
+              type TNodes=TPasGLTFDynamicArray<TPasGLTFSizeUInt>;
              private
               fName:TPasGLTFUTF8String;
               fNodes:TScene.TNodes;
@@ -1243,34 +1245,34 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
             TScenes=TPasGLTFObjectList<TScene>;
             TSkin=class(TBaseExtensionsExtrasObject)
              public
-              type TJoints=TPasGLTFDynamicArray<TPasGLTFUInt32>;
+              type TJoints=TPasGLTFDynamicArray<TPasGLTFSizeUInt>;
              private
               fName:TPasGLTFUTF8String;
-              fInverseBindMatrices:TPasGLTFInt32;
-              fSkeleton:TPasGLTFInt32;
+              fInverseBindMatrices:TPasGLTFSizeInt;
+              fSkeleton:TPasGLTFSizeInt;
               fJoints:TSkin.TJoints;
              public
               constructor Create; override;
               destructor Destroy; override;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
-              property InverseBindMatrices:TPasGLTFInt32 read fInverseBindMatrices write fInverseBindMatrices;
-              property Skeleton:TPasGLTFInt32 read fSkeleton write fSkeleton;
+              property InverseBindMatrices:TPasGLTFSizeInt read fInverseBindMatrices write fInverseBindMatrices;
+              property Skeleton:TPasGLTFSizeInt read fSkeleton write fSkeleton;
               property Joints:TSkin.TJoints read fJoints;
             end;
             TSkins=TPasGLTFObjectList<TSkin>;
             TTexture=class(TBaseExtensionsExtrasObject)
              private
               fName:TPasGLTFUTF8String;
-              fSampler:TPasGLTFInt32;
-              fSource:TPasGLTFInt32;
+              fSampler:TPasGLTFSizeInt;
+              fSource:TPasGLTFSizeInt;
              public
               constructor Create; override;
               destructor Destroy; override;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
-              property Sampler:TPasGLTFInt32 read fSampler write fSampler;
-              property Source:TPasGLTFInt32 read fSource write fSource;
+              property Sampler:TPasGLTFSizeInt read fSampler write fSampler;
+              property Source:TPasGLTFSizeInt read fSource write fSource;
             end;
             TTextures=TPasGLTFObjectList<TTexture>;
             TDocument=class(TBaseExtensionsExtrasObject)
@@ -1288,7 +1290,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fSkins:TSkins;
               fScenes:TScenes;
               fTextures:TSkins;
-              fScene:TPasGLTFInt32;
+              fScene:TPasGLTFSizeInt;
               fExtensionsUsed:TStringList;
               fExtensionsRequired:TStringList;
              public
@@ -1308,7 +1310,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Scenes:TScenes read fScenes;
               property Skins:TSkins read fSkins;
               property Textures:TSkins read fTextures;
-              property Scene:TPasGLTFInt32 read fScene write fScene;
+              property Scene:TPasGLTFSizeInt read fScene write fScene;
               property ExtensionsUsed:TStringList read fExtensionsUsed;
               property ExtensionsRequired:TStringList read fExtensionsRequired;
             end;
@@ -1799,7 +1801,7 @@ begin
 end;
 
 destructor TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.Destroy;
-var Counter:TPasGLTFInt32;
+var Counter:TPasGLTFSizeInt;
 begin
  Clear;
  for Counter:=0 to length(fEntities)-1 do begin
@@ -1816,7 +1818,7 @@ begin
 end;
 
 procedure TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.Clear;
-var Counter:TPasGLTFInt32;
+var Counter:TPasGLTFSizeInt;
 begin
  for Counter:=0 to length(fEntities)-1 do begin
   Finalize(fEntities[Counter].Key);
@@ -1840,7 +1842,7 @@ begin
  end;
 end;
 
-function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.HashData(const Data:TPasGLTFPointer;const DataLength:TPasGLTFUInt32):TPasGLTFUInt32;
+function TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.HashData(const Data:TPasGLTFPointer;const DataLength:TPasGLTFSizeUInt):TPasGLTFUInt32;
 // xxHash32
 const PRIME32_1=TPasGLTFUInt32(2654435761);
       PRIME32_2=TPasGLTFUInt32(2246822519);
@@ -1970,7 +1972,8 @@ begin
 end;
 
 procedure TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.Resize;
-var NewLogSize,NewSize,Cell,Entity,Counter:TPasGLTFInt32;
+var NewLogSize,NewSize,Cell,Entity:TPasGLTFInt32;
+    Counter:TPasGLTFSizeInt;
     OldEntities:TPasGLTFHashMapEntities;
     OldCellToEntityIndex:TPasGLTFHashMapEntityIndices;
     OldEntityToCellIndex:TPasGLTFHashMapEntityIndices;
