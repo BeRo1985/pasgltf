@@ -1279,6 +1279,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
              private
               fAsset:TAsset;
               fAccessors:TAccessors;
+              fAnimations:TAnimations;
               fBuffers:TBuffers;
               fBufferViews:TBufferViews;
               fCameras:TCameras;
@@ -1287,8 +1288,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fMaterials:TMaterials;
               fMeshes:TMeshes;
               fSamplers:TSamplers;
-              fSkins:TSkins;
               fScenes:TScenes;
+              fSkins:TSkins;
               fTextures:TSkins;
               fScene:TPasGLTFSizeInt;
               fExtensionsUsed:TStringList;
@@ -1296,9 +1297,11 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
              public
               constructor Create; override;
               destructor Destroy; override;
+              procedure LoadFromJSON(const aJSONRootItem:TPasJSONItem);
              published
               property Asset:TAsset read fAsset;
               property Accessors:TAccessors read fAccessors;
+              property Animations:TAnimations read fAnimations;
               property Buffers:TBuffers read fBuffers;
               property BufferViews:TBufferViews read fBufferViews;
               property Cameras:TCameras read fCameras;
@@ -2827,6 +2830,7 @@ begin
  inherited Create;
  fAsset:=TAsset.Create;
  fAccessors:=TAccessors.Create;
+ fAnimations:=TAnimations.Create;
  fBuffers:=TBuffers.Create;
  fBufferViews:=TBufferViews.Create;
  fCameras:=TCameras.Create;
@@ -2835,8 +2839,8 @@ begin
  fMaterials:=TMaterials.Create;
  fMeshes:=TMeshes.Create;
  fSamplers:=TSamplers.Create;
- fSkins:=TSkins.Create;
  fScenes:=TScenes.Create;
+ fSkins:=TSkins.Create;
  fTextures:=TSkins.Create;
  fScene:=-1;
  fExtensionsUsed:=TStringList.Create;
@@ -2847,6 +2851,7 @@ destructor TPasGLTF.TDocument.Destroy;
 begin
  FreeAndNil(fAsset);
  FreeAndNil(fAccessors);
+ FreeAndNil(fAnimations);
  FreeAndNil(fBuffers);
  FreeAndNil(fBufferViews);
  FreeAndNil(fCameras);
@@ -2855,12 +2860,78 @@ begin
  FreeAndNil(fMaterials);
  FreeAndNil(fMeshes);
  FreeAndNil(fSamplers);
- FreeAndNil(fSkins);
  FreeAndNil(fScenes);
+ FreeAndNil(fSkins);
  FreeAndNil(fTextures);
  FreeAndNil(fExtensionsUsed);
  FreeAndNil(fExtensionsRequired);
  inherited Destroy;
+end;
+
+procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
+ procedure ProcessExtensionsAndExtras(const aJSONItem:TPasJSONItem;const aBaseExtensionsExtrasObject:TBaseExtensionsExtrasObject);
+ var JSONObject:TPasJSONItemObject;
+     JSONObjectItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONObject:=TPasJSONItemObject(aJSONRootItem);
+  begin
+   JSONObjectItem:=JSONObject.Properties['extensions'];
+   if assigned(JSONObjectItem) then begin
+    aBaseExtensionsExtrasObject.fExtensions.Merge(JSONObjectItem);
+   end;
+  end;
+  begin
+   JSONObjectItem:=JSONObject.Properties['extras'];
+   if assigned(JSONObjectItem) then begin
+    aBaseExtensionsExtrasObject.fExtras.Merge(JSONObjectItem);
+   end;
+  end;
+ end;
+ procedure ProcessAsset(const aJSONItem:TPasJSONItem);
+ var JSONObject:TPasJSONItemObject;
+     JSONObjectProperty:TPasJSONItemObjectProperty;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONObject:=TPasJSONItemObject(aJSONRootItem);
+  ProcessExtensionsAndExtras(JSONObject,fAsset);
+  fAsset.fCopyright:=TPasJSON.GetString(JSONObject.Properties['copyright'],fAsset.fCopyright);
+  fAsset.fGenerator:=TPasJSON.GetString(JSONObject.Properties['generator'],fAsset.fGenerator);
+  fAsset.fMinVersion:=TPasJSON.GetString(JSONObject.Properties['minVersion'],fAsset.fMinVersion);
+  fAsset.fVersion:=TPasJSON.GetString(JSONObject.Properties['version'],fAsset.fVersion);
+ end;
+var JSONObject:TPasJSONItemObject;
+    JSONObjectProperty:TPasJSONItemObjectProperty;
+begin
+ if not (assigned(aJSONRootItem) and (aJSONRootItem is TPasJSONItemObject)) then begin
+  raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+ end;
+ JSONObject:=TPasJSONItemObject(aJSONRootItem);
+ ProcessExtensionsAndExtras(JSONObject,self);
+ for JSONObjectProperty in JSONObject do begin
+  if JSONObjectProperty.Key='accessors' then begin
+  end else if JSONObjectProperty.Key='animations' then begin
+  end else if JSONObjectProperty.Key='asset' then begin
+   ProcessAsset(JSONObjectProperty.Value);
+  end else if JSONObjectProperty.Key='buffers' then begin
+  end else if JSONObjectProperty.Key='bufferViews' then begin
+  end else if JSONObjectProperty.Key='cameras' then begin
+  end else if JSONObjectProperty.Key='images' then begin
+  end else if JSONObjectProperty.Key='nodes' then begin
+  end else if JSONObjectProperty.Key='materials' then begin
+  end else if JSONObjectProperty.Key='meshes' then begin
+  end else if JSONObjectProperty.Key='samplers' then begin
+  end else if JSONObjectProperty.Key='scenes' then begin
+  end else if JSONObjectProperty.Key='skins' then begin
+  end else if JSONObjectProperty.Key='textures' then begin
+  end else if JSONObjectProperty.Key='extensionsUsed' then begin
+  end else if JSONObjectProperty.Key='extensionsRequired' then begin
+  end;
+ end;
 end;
 
 end.
