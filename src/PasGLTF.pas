@@ -3162,6 +3162,40 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fBuffers.Add(ProcessBuffer(JSONItem));
   end;
  end;
+ procedure ProcessBufferViews(const aJSONItem:TPasJSONItem);
+  function ProcessBufferView(const aJSONItem:TPasJSONItem):TBufferView;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem,JSONArrayItem:TPasJSONItem;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TBufferView.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fBuffer:=TPasJSON.GetInt64(Required(JSONObject.Properties['buffer'],'buffer'),result.fBuffer);
+    result.fByteLength:=TPasJSON.GetInt64(Required(JSONObject.Properties['byteLength'],'byteLength'),result.fByteLength);
+    result.fByteOffset:=TPasJSON.GetInt64(JSONObject.Properties['byteOffset'],result.fByteOffset);
+    result.fByteStride:=TPasJSON.GetInt64(JSONObject.Properties['byteStride'],result.fByteStride);
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    result.fTarget:=TBufferView.TTargetType(TPasJSON.GetInt64(JSONObject.Properties['target'],Int64(result.fTarget)));
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fBufferViews.Add(ProcessBufferView(JSONItem));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3183,6 +3217,7 @@ begin
   end else if JSONObjectProperty.Key='buffers' then begin
    ProcessBuffers(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='bufferViews' then begin
+   ProcessBufferViews(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='cameras' then begin
   end else if JSONObjectProperty.Key='images' then begin
   end else if JSONObjectProperty.Key='nodes' then begin
