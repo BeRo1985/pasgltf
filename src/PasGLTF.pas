@@ -3021,6 +3021,102 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fAccessors.Add(ProcessAccessor(JSONItem));
   end;
  end;
+ procedure ProcessAnimations(const aJSONItem:TPasJSONItem);
+  function ProcessAnimation(const aJSONItem:TPasJSONItem):TAnimation;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem,JSONArrayItem,TargetItem,InterpolationItem:TPasJSONItem;
+      Interpolation:TPasGLTFUTF8String;
+      Channel:TAnimation.TChannel;
+      Sampler:TAnimation.TSampler;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TAnimation.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    begin
+     JSONItem:=JSONObject.Properties['channels'];
+     if not (assigned(JSONItem) and (JSONItem is TPasJSONItemArray)) then begin
+      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+     end;
+     for JSONArrayItem in TPasJSONItemArray(JSONItem) do begin
+      if not (assigned(JSONArrayItem) and (JSONArrayItem is TPasJSONItemObject)) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      Channel:=TAnimation.TChannel.Create;
+      try
+       ProcessExtensionsAndExtras(TPasJSONItemObject(JSONArrayItem),Channel);
+       Channel.fSampler:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONArrayItem).Properties['sampler'],'sampler'),Channel.fSampler);
+       begin
+        TargetItem:=Required(TPasJSONItemObject(JSONArrayItem).Properties['target'],'target');
+        if not (assigned(TargetItem) and (TargetItem is TPasJSONItemObject)) then begin
+         raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+        end;
+        ProcessExtensionsAndExtras(TPasJSONItemObject(TargetItem),Channel.fTarget);
+        Channel.fTarget.fPath:=TPasJSON.GetString(Required(TPasJSONItemObject(TargetItem).Properties['path'],'path'),Channel.fTarget.fPath);
+        Channel.fTarget.fNode:=TPasJSON.GetInt64(TPasJSONItemObject(TargetItem).Properties['node'],Channel.fTarget.fNode);
+       end;
+      finally
+       result.fChannels.Add(Channel);
+      end;
+     end;
+    end;
+    begin
+     JSONItem:=JSONObject.Properties['samplers'];
+     if not (assigned(JSONItem) and (JSONItem is TPasJSONItemArray)) then begin
+      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+     end;
+     for JSONArrayItem in TPasJSONItemArray(JSONItem) do begin
+      if not (assigned(JSONArrayItem) and (JSONArrayItem is TPasJSONItemObject)) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      Sampler:=TAnimation.TSampler.Create;
+      try
+       ProcessExtensionsAndExtras(TPasJSONItemObject(JSONArrayItem),Sampler);
+       Sampler.fInput:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONArrayItem).Properties['input'],'input'),Sampler.fInput);
+       Sampler.fOutput:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONArrayItem).Properties['output'],'output'),Sampler.fOutput);
+       begin
+        InterpolationItem:=TPasJSONItemObject(JSONArrayItem).Properties['interpolation'];
+        if assigned(InterpolationItem) then begin
+         if not (InterpolationItem is TPasJSONItemString) then begin
+          raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+         end;
+         Interpolation:=TPasJSON.GetString(InterpolationItem,'NONE');
+         if Interpolation='LINEAR' then begin
+          Sampler.fInterpolation:=TAnimation.TSampler.TType.Linear;
+         end else if Interpolation='STEP' then begin
+          Sampler.fInterpolation:=TAnimation.TSampler.TType.Step;
+         end else if Interpolation='CUBICSPLINE' then begin
+          Sampler.fInterpolation:=TAnimation.TSampler.TType.CubicSpline;
+         end else begin
+          raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+         end;
+        end;
+       end;
+      finally
+       result.fSamplers.Add(Sampler);
+      end;
+     end;
+    end;
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fAnimations.Add(ProcessAnimation(JSONItem));
+  end;
+ end;
  procedure ProcessAsset(const aJSONItem:TPasJSONItem);
  var JSONObject:TPasJSONItemObject;
      JSONObjectProperty:TPasJSONItemObjectProperty;
@@ -3047,6 +3143,7 @@ begin
   if JSONObjectProperty.Key='accessors' then begin
    ProcessAccessors(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='animations' then begin
+   ProcessAnimations(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='asset' then begin
    ProcessAsset(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='buffers' then begin
