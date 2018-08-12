@@ -1004,6 +1004,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fName:TPasGLTFUTF8String;
               fURI:TPasGLTFUTF8String;
               fMimeType:TPasGLTFUTF8String;
+              fData:TMemoryStream;
               fEmbeddedResource:boolean;
               function GetEmbeddedResource:boolean;
               procedure SetEmbeddedResource(const aEmbeddedResource:boolean);
@@ -1019,6 +1020,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Name:TPasGLTFUTF8String read fName write fName;
               property URI:TPasGLTFUTF8String read GetURI write SetURI;
               property MimeType:TPasGLTFUTF8String read fMimeType write fMimeType;
+              property Data:TMemoryStream read fData;
               property EmbeddedResource:boolean read GetEmbeddedResource write SetEmbeddedResource;
             end;
             TImages=TPasGLTFObjectList<TImage>;
@@ -1301,7 +1303,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fRootPath:TPasGLTFUTF8String;
               fGetURI:TGetURI;
               function DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
-              procedure LoadURISource(const aURI:TPasGLTFUTF8String;const aStream:TStream);
+              procedure LoadURISource(const aURI:TPasGLTFUTF8String;const aStream:TStream;out aEmbeddedResource:boolean);
               procedure LoadURISources;
              public
               constructor Create; override;
@@ -2555,11 +2557,13 @@ begin
  fName:='';
  fURI:='';
  fMimeType:='';
+ fData:=TMemoryStream.Create;
  fEmbeddedResource:=false;
 end;
 
 destructor TPasGLTF.TImage.Destroy;
 begin
+ FreeAndNil(fData);
  inherited Destroy;
 end;
 
@@ -2887,17 +2891,19 @@ begin
  result:=TFileStream.Create(IncludeTrailingPathDelimiter(fRootPath)+aURI,fmOpenRead or fmShareDenyWrite);
 end;
 
-procedure TPasGLTF.TDocument.LoadURISource(const aURI:TPasGLTFUTF8String;const aStream:TStream);
+procedure TPasGLTF.TDocument.LoadURISource(const aURI:TPasGLTFUTF8String;const aStream:TStream;out aEmbeddedResource:boolean);
 const Base64Signature=';base64,';
 var Stream:TStream;
     Base64Position:TPasGLTFSizeInt;
 begin
+ aEmbeddedResource:=false;
  if (length(aURI)>5) and
     (aURI[1]='d') and
     (aURI[2]='a') and
     (aURI[3]='t') and
     (aURI[4]='a') and
     (aURI[5]=':') then begin
+  aEmbeddedResource:=true;
   Base64Position:=pos(Base64Signature,aURI);
   if Base64Position>0 then begin
    TBase64.Decode(copy(aURI,Base64Position+length(Base64Signature),(length(aURI)-(Base64Position+length(Base64Signature)))+1),aStream);
@@ -2920,9 +2926,13 @@ end;
 
 procedure TPasGLTF.TDocument.LoadURISources;
 var Buffer:TBuffer;
+    Image:TImage;
 begin
  for Buffer in fBuffers do begin
-  LoadURISource(Buffer.fURI,Buffer.fData);
+  LoadURISource(Buffer.fURI,Buffer.fData,Buffer.fEmbeddedResource);
+ end;
+ for Image in fImages do begin
+  LoadURISource(Image.fURI,Image.fData,Image.fEmbeddedResource);
  end;
 end;
 
