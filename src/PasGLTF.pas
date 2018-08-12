@@ -1298,7 +1298,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               constructor Create; override;
               destructor Destroy; override;
               procedure LoadFromJSON(const aJSONRootItem:TPasJSONItem);
-              procedure LoadFromBinary(const aStream:TStream;const aBufferStream:TStream=nil);
+              procedure LoadFromBinary(const aStream:TStream);
              published
               property Asset:TAsset read fAsset;
               property Accessors:TAccessors read fAccessors;
@@ -3805,7 +3805,7 @@ begin
  LoadURISources;
 end;
 
-procedure TPasGLTF.TDocument.LoadFromBinary(const aStream:TStream;const aBufferStream:TStream=nil);
+procedure TPasGLTF.TDocument.LoadFromBinary(const aStream:TStream);
 var GLBHeader:TGLBHeader;
     OtherEndianness:boolean;
  function SwapEndianness32(const aValue:TPasGLTFUInt32):TPasGLTFUInt32;
@@ -3821,6 +3821,7 @@ var GLBHeader:TGLBHeader;
  end;
 var RawJSONRawByteString:TPasJSONRawByteString;
     ChunkHeader:TChunkHeader;
+    Stream:TMemoryStream;
 begin
  if not (assigned(aStream) and (aStream.Size>=GLBHeaderSize)) then begin
   raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
@@ -3849,7 +3850,7 @@ begin
  SetLength(RawJSONRawByteString,GLBHeader.JSONChunkHeader.ChunkLength);
  aStream.ReadBuffer(RawJSONRawByteString[1],length(RawJSONRawByteString));
  LoadFromJSON(TPasJSON.Parse(RawJSONRawByteString,[],TPasJSONEncoding.UTF8));
- if assigned(aBufferStream) and (aStream.Size<aStream.Position) then begin
+ if aStream.Size<aStream.Position then begin
   if aStream.Read(ChunkHeader,SizeOf(TChunkHeader))<>SizeOf(ChunkHeader) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
   end;
@@ -3859,7 +3860,12 @@ begin
      ((ChunkHeader.ChunkLength+aStream.Position)>GLBHeader.Length) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
   end;
-  aBufferStream.CopyFrom(aStream,ChunkHeader.ChunkLength);
+  if fBuffers.Count<1 then begin
+   fBuffers.Add(TBuffer.Create);
+  end;
+  Stream:=fBuffers[0].fData;
+  Stream.Clear;
+  Stream.CopyFrom(aStream,ChunkHeader.ChunkLength);
  end;
 end;
 
