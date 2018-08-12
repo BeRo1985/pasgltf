@@ -1286,9 +1286,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fBufferViews:TBufferViews;
               fCameras:TCameras;
               fImages:TImages;
-              fNodes:TNodes;
               fMaterials:TMaterials;
               fMeshes:TMeshes;
+              fNodes:TNodes;
               fSamplers:TSamplers;
               fScenes:TScenes;
               fSkins:TSkins;
@@ -2837,9 +2837,9 @@ begin
  fBufferViews:=TBufferViews.Create;
  fCameras:=TCameras.Create;
  fImages:=TImages.Create;
- fNodes:=TNodes.Create;
  fMaterials:=TMaterials.Create;
  fMeshes:=TMeshes.Create;
+ fNodes:=TNodes.Create;
  fSamplers:=TSamplers.Create;
  fScenes:=TScenes.Create;
  fSkins:=TSkins.Create;
@@ -2858,9 +2858,9 @@ begin
  FreeAndNil(fBufferViews);
  FreeAndNil(fCameras);
  FreeAndNil(fImages);
- FreeAndNil(fNodes);
  FreeAndNil(fMaterials);
  FreeAndNil(fMeshes);
+ FreeAndNil(fNodes);
  FreeAndNil(fSamplers);
  FreeAndNil(fScenes);
  FreeAndNil(fSkins);
@@ -3265,6 +3265,39 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fCameras.Add(ProcessCamera(JSONItem));
   end;
  end;
+ procedure ProcessImages(const aJSONItem:TPasJSONItem);
+  function ProcessImage(const aJSONItem:TPasJSONItem):TImage;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem:TPasJSONItem;
+      Type_:TPasGLTFUTF8String;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TImage.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fBufferView:=TPasJSON.GetInt64(JSONObject.Properties['bufferView'],result.fBufferView);
+    result.fMimeType:=TPasJSON.GetString(JSONObject.Properties['mimeType'],result.fMimeType);
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    result.fURI:=TPasJSON.GetString(JSONObject.Properties['uri'],result.fURI);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fImages.Add(ProcessImage(JSONItem));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3290,9 +3323,10 @@ begin
   end else if JSONObjectProperty.Key='cameras' then begin
    ProcessCameras(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='images' then begin
-  end else if JSONObjectProperty.Key='nodes' then begin
+   ProcessImages(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='materials' then begin
   end else if JSONObjectProperty.Key='meshes' then begin
+  end else if JSONObjectProperty.Key='nodes' then begin
   end else if JSONObjectProperty.Key='samplers' then begin
   end else if JSONObjectProperty.Key='scenes' then begin
   end else if JSONObjectProperty.Key='skins' then begin
