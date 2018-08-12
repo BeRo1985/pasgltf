@@ -1278,6 +1278,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
             end;
             TTextures=TPasGLTFObjectList<TTexture>;
             TDocument=class(TBaseExtensionsExtrasObject)
+             public
+              type TGetURI=function(const aURI:TPasGLTFUTF8String):TStream of object;
              private
               fAsset:TAsset;
               fAccessors:TAccessors;
@@ -1296,6 +1298,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fScene:TPasGLTFSizeInt;
               fExtensionsUsed:TStringList;
               fExtensionsRequired:TStringList;
+              fRootPath:TPasGLTFUTF8String;
+              fGetURI:TGetURI;
+              function DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
              public
               constructor Create; override;
               destructor Destroy; override;
@@ -1319,6 +1324,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Scene:TPasGLTFSizeInt read fScene write fScene;
               property ExtensionsUsed:TStringList read fExtensionsUsed;
               property ExtensionsRequired:TStringList read fExtensionsRequired;
+              property RootPath:TPasGLTFUTF8String read fRootPath write fRootPath;
+              property GetURI:TGetURI read fGetURI write fGetURI;
             end;
       public
 
@@ -2848,6 +2855,8 @@ begin
  fScene:=-1;
  fExtensionsUsed:=TStringList.Create;
  fExtensionsRequired:=TStringList.Create;
+ fRootPath:='';
+ fGetURI:=DefaultGetURI;
 end;
 
 destructor TPasGLTF.TDocument.Destroy;
@@ -2869,6 +2878,11 @@ begin
  FreeAndNil(fExtensionsUsed);
  FreeAndNil(fExtensionsRequired);
  inherited Destroy;
+end;
+
+function TPasGLTF.TDocument.DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
+begin
+ result:=TFileStream.Create(IncludeTrailingPathDelimiter(fRootPath)+aURI,fmOpenRead or fmShareDenyWrite);
 end;
 
 procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
