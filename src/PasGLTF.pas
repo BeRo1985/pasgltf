@@ -1292,7 +1292,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fSamplers:TSamplers;
               fScenes:TScenes;
               fSkins:TSkins;
-              fTextures:TSkins;
+              fTextures:TTextures;
               fScene:TPasGLTFSizeInt;
               fExtensionsUsed:TStringList;
               fExtensionsRequired:TStringList;
@@ -1314,7 +1314,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Samplers:TSamplers read fSamplers;
               property Scenes:TScenes read fScenes;
               property Skins:TSkins read fSkins;
-              property Textures:TSkins read fTextures;
+              property Textures:TTextures read fTextures;
               property Scene:TPasGLTFSizeInt read fScene write fScene;
               property ExtensionsUsed:TStringList read fExtensionsUsed;
               property ExtensionsRequired:TStringList read fExtensionsRequired;
@@ -2843,7 +2843,7 @@ begin
  fSamplers:=TSamplers.Create;
  fScenes:=TScenes.Create;
  fSkins:=TSkins.Create;
- fTextures:=TSkins.Create;
+ fTextures:=TTextures.Create;
  fScene:=-1;
  fExtensionsUsed:=TStringList.Create;
  fExtensionsRequired:=TStringList.Create;
@@ -3740,6 +3740,37 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fSkins.Add(ProcessSkin(JSONItem));
   end;
  end;
+ procedure ProcessTextures(const aJSONItem:TPasJSONItem);
+  function ProcessTexture(const aJSONItem:TPasJSONItem):TTexture;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem:TPasJSONItem;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TTexture.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    result.fSampler:=TPasJSON.GetInt64(JSONObject.Properties['sampler'],result.fSampler);
+    result.fSource:=TPasJSON.GetInt64(JSONObject.Properties['source'],result.fSource);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fTextures.Add(ProcessTexture(JSONItem));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3779,6 +3810,7 @@ begin
   end else if JSONObjectProperty.Key='skins' then begin
    ProcessSkins(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='textures' then begin
+   ProcessTextures(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='extensionsUsed' then begin
   end else if JSONObjectProperty.Key='extensionsRequired' then begin
   end;
