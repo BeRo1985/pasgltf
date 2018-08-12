@@ -987,6 +987,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fType:TType;
               fOrthographic:TOrthographic;
               fPerspective:TPerspective;
+              fName:TPasGLTFUTF8String;
              public
               constructor Create; override;
               destructor Destroy; override;
@@ -994,6 +995,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Type_:TType read fType write fType;
               property Orthographic:TOrthographic read fOrthographic;
               property Perspective:TPerspective read fPerspective;
+              property Name:TPasGLTFUTF8String read fName write fName;
             end;
             TCameras=TPasGLTFObjectList<TCamera>;
             TImage=class(TBaseExtensionsExtrasObject)
@@ -3196,6 +3198,73 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fBufferViews.Add(ProcessBufferView(JSONItem));
   end;
  end;
+ procedure ProcessCameras(const aJSONItem:TPasJSONItem);
+  function ProcessCamera(const aJSONItem:TPasJSONItem):TCamera;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem:TPasJSONItem;
+      Type_:TPasGLTFUTF8String;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TCamera.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    begin
+     Type_:=TPasJSON.GetString(Required(JSONObject.Properties['type'],'type'),'none');
+     if Type_='orthographic' then begin
+      result.fType:=TCamera.TType.Orthographic;
+     end else if Type_='perspective' then begin
+      result.fType:=TCamera.TType.Perspective;
+     end else begin
+      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+     end;
+    end;
+    case result.fType of
+     TCamera.TType.Orthographic:begin
+      JSONItem:=JSONObject.Properties['orthographic'];
+      if not (assigned(JSONItem) and (JSONItem is TPasJSONItemObject)) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      ProcessExtensionsAndExtras(TPasJSONItemObject(JSONItem),result.fOrthographic);
+      result.fOrthographic.fXMag:=TPasJSON.GetNumber(Required(JSONObject.Properties['xmag'],'xmag'),result.fOrthographic.fXMag);
+      result.fOrthographic.fYMag:=TPasJSON.GetNumber(Required(JSONObject.Properties['ymag'],'ymag'),result.fOrthographic.fYMag);
+      result.fOrthographic.fZNear:=TPasJSON.GetNumber(Required(JSONObject.Properties['znear'],'znear'),result.fOrthographic.fZNear);
+      result.fOrthographic.fZFar:=TPasJSON.GetNumber(Required(JSONObject.Properties['zfar'],'zfar'),result.fOrthographic.fZFar);
+     end;
+     TCamera.TType.Perspective:begin
+      JSONItem:=JSONObject.Properties['perspective'];
+      if not (assigned(JSONItem) and (JSONItem is TPasJSONItemObject)) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      ProcessExtensionsAndExtras(TPasJSONItemObject(JSONItem),result.fPerspective);
+      result.fPerspective.fAspectRatio:=TPasJSON.GetNumber(Required(JSONObject.Properties['aspectRatio'],'aspectRatio'),result.fPerspective.fAspectRatio);
+      result.fPerspective.fYFov:=TPasJSON.GetNumber(Required(JSONObject.Properties['yfov'],'yfov'),result.fPerspective.fYFov);
+      result.fPerspective.fZNear:=TPasJSON.GetNumber(Required(JSONObject.Properties['znear'],'znear'),result.fPerspective.fZNear);
+      result.fPerspective.fZFar:=TPasJSON.GetNumber(Required(JSONObject.Properties['zfar'],'zfar'),result.fPerspective.fZFar);
+     end;
+     else begin
+      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+     end;
+    end;
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fCameras.Add(ProcessCamera(JSONItem));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3219,6 +3288,7 @@ begin
   end else if JSONObjectProperty.Key='bufferViews' then begin
    ProcessBufferViews(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='cameras' then begin
+   ProcessCameras(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='images' then begin
   end else if JSONObjectProperty.Key='nodes' then begin
   end else if JSONObjectProperty.Key='materials' then begin
