@@ -214,7 +214,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
-        <Debugger_RunParams>b0.dae</Debugger_RunParams>
+        <Debugger_RunParams>DamagedHelmet.glb</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

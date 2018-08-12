@@ -2860,7 +2860,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONObject:=TPasJSONItemObject(aJSONRootItem);
+  JSONObject:=TPasJSONItemObject(aJSONItem);
   begin
    JSONObjectItem:=JSONObject.Properties['extensions'];
    if assigned(JSONObjectItem) then begin
@@ -2884,7 +2884,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
     end;
-    JSONObject:=TPasJSONItemObject(aJSONRootItem);
+    JSONObject:=TPasJSONItemObject(aJSONItem);
     ProcessExtensionsAndExtras(JSONObject,aSparse);
     aSparse.fCount:=TPasJSON.GetInt64(Required(JSONObject.Properties['count'],'count'),aSparse.fCount);
     begin
@@ -2914,7 +2914,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TAccessor.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -2989,7 +2989,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fAccessors.Add(ProcessAccessor(JSONItem));
   end;
@@ -3005,7 +3005,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TAnimation.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3085,7 +3085,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fAnimations.Add(ProcessAnimation(JSONItem));
   end;
@@ -3097,7 +3097,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONObject:=TPasJSONItemObject(aJSONRootItem);
+  JSONObject:=TPasJSONItemObject(aJSONItem);
   ProcessExtensionsAndExtras(JSONObject,fAsset);
   fAsset.fCopyright:=TPasJSON.GetString(JSONObject.Properties['copyright'],fAsset.fCopyright);
   fAsset.fGenerator:=TPasJSON.GetString(JSONObject.Properties['generator'],fAsset.fGenerator);
@@ -3112,7 +3112,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TBuffer.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3130,7 +3130,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fBuffers.Add(ProcessBuffer(JSONItem));
   end;
@@ -3143,7 +3143,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TBufferView.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3164,7 +3164,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fBufferViews.Add(ProcessBufferView(JSONItem));
   end;
@@ -3178,7 +3178,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TCamera.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3231,7 +3231,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fCameras.Add(ProcessCamera(JSONItem));
   end;
@@ -3245,7 +3245,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TImage.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3264,7 +3264,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fImages.Add(ProcessImage(JSONItem));
   end;
@@ -3279,7 +3279,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TMaterial.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3402,7 +3402,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fMaterials.Add(ProcessMaterial(JSONItem));
   end;
@@ -3418,7 +3418,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
     end;
-    JSONObject:=TPasJSONItemObject(aJSONRootItem);
+    JSONObject:=TPasJSONItemObject(aJSONItem);
     result:=TMesh.TPrimitive.Create;
     try
      ProcessExtensionsAndExtras(JSONObject,result);
@@ -3466,7 +3466,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TMesh.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3502,7 +3502,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fMeshes.Add(ProcessMesh(JSONItem));
   end;
@@ -3516,7 +3516,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TNode.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3533,7 +3533,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
      end;
     end;
     begin
-     JSONItem:=TPasJSONItemObject(JSONItem).Properties['matrix'];
+     JSONItem:=JSONObject.Properties['matrix'];
      if assigned(JSONItem) then begin
       if not ((JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=16)) then begin
        raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -3546,7 +3546,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     result.fMesh:=TPasJSON.GetInt64(JSONObject.Properties['mesh'],result.fMesh);
     result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
     begin
-     JSONItem:=TPasJSONItemObject(JSONItem).Properties['rotation'];
+     JSONItem:=JSONObject.Properties['rotation'];
      if assigned(JSONItem) then begin
       if not ((JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=4)) then begin
        raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -3557,7 +3557,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
      end;
     end;
     begin
-     JSONItem:=TPasJSONItemObject(JSONItem).Properties['scale'];
+     JSONItem:=JSONObject.Properties['scale'];
      if assigned(JSONItem) then begin
       if not ((JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=3)) then begin
        raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -3569,7 +3569,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     end;
     result.fSkin:=TPasJSON.GetInt64(JSONObject.Properties['skin'],result.fSkin);
     begin
-     JSONItem:=TPasJSONItemObject(JSONItem).Properties['translation'];
+     JSONItem:=JSONObject.Properties['translation'];
      if assigned(JSONItem) then begin
       if not ((JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=3)) then begin
        raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -3590,7 +3590,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fNodes.Add(ProcessNode(JSONItem));
   end;
@@ -3604,7 +3604,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TSampler.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3624,7 +3624,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fSamplers.Add(ProcessSampler(JSONItem));
   end;
@@ -3637,7 +3637,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TScene.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3664,7 +3664,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fScenes.Add(ProcessScene(JSONItem));
   end;
@@ -3677,7 +3677,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TSkin.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3706,7 +3706,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fSkins.Add(ProcessSkin(JSONItem));
   end;
@@ -3719,7 +3719,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
-   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   JSONObject:=TPasJSONItemObject(aJSONItem);
    result:=TTexture.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
@@ -3737,7 +3737,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    fTextures.Add(ProcessTexture(JSONItem));
   end;
@@ -3749,7 +3749,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
-  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  JSONArray:=TPasJSONItemArray(aJSONItem);
   for JSONItem in JSONArray do begin
    aStrings.Add(TPasJSON.GetString(JSONItem,''));
   end;

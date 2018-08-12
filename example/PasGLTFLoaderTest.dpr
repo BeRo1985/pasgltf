@@ -23,6 +23,8 @@ var fs:TFileStream;
     ms:TMemoryStream;
     StartPerformanceCounter:Int64=0;
 
+    GLTFDocument:TPasGLTF.TDocument;
+
 procedure Main;
 const Title='PasGLTF loader test';
       VirtualCanvasWidth=1280;
@@ -282,7 +284,7 @@ end;
 var ofs:TFileStream;
 begin
  try
-{ if ParamCount>0 then begin
+  if ParamCount>0 then begin
    InputFileName:=AnsiString(ParamStr(1));
 
    fs:=TFileStream.Create(String(InputFileName),fmOpenRead or fmShareDenyWrite);
@@ -293,16 +295,21 @@ begin
      fs.Seek(0,soBeginning);
      ms.CopyFrom(fs,fs.Size);
      ms.Seek(0,soBeginning);
-     Main;
+     GLTFDocument:=TPasGLTF.TDocument.Create;
+     try
+      GLTFDocument.RootPath:=ExtractFilePath(InputFileName);
+      GLTFDocument.LoadFromStream(ms);
+      Main;
+     finally
+      FreeAndNil(GLTFDocument);
+     end;
     finally
      ms.Free;
     end;
    finally
     fs.Free;
    end;
-
-  end;}
-  Main;
+  end;
  finally
  end;
 end.
