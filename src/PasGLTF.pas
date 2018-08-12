@@ -2912,7 +2912,27 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
     end;
     JSONObject:=TPasJSONItemObject(aJSONRootItem);
+    ProcessExtensionsAndExtras(JSONObject,aSparse);
     aSparse.fCount:=TPasJSON.GetInt64(Required(JSONObject.Properties['count'],'count'),aSparse.fCount);
+    begin
+     JSONItem:=JSONObject.Properties['indices'];
+     if not (assigned(JSONItem) and (JSONItem is TPasJSONItemObject)) then begin
+      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+     end;
+     ProcessExtensionsAndExtras(TPasJSONItemObject(JSONItem),aSparse.fIndices);
+     aSparse.fIndices.fBufferView:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONItem).Properties['bufferView'],'bufferView'),aSparse.fIndices.fBufferView);
+     aSparse.fIndices.fComponentType:=TAccessor.TComponentType(TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONItem).Properties['componentType'],'componentType'),Int64(TAccessor.TComponentType.None)));
+     aSparse.fIndices.fByteOffset:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['byteOffset'],aSparse.fIndices.fByteOffset);
+    end;
+    begin
+     JSONItem:=JSONObject.Properties['values'];
+     if not (assigned(JSONItem) and (JSONItem is TPasJSONItemObject)) then begin
+      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+     end;
+     ProcessExtensionsAndExtras(TPasJSONItemObject(JSONItem),aSparse.fValues);
+     aSparse.fValues.fBufferView:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONItem).Properties['bufferView'],'bufferView'),aSparse.fValues.fBufferView);
+     aSparse.fValues.fByteOffset:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['byteOffset'],aSparse.fValues.fByteOffset);
+    end;
    end;
   var JSONObject:TPasJSONItemObject;
       JSONItem,JSONArrayItem:TPasJSONItem;
