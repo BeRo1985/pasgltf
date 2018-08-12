@@ -740,6 +740,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                    PType=^TType;
                    TRawType=TPasGLTFUInt8;
                    PRawType=^TRawType;
+                   TMinMaxDynamicArray=TPasGLTFDynamicArray<TPasGLTFFloat>;
                    TSparse=class(TBaseExtensionsExtrasObject)
                     public
                      type TIndices=class(TBaseExtensionsExtrasObject)
@@ -792,21 +793,20 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fByteOffset:TPasGLTFSizeUInt;
               fCount:TPasGLTFSizeUInt;
               fNormalized:boolean;
-              fMinArray:TPasGLTFFloatDynamicArray;
-              fMaxArray:TPasGLTFFloatDynamicArray;
+              fMinArray:TMinMaxDynamicArray;
+              fMaxArray:TMinMaxDynamicArray;
               fSparse:TSparse;
              public
               constructor Create; override;
               destructor Destroy; override;
-             public
-              property MinArray:TPasGLTFFloatDynamicArray read fMinArray write fMinArray;
-              property MaxArray:TPasGLTFFloatDynamicArray read fMaxArray write fMaxArray;
              published
               property ComponentType:TComponentType read fComponentType write fComponentType default TComponentType.None;
               property Type_:TType read fType write fType default TType.None;
               property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView default -1;
               property ByteOffset:TPasGLTFSizeUInt read fByteOffset write fByteOffset default 0;
               property Count:TPasGLTFSizeUInt read fCount write fCount default 0;
+              property MinArray:TMinMaxDynamicArray read fMinArray;
+              property MaxArray:TMinMaxDynamicArray read fMaxArray;
               property Normalized:boolean read fNormalized write fNormalized default false;
               property Sparse:TSparse read fSparse;
             end;
@@ -2316,15 +2316,15 @@ begin
  fByteOffset:=0;
  fCount:=0;
  fNormalized:=TDefaults.AccessorNormalized;
- fMinArray:=nil;
- fMaxArray:=nil;
+ fMinArray:=TMinMaxDynamicArray.Create;
+ fMaxArray:=TMinMaxDynamicArray.Create;
  fSparse:=TSparse.Create;
 end;
 
 destructor TPasGLTF.TAccessor.Destroy;
 begin
- fMinArray:=nil;
- fMaxArray:=nil;
+ FreeAndNil(fMinArray);
+ FreeAndNil(fMaxArray);
  FreeAndNil(fSparse);
  inherited Destroy;
 end;
@@ -2869,6 +2869,17 @@ begin
 end;
 
 procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
+ function Required(const aJSONItem:TPasJSONItem;const aName:TPasGLTFUTF8String=''):TPasJSONItem;
+ begin
+  result:=aJSONItem;
+  if not assigned(result) then begin
+   if length(aName)>0 then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document, missing "'+String(aName)+'" field');
+   end else begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+  end;
+ end;
  procedure ProcessExtensionsAndExtras(const aJSONItem:TPasJSONItem;const aBaseExtensionsExtrasObject:TBaseExtensionsExtrasObject);
  var JSONObject:TPasJSONItemObject;
      JSONObjectItem:TPasJSONItem;
@@ -2890,6 +2901,106 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    end;
   end;
  end;
+ procedure ProcessAccessors(const aJSONItem:TPasJSONItem);
+  function ProcessAccessor(const aJSONItem:TPasJSONItem):TAccessor;
+   procedure ProcessSparse(const aJSONItem:TPasJSONItem;const aSparse:TAccessor.TSparse);
+   var JSONObject:TPasJSONItemObject;
+       JSONItem,JSONArrayItem:TPasJSONItem;
+       Type_:TPasGLTFUTF8String;
+   begin
+    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+    end;
+    JSONObject:=TPasJSONItemObject(aJSONRootItem);
+    aSparse.fCount:=TPasJSON.GetInt64(Required(JSONObject.Properties['count'],'count'),aSparse.fCount);
+   end;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem,JSONArrayItem:TPasJSONItem;
+      Type_:TPasGLTFUTF8String;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TAccessor.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fComponentType:=TAccessor.TComponentType(TPasJSON.GetInt64(Required(JSONObject.Properties['componentType'],'componentType'),Int64(TAccessor.TComponentType.None)));
+    result.fCount:=TPasJSON.GetInt64(Required(JSONObject.Properties['count'],'count'),result.fCount);
+    begin
+     Type_:=TPasJSON.GetString(Required(JSONObject.Properties['type'],'type'),'NONE');
+     if Type_='SCALAR' then begin
+      result.fType:=TAccessor.TType.Scalar;
+     end else if Type_='VEC2' then begin
+      result.fType:=TAccessor.TType.Vec2;
+     end else if Type_='VEC3' then begin
+      result.fType:=TAccessor.TType.Vec3;
+     end else if Type_='VEC4' then begin
+      result.fType:=TAccessor.TType.Vec4;
+     end else if Type_='MAT2' then begin
+      result.fType:=TAccessor.TType.Mat2;
+     end else if Type_='MAT3' then begin
+      result.fType:=TAccessor.TType.Mat3;
+     end else if Type_='MAT4' then begin
+      result.fType:=TAccessor.TType.Mat4;
+     end else begin
+      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+     end;
+    end;
+    result.fBufferView:=TPasJSON.GetInt64(JSONObject.Properties['bufferView'],result.fBufferView);
+    result.fByteOffset:=TPasJSON.GetInt64(JSONObject.Properties['byteOffset'],result.fByteOffset);
+    begin
+     JSONItem:=JSONObject.Properties['min'];
+     if assigned(JSONItem) then begin
+      if not (JSONItem is TPasJSONItemArray) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for JSONArrayItem in TPasJSONItemArray(JSONItem) do begin
+       if not (assigned(JSONArrayItem) and (JSONArrayItem is TPasJSONItemNumber)) then begin
+        raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+       end;
+       result.fMinArray.Add(TPasJSON.GetNumber(JSONArrayItem,0.0));
+      end;
+     end;
+    end;
+    begin
+     JSONItem:=JSONObject.Properties['max'];
+     if assigned(JSONItem) then begin
+      if not (JSONItem is TPasJSONItemArray) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for JSONArrayItem in TPasJSONItemArray(JSONItem) do begin
+       if not (assigned(JSONArrayItem) and (JSONArrayItem is TPasJSONItemNumber)) then begin
+        raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+       end;
+       result.fMaxArray.Add(TPasJSON.GetNumber(JSONArrayItem,0.0));
+      end;
+     end;
+    end;
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    result.fNormalized:=TPasJSON.GetBoolean(JSONObject.Properties['normalized'],result.fNormalized);
+    begin
+     JSONItem:=JSONObject.Properties['sparse'];
+     if assigned(JSONItem) then begin
+      ProcessSparse(JSONItem,result.fSparse);
+     end;
+    end;
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fAccessors.Add(ProcessAccessor(JSONItem));
+  end;
+ end;
  procedure ProcessAsset(const aJSONItem:TPasJSONItem);
  var JSONObject:TPasJSONItemObject;
      JSONObjectProperty:TPasJSONItemObjectProperty;
@@ -2902,7 +3013,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   fAsset.fCopyright:=TPasJSON.GetString(JSONObject.Properties['copyright'],fAsset.fCopyright);
   fAsset.fGenerator:=TPasJSON.GetString(JSONObject.Properties['generator'],fAsset.fGenerator);
   fAsset.fMinVersion:=TPasJSON.GetString(JSONObject.Properties['minVersion'],fAsset.fMinVersion);
-  fAsset.fVersion:=TPasJSON.GetString(JSONObject.Properties['version'],fAsset.fVersion);
+  fAsset.fVersion:=TPasJSON.GetString(Required(JSONObject.Properties['version'],'version'),fAsset.fVersion);
  end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
@@ -2914,6 +3025,7 @@ begin
  ProcessExtensionsAndExtras(JSONObject,self);
  for JSONObjectProperty in JSONObject do begin
   if JSONObjectProperty.Key='accessors' then begin
+   ProcessAccessors(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='animations' then begin
   end else if JSONObjectProperty.Key='asset' then begin
    ProcessAsset(JSONObjectProperty.Value);
