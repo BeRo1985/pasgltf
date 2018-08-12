@@ -3624,6 +3624,40 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fNodes.Add(ProcessNode(JSONItem));
   end;
  end;
+ procedure ProcessSamplers(const aJSONItem:TPasJSONItem);
+  function ProcessSampler(const aJSONItem:TPasJSONItem):TSampler;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem:TPasJSONItem;
+      Type_:TPasGLTFUTF8String;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TSampler.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fMagFilter:=TSampler.TMagFilter(TPasJSON.GetInt64(JSONObject.Properties['magFilter'],TPasGLTFInt64(result.fMagFilter)));
+    result.fMinFilter:=TSampler.TMinFilter(TPasJSON.GetInt64(JSONObject.Properties['minFilter'],TPasGLTFInt64(result.fMinFilter)));
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    result.fWrapS:=TSampler.TWrappingMode(TPasJSON.GetInt64(JSONObject.Properties['wrapS'],TPasGLTFInt64(result.fWrapS)));
+    result.fWrapT:=TSampler.TWrappingMode(TPasJSON.GetInt64(JSONObject.Properties['wrapT'],TPasGLTFInt64(result.fWrapT)));
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fSamplers.Add(ProcessSampler(JSONItem));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3657,6 +3691,7 @@ begin
   end else if JSONObjectProperty.Key='nodes' then begin
    ProcessNodes(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='samplers' then begin
+   ProcessSamplers(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='scenes' then begin
   end else if JSONObjectProperty.Key='skins' then begin
   end else if JSONObjectProperty.Key='textures' then begin
