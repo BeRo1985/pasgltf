@@ -3301,7 +3301,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  procedure ProcessMaterials(const aJSONItem:TPasJSONItem);
   function ProcessMaterial(const aJSONItem:TPasJSONItem):TMaterial;
   var JSONObject:TPasJSONItemObject;
-      JSONItem:TPasJSONItem;
+      JSONItem,JSONSubItem:TPasJSONItem;
       Mode:TPasGLTFUTF8String;
       Index:TPasGLTFSizeInt;
   begin
@@ -3377,7 +3377,48 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
      end;
     end;
     begin
-
+     JSONItem:=JSONObject.Properties['pbrMetallicRoughness'];
+     if assigned(JSONItem) then begin
+      if not (JSONItem is TPasJSONItemObject) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      ProcessExtensionsAndExtras(TPasJSONItemObject(JSONItem),result.fPBRMetallicRoughness);
+      begin
+       JSONSubItem:=TPasJSONItemObject(JSONItem).Properties['baseColorFactor'];
+       if assigned(JSONSubItem) then begin
+        if not ((JSONSubItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONSubItem).Count=4)) then begin
+         raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+        end;
+        for Index:=0 to 3 do begin
+         result.fPBRMetallicRoughness.fBaseColorFactor[Index]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONSubItem).Items[Index],result.fPBRMetallicRoughness.fBaseColorFactor[Index]);
+        end;
+       end;
+      end;
+      begin
+       JSONSubItem:=TPasJSONItemObject(JSONItem).Properties['baseColorTexture'];
+       if assigned(JSONSubItem) then begin
+        if not (JSONSubItem is TPasJSONItemObject) then begin
+         raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+        end;
+        ProcessExtensionsAndExtras(TPasJSONItemObject(JSONSubItem),result.fPBRMetallicRoughness.fBaseColorTexture);
+        result.fPBRMetallicRoughness.fBaseColorTexture.fIndex:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONSubItem).Properties['index'],'index'),result.fPBRMetallicRoughness.fBaseColorTexture.fIndex);
+        result.fPBRMetallicRoughness.fBaseColorTexture.fTexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONSubItem).Properties['texCoord'],result.fPBRMetallicRoughness.fBaseColorTexture.fTexCoord);
+       end;
+      end;
+      result.fPBRMetallicRoughness.fMetallicFactor:=TPasJSON.GetNumber(TPasJSONItemObject(JSONItem).Properties['metallicFactor'],result.fPBRMetallicRoughness.fMetallicFactor);
+      begin
+       JSONSubItem:=TPasJSONItemObject(JSONItem).Properties['metallicRoughnessTexture'];
+       if assigned(JSONSubItem) then begin
+        if not (JSONSubItem is TPasJSONItemObject) then begin
+         raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+        end;
+        ProcessExtensionsAndExtras(TPasJSONItemObject(JSONSubItem),result.fPBRMetallicRoughness.fMetallicRoughnessTexture);
+        result.fPBRMetallicRoughness.fMetallicRoughnessTexture.fIndex:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONSubItem).Properties['index'],'index'),result.fPBRMetallicRoughness.fMetallicRoughnessTexture.fIndex);
+        result.fPBRMetallicRoughness.fMetallicRoughnessTexture.fTexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONSubItem).Properties['texCoord'],result.fPBRMetallicRoughness.fMetallicRoughnessTexture.fTexCoord);
+       end;
+      end;
+      result.fPBRMetallicRoughness.fRoughnessFactor:=TPasJSON.GetNumber(TPasJSONItemObject(JSONItem).Properties['roughnessFactor'],result.fPBRMetallicRoughness.fRoughnessFactor);
+     end;
     end;
    except
     FreeAndNil(result);
