@@ -3855,7 +3855,7 @@ begin
  SetLength(RawJSONRawByteString,GLBHeader.JSONChunkHeader.ChunkLength);
  aStream.ReadBuffer(RawJSONRawByteString[1],length(RawJSONRawByteString));
  LoadFromJSON(TPasJSON.Parse(RawJSONRawByteString,[],TPasJSONEncoding.UTF8));
- if aStream.Size<aStream.Position then begin
+ if aStream.Position<aStream.Size then begin
   if aStream.Read(ChunkHeader,SizeOf(TChunkHeader))<>SizeOf(ChunkHeader) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
   end;
