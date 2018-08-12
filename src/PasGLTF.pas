@@ -3844,7 +3844,7 @@ var GLBHeader:TGLBHeader;
    result:=((aValue and $000000ff) shl 24) or
            ((aValue and $0000ff00) shl 8) or
            ((aValue and $00ff0000) shr 8) or
-           ((aValue and $24000000) shr 24);
+           ((aValue and $ff000000) shr 24);
   end else begin
    result:=aValue;
   end;
