@@ -3771,6 +3771,18 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fTextures.Add(ProcessTexture(JSONItem));
   end;
  end;
+ procedure ProcessStringList(const aJSONItem:TPasJSONItem;const aStrings:TStrings);
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   aStrings.Add(TPasJSON.GetString(JSONItem,''));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3812,7 +3824,9 @@ begin
   end else if JSONObjectProperty.Key='textures' then begin
    ProcessTextures(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='extensionsUsed' then begin
+   ProcessStringList(JSONObjectProperty.Value,fExtensionsUsed);
   end else if JSONObjectProperty.Key='extensionsRequired' then begin
+   ProcessStringList(JSONObjectProperty.Value,fExtensionsRequired);
   end;
  end;
  if not HasAsset then begin
