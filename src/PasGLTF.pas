@@ -3658,6 +3658,46 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fSamplers.Add(ProcessSampler(JSONItem));
   end;
  end;
+ procedure ProcessScenes(const aJSONItem:TPasJSONItem);
+  function ProcessScene(const aJSONItem:TPasJSONItem):TScene;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem,JSONArrayItem:TPasJSONItem;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TScene.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    begin
+     JSONItem:=JSONObject.Properties['nodes'];
+     if assigned(JSONItem) then begin
+      if not (JSONItem is TPasJSONItemArray) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for JSONArrayItem in TPasJSONItemArray(JSONItem) do begin
+       result.fNodes.Add(TPasJSON.GetInt64(JSONArrayItem));
+      end;
+     end;
+    end;
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fScenes.Add(ProcessScene(JSONItem));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3693,6 +3733,7 @@ begin
   end else if JSONObjectProperty.Key='samplers' then begin
    ProcessSamplers(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='scenes' then begin
+   ProcessScenes(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='skins' then begin
   end else if JSONObjectProperty.Key='textures' then begin
   end else if JSONObjectProperty.Key='extensionsUsed' then begin
