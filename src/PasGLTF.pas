@@ -3698,6 +3698,48 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fScenes.Add(ProcessScene(JSONItem));
   end;
  end;
+ procedure ProcessSkins(const aJSONItem:TPasJSONItem);
+  function ProcessSkin(const aJSONItem:TPasJSONItem):TSkin;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem,JSONArrayItem:TPasJSONItem;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TSkin.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    begin
+     JSONItem:=Required(JSONObject.Properties['joints']);
+     if assigned(JSONItem) then begin
+      if not (JSONItem is TPasJSONItemArray) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for JSONArrayItem in TPasJSONItemArray(JSONItem) do begin
+       result.fJoints.Add(TPasJSON.GetInt64(JSONArrayItem));
+      end;
+     end;
+    end;
+    result.fInverseBindMatrices:=TPasJSON.GetInt64(JSONObject.Properties['inverseBindMatrices'],result.fInverseBindMatrices);
+    result.fSkeleton:=TPasJSON.GetInt64(JSONObject.Properties['skeleton'],result.fSkeleton);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fSkins.Add(ProcessSkin(JSONItem));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3735,6 +3777,7 @@ begin
   end else if JSONObjectProperty.Key='scenes' then begin
    ProcessScenes(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='skins' then begin
+   ProcessSkins(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='textures' then begin
   end else if JSONObjectProperty.Key='extensionsUsed' then begin
   end else if JSONObjectProperty.Key='extensionsRequired' then begin
