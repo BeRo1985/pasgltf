@@ -1301,6 +1301,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fRootPath:TPasGLTFUTF8String;
               fGetURI:TGetURI;
               function DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
+              procedure LoadURISource(const aURI:TPasGLTFUTF8String;const aStream:TStream);
+              procedure LoadURISources;
              public
               constructor Create; override;
               destructor Destroy; override;
@@ -2885,6 +2887,45 @@ begin
  result:=TFileStream.Create(IncludeTrailingPathDelimiter(fRootPath)+aURI,fmOpenRead or fmShareDenyWrite);
 end;
 
+procedure TPasGLTF.TDocument.LoadURISource(const aURI:TPasGLTFUTF8String;const aStream:TStream);
+const Base64Signature=';base64,';
+var Stream:TStream;
+    Base64Position:TPasGLTFSizeInt;
+begin
+ if (length(aURI)>5) and
+    (aURI[1]='d') and
+    (aURI[2]='a') and
+    (aURI[3]='t') and
+    (aURI[4]='a') and
+    (aURI[5]=':') then begin
+  Base64Position:=pos(Base64Signature,aURI);
+  if Base64Position>0 then begin
+   TBase64.Decode(copy(aURI,Base64Position+length(Base64Signature),(length(aURI)-(Base64Position+length(Base64Signature)))+1),aStream);
+  end;
+ end else if assigned(fGetURI) then begin
+  Stream:=fGetURI(aURI);
+  if assigned(Stream) then begin
+   try
+    Stream.Seek(0,soBeginning);
+    if aStream.CopyFrom(Stream,Stream.Size)<>Stream.Size then begin
+     raise EInOutError.Create('I/O error');
+    end;
+   finally
+    FreeAndNil(Stream);
+   end;
+  end;
+ end;
+ aStream.Seek(0,soBeginning);
+end;
+
+procedure TPasGLTF.TDocument.LoadURISources;
+var Buffer:TBuffer;
+begin
+ for Buffer in fBuffers do begin
+  LoadURISource(Buffer.fURI,Buffer.fData);
+ end;
+end;
+
 procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  function Required(const aJSONItem:TPasJSONItem;const aName:TPasGLTFUTF8String=''):TPasJSONItem;
  begin
@@ -3847,6 +3888,7 @@ begin
  if not HasAsset then begin
   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
  end;
+ LoadURISources;
 end;
 
 procedure TPasGLTF.TDocument.LoadFromBinary(const aStream:TStream;const aBufferStream:TStream=nil);
