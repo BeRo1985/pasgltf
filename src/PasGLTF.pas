@@ -2923,7 +2923,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
      end;
      ProcessExtensionsAndExtras(TPasJSONItemObject(JSONItem),aSparse.fIndices);
      aSparse.fIndices.fBufferView:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONItem).Properties['bufferView'],'bufferView'),aSparse.fIndices.fBufferView);
-     aSparse.fIndices.fComponentType:=TAccessor.TComponentType(TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONItem).Properties['componentType'],'componentType'),Int64(TAccessor.TComponentType.None)));
+     aSparse.fIndices.fComponentType:=TAccessor.TComponentType(TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONItem).Properties['componentType'],'componentType'),TPasGLTFInt64(TAccessor.TComponentType.None)));
      aSparse.fIndices.fByteOffset:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['byteOffset'],aSparse.fIndices.fByteOffset);
     end;
     begin
@@ -2947,7 +2947,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    result:=TAccessor.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
-    result.fComponentType:=TAccessor.TComponentType(TPasJSON.GetInt64(Required(JSONObject.Properties['componentType'],'componentType'),Int64(TAccessor.TComponentType.None)));
+    result.fComponentType:=TAccessor.TComponentType(TPasJSON.GetInt64(Required(JSONObject.Properties['componentType'],'componentType'),TPasGLTFInt64(TAccessor.TComponentType.None)));
     result.fCount:=TPasJSON.GetInt64(Required(JSONObject.Properties['count'],'count'),result.fCount);
     begin
      Type_:=TPasJSON.GetString(Required(JSONObject.Properties['type'],'type'),'NONE');
@@ -3181,7 +3181,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     result.fByteOffset:=TPasJSON.GetInt64(JSONObject.Properties['byteOffset'],result.fByteOffset);
     result.fByteStride:=TPasJSON.GetInt64(JSONObject.Properties['byteStride'],result.fByteStride);
     result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
-    result.fTarget:=TBufferView.TTargetType(TPasJSON.GetInt64(JSONObject.Properties['target'],Int64(result.fTarget)));
+    result.fTarget:=TBufferView.TTargetType(TPasJSON.GetInt64(JSONObject.Properties['target'],TPasGLTFInt64(result.fTarget)));
    except
     FreeAndNil(result);
     raise;
@@ -3436,6 +3436,95 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
    fMaterials.Add(ProcessMaterial(JSONItem));
   end;
  end;
+ procedure ProcessMeshes(const aJSONItem:TPasJSONItem);
+  function ProcessMesh(const aJSONItem:TPasJSONItem):TMesh;
+   function ProcessPrimitive(const aJSONItem:TPasJSONItem):TMesh.TPrimitive;
+   var JSONObject:TPasJSONItemObject;
+       JSONItem,JSONArrayItem:TPasJSONItem;
+       JSONObjectProperty:TPasJSONItemObjectProperty;
+       Attributes:TAttributes;
+   begin
+    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+    end;
+    JSONObject:=TPasJSONItemObject(aJSONRootItem);
+    result:=TMesh.TPrimitive.Create;
+    try
+     ProcessExtensionsAndExtras(JSONObject,result);
+     begin
+      JSONItem:=Required(JSONObject.Properties['attributes'],'attributes');
+      if not (assigned(JSONItem) and (JSONItem is TPasJSONItemObject)) then begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+      end;
+      for JSONObjectProperty in TPasJSONItemObject(JSONItem) do begin
+       result.fAttributes.Add(JSONObjectProperty.Key,TPasJSON.GetInt64(JSONObjectProperty.Value,0));
+      end;
+     end;
+     result.fIndices:=TPasJSON.GetInt64(JSONObject.Properties['indices'],result.fIndices);
+     result.fMaterial:=TPasJSON.GetInt64(JSONObject.Properties['material'],result.fMaterial);
+     result.fMode:=TMesh.TPrimitive.TMode(TPasJSON.GetInt64(JSONObject.Properties['mode'],TPasGLTFInt64(result.fMode)));
+     begin
+      JSONItem:=JSONObject.Properties['targets'];
+      if assigned(JSONItem) then begin
+       if not (JSONItem is TPasJSONItemArray) then begin
+        raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+       end;
+       for JSONArrayItem in TPasJSONItemArray(JSONItem) do begin
+        if not (assigned(JSONArrayItem) and (JSONArrayItem is TPasJSONItemObject)) then begin
+         raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+        end;
+        Attributes:=TAttributes.Create(0);
+        try
+         for JSONObjectProperty in TPasJSONItemObject(JSONArrayItem) do begin
+          Attributes.Add(JSONObjectProperty.Key,TPasJSON.GetInt64(JSONObjectProperty.Value,0));
+         end;
+        finally
+         result.fTargets.Add(Attributes);
+        end;
+       end;
+      end;
+     end;
+    except
+     FreeAndNil(result);
+     raise;
+    end;
+   end;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem,JSONArrayItem:TPasJSONItem;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TMesh.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    begin
+     JSONItem:=Required(JSONObject.Properties['primitives'],'primitives');
+     if not (assigned(JSONItem) and (JSONItem is TPasJSONItemArray)) then begin
+      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+     end;
+     for JSONArrayItem in TPasJSONItemArray(JSONItem) do begin
+      result.fPrimitives.Add(ProcessPrimitive(JSONArrayItem));
+     end;
+    end;
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fMeshes.Add(ProcessMesh(JSONItem));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3465,6 +3554,7 @@ begin
   end else if JSONObjectProperty.Key='materials' then begin
    ProcessMaterials(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='meshes' then begin
+   ProcessMeshes(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='nodes' then begin
   end else if JSONObjectProperty.Key='samplers' then begin
   end else if JSONObjectProperty.Key='scenes' then begin
