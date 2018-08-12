@@ -3131,6 +3131,37 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   fAsset.fMinVersion:=TPasJSON.GetString(JSONObject.Properties['minVersion'],fAsset.fMinVersion);
   fAsset.fVersion:=TPasJSON.GetString(Required(JSONObject.Properties['version'],'version'),fAsset.fVersion);
  end;
+ procedure ProcessBuffers(const aJSONItem:TPasJSONItem);
+  function ProcessBuffer(const aJSONItem:TPasJSONItem):TBuffer;
+  var JSONObject:TPasJSONItemObject;
+      JSONItem,JSONArrayItem:TPasJSONItem;
+  begin
+   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+   JSONObject:=TPasJSONItemObject(aJSONRootItem);
+   result:=TBuffer.Create;
+   try
+    ProcessExtensionsAndExtras(JSONObject,result);
+    result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
+    result.SetURI(TPasJSON.GetString(JSONObject.Properties['uri'],result.fURI));
+    result.fByteLength:=TPasJSON.GetInt64(Required(JSONObject.Properties['byteLength'],'byteLength'),result.fByteLength);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var JSONArray:TPasJSONItemArray;
+     JSONItem:TPasJSONItem;
+ begin
+  if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemArray)) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
+  JSONArray:=TPasJSONItemArray(aJSONRootItem);
+  for JSONItem in JSONArray do begin
+   fBuffers.Add(ProcessBuffer(JSONItem));
+  end;
+ end;
 var JSONObject:TPasJSONItemObject;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
@@ -3150,6 +3181,7 @@ begin
    HasAsset:=true;
    ProcessAsset(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='buffers' then begin
+   ProcessBuffers(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='bufferViews' then begin
   end else if JSONObjectProperty.Key='cameras' then begin
   end else if JSONObjectProperty.Key='images' then begin
