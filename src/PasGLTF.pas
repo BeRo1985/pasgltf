@@ -1299,6 +1299,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               destructor Destroy; override;
               procedure LoadFromJSON(const aJSONRootItem:TPasJSONItem);
               procedure LoadFromBinary(const aStream:TStream);
+              procedure LoadFromStream(const aStream:TStream);
              published
               property Asset:TAsset read fAsset;
               property Accessors:TAccessors read fAccessors;
@@ -3866,6 +3867,21 @@ begin
   Stream:=fBuffers[0].fData;
   Stream.Clear;
   Stream.CopyFrom(aStream,ChunkHeader.ChunkLength);
+ end;
+end;
+
+procedure TPasGLTF.TDocument.LoadFromStream(const aStream:TStream);
+var FirstFourBytes:array[0..3] of TPasGLTFUInt8;
+begin
+ aStream.ReadBuffer(FirstFourBytes,SizeOf(FirstFourBytes));
+ aStream.Seek(-SizeOf(FirstFourBytes),soCurrent);
+ if (FirstFourBytes[0]=ord('g')) and
+    (FirstFourBytes[1]=ord('l')) and
+    (FirstFourBytes[2]=ord('T')) and
+    (FirstFourBytes[3]=ord('F')) then begin
+  LoadFromBinary(aStream);
+ end else begin
+  LoadFromJSON(TPasJSON.Parse(aStream,[],TPasJSONEncoding.AutomaticDetection));
  end;
 end;
 
