@@ -1300,7 +1300,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               constructor Create; override;
               destructor Destroy; override;
               procedure LoadFromJSON(const aJSONRootItem:TPasJSONItem);
-              procedure LoadFromBinary(const aStream:TStream);
+              procedure LoadFromBinary(const aStream:TStream;const aBufferStream:TStream=nil);
              published
               property Asset:TAsset read fAsset;
               property Accessors:TAccessors read fAccessors;
@@ -3835,7 +3835,7 @@ begin
  end;
 end;
 
-procedure TPasGLTF.TDocument.LoadFromBinary(const aStream:TStream);
+procedure TPasGLTF.TDocument.LoadFromBinary(const aStream:TStream;const aBufferStream:TStream=nil);
 var GLBHeader:TGLBHeader;
     OtherEndianness:boolean;
  function SwapEndianness32(const aValue:TPasGLTFUInt32):TPasGLTFUInt32;
@@ -3850,6 +3850,7 @@ var GLBHeader:TGLBHeader;
   end;
  end;
 var RawJSONRawByteString:TPasJSONRawByteString;
+    ChunkHeader:TChunkHeader;
 begin
  if not (assigned(aStream) and (aStream.Size>=GLBHeaderSize)) then begin
   raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
@@ -3878,7 +3879,18 @@ begin
  SetLength(RawJSONRawByteString,GLBHeader.JSONChunkHeader.ChunkLength);
  aStream.ReadBuffer(RawJSONRawByteString[1],length(RawJSONRawByteString));
  LoadFromJSON(TPasJSON.Parse(RawJSONRawByteString,[],TPasJSONEncoding.UTF8));
-
+ if assigned(aBufferStream) and (aStream.Size<aStream.Position) then begin
+  if aStream.Read(ChunkHeader,SizeOf(TChunkHeader))<>SizeOf(ChunkHeader) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
+  end;
+  ChunkHeader.ChunkLength:=SwapEndianness32(ChunkHeader.ChunkLength);
+  ChunkHeader.ChunkType:=SwapEndianness32(ChunkHeader.ChunkType);
+  if (ChunkHeader.ChunkType<>GLBChunkBinaryNativeEndianness) or
+     ((ChunkHeader.ChunkLength+aStream.Position)>GLBHeader.Length) then begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
+  end;
+  aBufferStream.CopyFrom(aStream,ChunkHeader.ChunkLength);
+ end;
 end;
 
 end.
