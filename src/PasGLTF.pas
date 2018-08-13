@@ -4524,6 +4524,7 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
       JSONArray,JSONSubArray:TPasJSONItemArray;
       JSONObject,JSONSubObject:TPasJSONItemObject;
       Primitive:TMesh.TPrimitive;
+      Attributes:TAttributes;
       Used:boolean;
   begin
    result:=TPasJSONItemObject.Create;
@@ -4564,6 +4565,26 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
         end;
         if Primitive.fMode<>TMesh.TPrimitive.TMode.Triangles then begin
          JSONObject.Add('mode',TPasJSONItemNumber.Create(TPasGLTFInt64(Primitive.fMode)));
+        end;
+        if Primitive.fTargets.Count>0 then begin
+         JSONArray:=TPasJSONItemArray.Create;
+         try
+          for Attributes in Primitive.fTargets do begin
+           JSONSubObject:=TPasJSONItemObject.Create;
+           try
+            for Index:=0 to Attributes.fSize-1 do begin
+             if Attributes.fEntityToCellIndex[Index]>=0 then begin
+              JSONSubObject.Add(Attributes.fEntities[Index].Key,TPasJSONItemNumber.Create(Attributes.fEntities[Index].Value));
+              break;
+             end;
+            end;
+           finally
+            JSONArray.Add(JSONSubObject);
+           end;
+          end;
+         finally
+          JSONObject.Add('targets',JSONArray);
+         end;
         end;
        finally
         JSONArray.Add(JSONObject);
