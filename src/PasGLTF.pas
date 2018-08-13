@@ -4208,6 +4208,44 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessBufferViews:TPasJSONItemArray;
+  function ProcessBufferView(const aObject:TBufferView):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if length(aObject.fName)>0 then begin
+     result.Add('name',TPasJSONItemString.Create(aObject.fName));
+    end;
+    if aObject.fBuffer>=0 then begin
+     result.Add('buffer',TPasJSONItemNumber.Create(aObject.fBuffer));
+    end;
+    result.Add('byteLength',TPasJSONItemNumber.Create(aObject.fByteLength));
+    result.Add('byteOffset',TPasJSONItemNumber.Create(aObject.fByteOffset));
+    result.Add('byteStride',TPasJSONItemNumber.Create(aObject.fByteStride));
+    if aObject.fTarget<>TBufferView.TTargetType.None then begin
+     result.Add('target',TPasJSONItemNumber.Create(TPasGLTFInt64(aObject.fTarget)));
+    end;
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var BufferView:TBufferView;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for BufferView in fBufferViews do begin
+    result.Add(ProcessBufferView(BufferView));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
@@ -4221,6 +4259,9 @@ begin
   JSONRootItem.Add('asset',ProcessAsset);
   if fBuffers.Count>0 then begin
    JSONRootItem.Add('buffers',ProcessBuffers);
+  end;
+  if fBuffers.Count>0 then begin
+   JSONRootItem.Add('bufferViews',ProcessBufferViews);
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
