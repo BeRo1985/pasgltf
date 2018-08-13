@@ -4318,6 +4318,45 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessImages:TPasJSONItemArray;
+  function ProcessImage(const aObject:TImage):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if ((aObject.fBufferView>=0) and (length(aObject.fURI)=0)) or
+       ((aObject.fBufferView>0) and (length(aObject.fURI)>0)) then begin
+     result.Add('bufferView',TPasJSONItemNumber.Create(aObject.fBufferView));
+    end;
+    if length(aObject.fName)>0 then begin
+     result.Add('name',TPasJSONItemString.Create(aObject.fName));
+    end;
+    if length(aObject.fMimeType)>0 then begin
+     result.Add('mimeType',TPasJSONItemString.Create(aObject.fMimeType));
+    end;
+    if length(aObject.fURI)>0 then begin
+     result.Add('uri',TPasJSONItemString.Create(aObject.fURI));
+    end;
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Image:TImage;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Image in fImages do begin
+    result.Add(ProcessImage(Image));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
@@ -4337,6 +4376,9 @@ begin
   end;
   if fCameras.Count>0 then begin
    JSONRootItem.Add('cameras',ProcessCameras);
+  end;
+  if fImages.Count>0 then begin
+   JSONRootItem.Add('images',ProcessImages);
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
