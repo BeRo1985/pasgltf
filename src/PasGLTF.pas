@@ -1685,7 +1685,7 @@ begin
  repeat
   inc(fIndex);
   if fIndex<fHashMap.fSize then begin
-   if fHashMap.fEntityToCellIndex[fIndex]<>CELL_EMPTY then begin
+   if fHashMap.fEntityToCellIndex[fIndex]>=0 then begin
     result:=true;
     exit;
    end;
@@ -1712,7 +1712,7 @@ begin
  repeat
   inc(fIndex);
   if fIndex<fHashMap.fSize then begin
-   if fHashMap.fEntityToCellIndex[fIndex]<>CELL_EMPTY then begin
+   if fHashMap.fEntityToCellIndex[fIndex]>=0 then begin
     result:=true;
     exit;
    end;
@@ -1739,7 +1739,7 @@ begin
  repeat
   inc(fIndex);
   if fIndex<fHashMap.fSize then begin
-   if fHashMap.fEntityToCellIndex[fIndex]<>CELL_EMPTY then begin
+   if fHashMap.fEntityToCellIndex[fIndex]>=0 then begin
     result:=true;
     exit;
    end;
@@ -4518,6 +4518,79 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessMeshes:TPasJSONItemArray;
+  function ProcessMesh(const aObject:TMesh):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray,JSONSubArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+      Primitive:TMesh.TPrimitive;
+      Used:boolean;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if aObject.fPrimitives.Count>0 then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Primitive in aObject.fPrimitives do begin
+       JSONObject:=TPasJSONItemObject.Create;
+       try
+        begin
+         Used:=false;
+         for Index:=0 to Primitive.fAttributes.fSize-1 do begin
+          if Primitive.fAttributes.fEntityToCellIndex[Index]>=0 then begin
+           Used:=true;
+           break;
+          end;
+         end;
+         if Used then begin
+          JSONSubObject:=TPasJSONItemObject.Create;
+          try
+           for Index:=0 to Primitive.fAttributes.fSize-1 do begin
+            if Primitive.fAttributes.fEntityToCellIndex[Index]>=0 then begin
+             JSONSubObject.Add(Primitive.fAttributes.fEntities[Index].Key,TPasJSONItemNumber.Create(Primitive.fAttributes.fEntities[Index].Value));
+             break;
+            end;
+           end;
+          finally
+           JSONObject.Add('attributes',JSONSubObject);
+          end;
+         end;
+        end;
+        if Primitive.fIndices>=0 then begin
+         JSONObject.Add('indices',TPasJSONItemNumber.Create(Primitive.fIndices));
+        end;
+        if Primitive.fMaterial>=0 then begin
+         JSONObject.Add('material',TPasJSONItemNumber.Create(Primitive.fMaterial));
+        end;
+        if Primitive.fMode<>TMesh.TPrimitive.TMode.Triangles then begin
+         JSONObject.Add('mode',TPasJSONItemNumber.Create(TPasGLTFInt64(Primitive.fMode)));
+        end;
+       finally
+        JSONArray.Add(JSONObject);
+       end;
+      end;
+     finally
+      result.Add('primitives',JSONArray);
+     end;
+    end;
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Mesh:TMesh;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Mesh in fMeshes do begin
+    result.Add(ProcessMesh(Mesh));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
@@ -4543,6 +4616,9 @@ begin
   end;
   if fMaterials.Count>0 then begin
    JSONRootItem.Add('materials',ProcessMaterials);
+  end;
+  if fMeshes.Count>0 then begin
+   JSONRootItem.Add('meshes',ProcessMeshes);
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
