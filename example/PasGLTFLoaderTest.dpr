@@ -301,7 +301,13 @@ begin
       GLTFDocument.LoadFromStream(ms);
       ofs:=TFileStream.Create('output.gltf',fmCreate);
       try
-       GLTFDocument.SaveToStream(ofs);
+       GLTFDocument.SaveToStream(ofs,false,true);
+      finally
+       ofs.Free;
+      end;
+      ofs:=TFileStream.Create('output.glb',fmCreate);
+      try
+       GLTFDocument.SaveToStream(ofs,true,false);
       finally
        ofs.Free;
       end;

@@ -1300,9 +1300,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               procedure LoadFromJSON(const aJSONRootItem:TPasJSONItem);
               procedure LoadFromBinary(const aStream:TStream);
               procedure LoadFromStream(const aStream:TStream);
-              function SaveToJSON:TPasJSONRawByteString;
+              function SaveToJSON(const aFormatted:boolean=false):TPasJSONRawByteString;
               procedure SaveToBinary(const aStream:TStream);
-              procedure SaveToStream(const aStream:TStream;const aBinary:boolean=false);
+              procedure SaveToStream(const aStream:TStream;const aBinary:boolean=false;const aFormatted:boolean=false);
              published
               property Asset:TAsset read fAsset;
               property Accessors:TAccessors read fAccessors;
@@ -3915,7 +3915,7 @@ begin
  end;
 end;
 
-function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
+function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONRawByteString;
  procedure ProcessExtensionsAndExtras(const aJSONObject:TPasJSONItemObject;const aBaseExtensionsExtrasObject:TBaseExtensionsExtrasObject);
  var TemporaryObject,TemporarySubObject:TPasJSONItemObject;
  begin
@@ -4953,24 +4953,46 @@ begin
    end;
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
-  result:=TPasJSON.Stringify(JSONRootItem,false,[]);
+  result:=TPasJSON.Stringify(JSONRootItem,aFormatted,[]);
  finally
   FreeAndNil(JSONRootItem);
  end;
 end;
 
 procedure TPasGLTF.TDocument.SaveToBinary(const aStream:TStream);
+var JSONRawByteString:TPasJSONRawByteString;
+    GLBHeader:TGLBHeader;
+    ChunkHeader:TChunkHeader;
 begin
- // TODO
+ JSONRawByteString:=SaveToJSON(false);
+ while (length(JSONRawByteString)=0) or ((length(JSONRawByteString) and 3)<>0) do begin
+  JSONRawByteString:=JSONRawByteString+#32;
+ end;
+ GLBHeader.Magic:=GLBHeaderMagicNativeEndianness;
+ GLBHeader.Version:=$00000002;
+ GLBHeader.Length:=SizeOf(TGLBHeader)+Length(JSONRawByteString);
+ if (fBuffers.Count>0) and (fBuffers[0].fData.Size>0) then begin
+  inc(GLBHeader.Length,SizeOf(TChunkHeader)+fBuffers[0].fData.Size);
+ end;
+ GLBHeader.JSONChunkHeader.ChunkLength:=Length(JSONRawByteString);
+ GLBHeader.JSONChunkHeader.ChunkType:=GLBChunkJSONNativeEndianness;
+ aStream.WriteBuffer(GLBHeader,SizeOf(TGLBHeader));
+ aStream.WriteBuffer(JSONRawByteString[1],Length(JSONRawByteString));
+ if (fBuffers.Count>0) and (fBuffers[0].fData.Size>0) then begin
+  ChunkHeader.ChunkLength:=fBuffers[0].fData.Size;
+  ChunkHeader.ChunkType:=GLBChunkBinaryNativeEndianness;
+  aStream.WriteBuffer(ChunkHeader,SizeOf(TChunkHeader));
+  aStream.WriteBuffer(fBuffers[0].fData.Memory^,fBuffers[0].fData.Size);
+ end;
 end;
 
-procedure TPasGLTF.TDocument.SaveToStream(const aStream:TStream;const aBinary:boolean=false);
+procedure TPasGLTF.TDocument.SaveToStream(const aStream:TStream;const aBinary:boolean=false;const aFormatted:boolean=false);
 var JSONRawByteString:TPasJSONRawByteString;
 begin
  if aBinary then begin
   SaveToBinary(aStream);
  end else begin
-  JSONRawByteString:=SaveToJSON;
+  JSONRawByteString:=SaveToJSON(aFormatted);
   if length(JSONRawByteString)>0 then begin
    aStream.WriteBuffer(JSONRawByteString[1],length(JSONRawByteString));
   end;
