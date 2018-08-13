@@ -691,7 +691,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     MaterialAlphaCutoff=0.5;
                     MaterialDoubleSided=false;
                     IdentityScalar=1.0;
-                    FloatSentinel=1e+4;
+                    FloatSentinel=1e+27;
                     NullVector3:TVector3=(0.0,0.0,0.0);
                     IdentityVector3:TVector3=(1.0,1.0,1.0);
                     IdentityVector4:TVector4=(1.0,1.0,1.0,1.0);
@@ -4246,6 +4246,78 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessCameras:TPasJSONItemArray;
+  function ProcessCamera(const aObject:TCamera):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if length(aObject.fName)>0 then begin
+     result.Add('name',TPasJSONItemString.Create(aObject.fName));
+    end;
+    case aObject.Type_ of
+     TPasGLTF.TCamera.TType.Orthographic:begin
+      result.Add('type',TPasJSONItemString.Create('orthographic'));
+      if not aObject.Orthographic.Empty then begin
+       JSONObject:=TPasJSONItemObject.Create;
+       try
+        if aObject.Orthographic.fXMag<>TDefaults.FloatSentinel then begin
+         JSONObject.Add('xmag',TPasJSONItemNumber.Create(aObject.Orthographic.fXMag));
+        end;
+        if aObject.Orthographic.fYMag<>TDefaults.FloatSentinel then begin
+         JSONObject.Add('ymag',TPasJSONItemNumber.Create(aObject.Orthographic.fYMag));
+        end;
+        if aObject.Orthographic.fZNear<>-TDefaults.FloatSentinel then begin
+         JSONObject.Add('znear',TPasJSONItemNumber.Create(aObject.Orthographic.fZNear));
+        end;
+        if aObject.Orthographic.fZFar<>-TDefaults.FloatSentinel then begin
+         JSONObject.Add('zfar',TPasJSONItemNumber.Create(aObject.Orthographic.fZfar));
+        end;
+        ProcessExtensionsAndExtras(JSONObject,aObject.Orthographic);
+       finally
+        result.Add('orthographic',JSONObject);
+       end;
+      end;
+     end;
+     TPasGLTF.TCamera.TType.Perspective:begin
+      result.Add('type',TPasJSONItemString.Create('perspective'));
+      if not aObject.Perspective.Empty then begin
+       JSONObject:=TPasJSONItemObject.Create;
+       try
+        JSONObject.Add('aspectRatio',TPasJSONItemNumber.Create(aObject.Perspective.fAspectRatio));
+        JSONObject.Add('yfov',TPasJSONItemNumber.Create(aObject.Perspective.fYFov));
+        JSONObject.Add('znear',TPasJSONItemNumber.Create(aObject.Perspective.fZNear));
+        JSONObject.Add('zfar',TPasJSONItemNumber.Create(aObject.Perspective.fZfar));
+        ProcessExtensionsAndExtras(JSONObject,aObject.Perspective);
+       finally
+        result.Add('perspective',JSONObject);
+       end;
+      end;
+     end;
+     else begin
+      Assert(false);
+     end;
+    end;
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Camera:TCamera;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Camera in fCameras do begin
+    result.Add(ProcessCamera(Camera));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
@@ -4260,8 +4332,11 @@ begin
   if fBuffers.Count>0 then begin
    JSONRootItem.Add('buffers',ProcessBuffers);
   end;
-  if fBuffers.Count>0 then begin
+  if fBufferViews.Count>0 then begin
    JSONRootItem.Add('bufferViews',ProcessBufferViews);
+  end;
+  if fCameras.Count>0 then begin
+   JSONRootItem.Add('cameras',ProcessCameras);
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
