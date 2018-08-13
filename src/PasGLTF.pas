@@ -746,7 +746,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      type TIndices=class(TBaseExtensionsExtrasObject)
                            private
                             fComponentType:TComponentType;
-                            fBufferView:TPasGLTFSizeUInt;
+                            fBufferView:TPasGLTFSizeInt;
                             fByteOffset:TPasGLTFSizeUInt;
                             fEmpty:boolean;
                            public
@@ -754,20 +754,20 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                             destructor Destroy; override;
                            published
                             property ComponentType:TComponentType read fComponentType write fComponentType default TComponentType.None;
-                            property BufferView:TPasGLTFSizeUInt read fBufferView write fBufferView default 0;
+                            property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView default 0;
                             property ByteOffset:TPasGLTFSizeUInt read fByteOffset write fByteOffset default 0;
                             property Empty:boolean read fEmpty;
                           end;
                           TValues=class(TBaseExtensionsExtrasObject)
                            private
-                            fBufferView:TPasGLTFSizeUInt;
+                            fBufferView:TPasGLTFSizeInt;
                             fByteOffset:TPasGLTFSizeUInt;
                             fEmpty:boolean;
                            public
                             constructor Create; override;
                             destructor Destroy; override;
                            published
-                            property BufferView:TPasGLTFSizeUInt read fBufferView write fBufferView default 0;
+                            property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView default 0;
                             property ByteOffset:TPasGLTFSizeUInt read fByteOffset write fByteOffset default 0;
                             property Empty:boolean read fEmpty;
                           end;
@@ -1300,6 +1300,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               procedure LoadFromJSON(const aJSONRootItem:TPasJSONItem);
               procedure LoadFromBinary(const aStream:TStream);
               procedure LoadFromStream(const aStream:TStream);
+              function SaveToJSON:TPasJSONRawByteString;
+              procedure SaveToBinary(const aStream:TStream);
+              procedure SaveToStream(const aStream:TStream;const aBinary:boolean=false);
              published
               property Asset:TAsset read fAsset;
               property Accessors:TAccessors read fAccessors;
@@ -3907,6 +3910,183 @@ begin
   LoadFromBinary(aStream);
  end else begin
   LoadFromJSON(TPasJSON.Parse(aStream,[],TPasJSONEncoding.AutomaticDetection));
+ end;
+end;
+
+function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
+ procedure ProcessExtensionsAndExtras(const aJSONObject:TPasJSONItemObject;const aBaseExtensionsExtrasObject:TBaseExtensionsExtrasObject);
+ var TemporaryObject,TemporarySubObject:TPasJSONItemObject;
+ begin
+  TemporaryObject:=TPasJSONItemObject.Create;
+  try
+   if aBaseExtensionsExtrasObject.fExtensions.Count>0 then begin
+    TemporarySubObject:=TPasJSONItemObject.Create;
+    try
+     TemporarySubObject.Merge(aBaseExtensionsExtrasObject.fExtensions);
+    finally
+     TemporaryObject.Add('extensions',TemporarySubObject);
+    end;
+   end;
+   if aBaseExtensionsExtrasObject.fExtras.Count>0 then begin
+    TemporarySubObject:=TPasJSONItemObject.Create;
+    try
+     TemporarySubObject.Merge(aBaseExtensionsExtrasObject.fExtras);
+    finally
+     TemporaryObject.Add('extras',TemporarySubObject);
+    end;
+   end;
+   aJSONObject.Merge(TemporaryObject);
+  finally
+   FreeAndNil(TemporaryObject);
+  end;
+ end;
+ function ProcessAccessors:TPasJSONItemArray;
+  function ProcessAccessor(const aObject:TAccessor):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if aObject.fBufferView>=0 then begin
+     result.Add('bufferView',TPasJSONItemNumber.Create(aObject.fBufferView));
+    end;
+    result.Add('byteOffset',TPasJSONItemNumber.Create(aObject.fByteOffset));
+    if aObject.fComponentType<>TAccessor.TComponentType.None then begin
+     result.Add('componentType',TPasJSONItemNumber.Create(TPasGLTFInt64(aObject.fComponentType)));
+    end;
+    result.Add('count',TPasJSONItemNumber.Create(aObject.fCount));
+    if aObject.fMinArray.Count>0 then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Index:=0 to aObject.fMinArray.Count-1 do begin
+       JSONArray.Add(TPasJSONItemNumber.Create(aObject.fMinArray.Items[Index]));
+      end;
+     finally
+      result.Add('min',JSONArray);
+     end;
+    end;
+    if aObject.fMaxArray.Count>0 then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Index:=0 to aObject.fMaxArray.Count-1 do begin
+       JSONArray.Add(TPasJSONItemNumber.Create(aObject.fMaxArray.Items[Index]));
+      end;
+     finally
+      result.Add('max',JSONArray);
+     end;
+    end;
+    if length(aObject.fName)>0 then begin
+     result.Add('name',TPasJSONItemString.Create(aObject.fName));
+    end;
+    if not aObject.Normalized then begin
+     result.Add('normalized',TPasJSONItemBoolean.Create(aObject.Normalized));
+    end;
+    if not aObject.fSparse.Empty then begin
+     JSONObject:=TPasJSONItemObject.Create;
+     try
+      if aObject.fSparse.fCount>=0 then begin
+       JSONObject.Add('count',TPasJSONItemNumber.Create(aObject.fSparse.fCount));
+      end;
+      if not aObject.fSparse.fIndices.Empty then begin
+       JSONSubObject:=TPasJSONItemObject.Create;
+       try
+        if aObject.fSparse.fIndices.fComponentType<>TAccessor.TComponentType.None then begin
+         JSONSubObject.Add('componentType',TPasJSONItemNumber.Create(TPasGLTFInt64(aObject.fSparse.fIndices.fComponentType)));
+        end;
+        if aObject.fSparse.fIndices.fBufferView>=0 then begin
+         JSONSubObject.Add('bufferView',TPasJSONItemNumber.Create(aObject.fSparse.fIndices.fBufferView));
+        end;
+        JSONSubObject.Add('byteOffset',TPasJSONItemNumber.Create(aObject.fSparse.fIndices.fByteOffset));
+       finally
+        JSONObject.Add('indices',JSONSubObject);
+       end;
+      end;
+      if not aObject.fSparse.fValues.Empty then begin
+       JSONSubObject:=TPasJSONItemObject.Create;
+       try
+        if aObject.fSparse.fValues.fBufferView>=0 then begin
+         JSONSubObject.Add('bufferView',TPasJSONItemNumber.Create(aObject.fSparse.fValues.fBufferView));
+        end;
+        JSONSubObject.Add('byteOffset',TPasJSONItemNumber.Create(aObject.fSparse.fValues.fByteOffset));
+       finally
+        JSONObject.Add('values',JSONSubObject);
+       end;
+      end;
+     finally
+      result.Add('sparse',JSONObject);
+     end;
+    end;
+    case aObject.fType of
+     TPasGLTF.TAccessor.TType.Scalar:begin
+      result.Add('type',TPasJSONItemString.Create('SCALAR'));
+     end;
+     TPasGLTF.TAccessor.TType.Vec2:begin
+      result.Add('type',TPasJSONItemString.Create('VEC2'));
+     end;
+     TPasGLTF.TAccessor.TType.Vec3:begin
+      result.Add('type',TPasJSONItemString.Create('VEC3'));
+     end;
+     TPasGLTF.TAccessor.TType.Vec4:begin
+      result.Add('type',TPasJSONItemString.Create('VEC4'));
+     end;
+     TPasGLTF.TAccessor.TType.Mat2:begin
+      result.Add('type',TPasJSONItemString.Create('MAT2'));
+     end;
+     TPasGLTF.TAccessor.TType.Mat3:begin
+      result.Add('type',TPasJSONItemString.Create('MAT3'));
+     end;
+     TPasGLTF.TAccessor.TType.Mat4:begin
+      result.Add('type',TPasJSONItemString.Create('MAT4'));
+     end;
+    end;
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Accessor:TAccessor;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Accessor in fAccessors do begin
+    result.Add(ProcessAccessor(Accessor));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
+var JSONRootItem:TPasJSONItemObject;
+begin
+ JSONRootItem:=TPasJSONItemObject.Create;
+ try
+  if fAccessors.Count>0 then begin
+   JSONRootItem.Add('accessors',ProcessAccessors);
+  end;
+  ProcessExtensionsAndExtras(JSONRootItem,self);
+  result:=TPasJSON.Stringify(JSONRootItem,false,[]);
+ finally
+  FreeAndNil(JSONRootItem);
+ end;
+end;
+
+procedure TPasGLTF.TDocument.SaveToBinary(const aStream:TStream);
+begin
+ // TODO
+end;
+
+procedure TPasGLTF.TDocument.SaveToStream(const aStream:TStream;const aBinary:boolean=false);
+var JSONRawByteString:TPasJSONRawByteString;
+begin
+ if aBinary then begin
+  SaveToBinary(aStream);
+ end else begin
+  JSONRawByteString:=SaveToJSON;
+  if length(JSONRawByteString)>0 then begin
+   aStream.WriteBuffer(JSONRawByteString[1],length(JSONRawByteString));
+  end;
  end;
 end;
 
