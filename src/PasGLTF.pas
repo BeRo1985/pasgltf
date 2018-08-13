@@ -4848,7 +4848,44 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessTextures:TPasJSONItemArray;
+  function ProcessTexture(const aObject:TTexture):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if length(aObject.fName)>0 then begin
+     result.Add('name',TPasJSONItemString.Create(aObject.fName));
+    end;
+    if aObject.fSampler>=0 then begin
+     result.Add('sampler',TPasJSONItemNumber.Create(aObject.fSampler));
+    end;
+    if aObject.fSource>=0 then begin
+     result.Add('source',TPasJSONItemNumber.Create(aObject.fSource));
+    end;
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Texture:TTexture;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Texture in fTextures do begin
+    result.Add(ProcessTexture(Texture));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
+    JSONArray:TPasJSONItemArray;
+    Extension:String;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
  try
@@ -4891,6 +4928,29 @@ begin
   end;
   if fSkins.Count>0 then begin
    JSONRootItem.Add('skins',ProcessSkins);
+  end;
+  if fTextures.Count>0 then begin
+   JSONRootItem.Add('textures',ProcessTextures);
+  end;
+  if fExtensionsUsed.Count>0 then begin
+   JSONArray:=TPasJSONItemArray.Create;
+   try
+    for Extension in fExtensionsUsed do begin
+     JSONArray.Add(TPasJSONItemString.Create(TPasJSONUTF8String(Extension)));
+    end;
+   finally
+    JSONRootItem.Add('extensionsUsed',JSONArray);
+   end;
+  end;
+  if fExtensionsRequired.Count>0 then begin
+   JSONArray:=TPasJSONItemArray.Create;
+   try
+    for Extension in fExtensionsRequired do begin
+     JSONArray.Add(TPasJSONItemString.Create(TPasJSONUTF8String(Extension)));
+    end;
+   finally
+    JSONRootItem.Add('extensionsRequired',JSONArray);
+   end;
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
