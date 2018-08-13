@@ -4549,7 +4549,6 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
            for Index:=0 to Primitive.fAttributes.fSize-1 do begin
             if Primitive.fAttributes.fEntityToCellIndex[Index]>=0 then begin
              JSONSubObject.Add(Primitive.fAttributes.fEntities[Index].Key,TPasJSONItemNumber.Create(Primitive.fAttributes.fEntities[Index].Value));
-             break;
             end;
            end;
           finally
@@ -4575,7 +4574,6 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
             for Index:=0 to Attributes.fSize-1 do begin
              if Attributes.fEntityToCellIndex[Index]>=0 then begin
               JSONSubObject.Add(Attributes.fEntities[Index].Key,TPasJSONItemNumber.Create(Attributes.fEntities[Index].Value));
-              break;
              end;
             end;
            finally
@@ -4586,12 +4584,23 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
           JSONObject.Add('targets',JSONArray);
          end;
         end;
+        ProcessExtensionsAndExtras(JSONObject,Primitive);
        finally
         JSONArray.Add(JSONObject);
        end;
       end;
      finally
       result.Add('primitives',JSONArray);
+     end;
+    end;
+    if aObject.fWeights.Count>0 then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Index:=0 to aObject.fWeights.Count-1 do begin
+       JSONArray.Add(TPasJSONItemNumber.Create(aObject.fWeights.Items[Index]));
+      end;
+     finally
+      result.Add('weights',JSONArray);
      end;
     end;
     ProcessExtensionsAndExtras(result,aObject);
