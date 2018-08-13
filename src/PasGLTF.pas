@@ -4803,6 +4803,51 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessSkins:TPasJSONItemArray;
+  function ProcessSkin(const aObject:TSkin):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if aObject.fInverseBindMatrices>=0 then begin
+     result.Add('inverseBindMatrices',TPasJSONItemNumber.Create(aObject.fInverseBindMatrices));
+    end;
+    if aObject.fJoints.Count>0 then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Index:=0 to aObject.fJoints.Count-1 do begin
+       JSONArray.Add(TPasJSONItemNumber.Create(aObject.fJoints.Items[Index]));
+      end;
+     finally
+      result.Add('joints',JSONArray);
+     end;
+    end;
+    if length(aObject.fName)>0 then begin
+     result.Add('name',TPasJSONItemString.Create(aObject.fName));
+    end;
+    if aObject.fSkeleton>=0 then begin
+     result.Add('skeleton',TPasJSONItemNumber.Create(aObject.fSkeleton));
+    end;
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Skin:TSkin;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Skin in fSkins do begin
+    result.Add(ProcessSkin(Skin));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
@@ -4843,6 +4888,9 @@ begin
   end;
   if fScenes.Count>0 then begin
    JSONRootItem.Add('scenes',ProcessScenes);
+  end;
+  if fSkins.Count>0 then begin
+   JSONRootItem.Add('skins',ProcessSkins);
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
