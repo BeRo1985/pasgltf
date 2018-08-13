@@ -4357,6 +4357,167 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessMaterials:TPasJSONItemArray;
+  function ProcessMaterial(const aObject:TMaterial):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if aObject.fAlphaCutOff<>TDefaults.MaterialAlphaCutoff then begin
+     result.Add('alphaCutoff',TPasJSONItemNumber.Create(aObject.fAlphaCutOff));
+    end;
+    case aObject.fAlphaMode of
+     TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
+      // Default value
+      // result.Add('alphaMode',TPasJSONItemString.Create('OPAQUE'));
+     end;
+     TPasGLTF.TMaterial.TAlphaMode.Mask:begin
+      result.Add('alphaMode',TPasJSONItemString.Create('MASK'));
+     end;
+     TPasGLTF.TMaterial.TAlphaMode.Blend:begin
+      result.Add('alphaMode',TPasJSONItemString.Create('BLEND'));
+     end;
+     else begin
+      Assert(false);
+     end;
+    end;
+    if aObject.fDoubleSided<>TDefaults.MaterialDoubleSided then begin
+     result.Add('doubleSided',TPasJSONItemBoolean.Create(aObject.fDoubleSided));
+    end;
+    if not CompareMem(@aObject.EmissiveFactor,@TDefaults.NullVector3,SizeOf(TVector3)) then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      JSONArray.Add(TPasJSONItemNumber.Create(aObject.EmissiveFactor[0]));
+      JSONArray.Add(TPasJSONItemNumber.Create(aObject.EmissiveFactor[1]));
+      JSONArray.Add(TPasJSONItemNumber.Create(aObject.EmissiveFactor[2]));
+     finally
+      result.Add('emissiveFactor',JSONArray);
+     end;
+    end;
+    if not aObject.fEmissiveTexture.Empty then begin
+     JSONObject:=TPasJSONItemObject.Create;
+     try
+      if aObject.fEmissiveTexture.fIndex>=0 then begin
+       JSONObject.Add('index',TPasJSONItemNumber.Create(aObject.fEmissiveTexture.fIndex));
+      end;
+      if aObject.fEmissiveTexture.fTexCoord>0 then begin
+       JSONObject.Add('texCoord',TPasJSONItemNumber.Create(aObject.fEmissiveTexture.fTexCoord));
+      end;
+      ProcessExtensionsAndExtras(JSONObject,aObject.fEmissiveTexture);
+     finally
+      result.Add('emissiveTexture',JSONObject);
+     end;
+    end;
+    if length(aObject.fName)>0 then begin
+     result.Add('name',TPasJSONItemString.Create(aObject.fName));
+    end;
+    if not aObject.fNormalTexture.Empty then begin
+     JSONObject:=TPasJSONItemObject.Create;
+     try
+      if aObject.fNormalTexture.fIndex>=0 then begin
+       JSONObject.Add('index',TPasJSONItemNumber.Create(aObject.fNormalTexture.fIndex));
+      end;
+      if aObject.fNormalTexture.fTexCoord>0 then begin
+       JSONObject.Add('texCoord',TPasJSONItemNumber.Create(aObject.fNormalTexture.fTexCoord));
+      end;
+      if aObject.fNormalTexture.fScale<>TDefaults.IdentityScalar then begin
+       JSONObject.Add('scale',TPasJSONItemNumber.Create(aObject.fNormalTexture.fScale));
+      end;
+      ProcessExtensionsAndExtras(JSONObject,aObject.fNormalTexture);
+     finally
+      result.Add('normalTexture',JSONObject);
+     end;
+    end;
+    if not aObject.fOcclusionTexture.Empty then begin
+     JSONObject:=TPasJSONItemObject.Create;
+     try
+      if aObject.fOcclusionTexture.fIndex>=0 then begin
+       JSONObject.Add('index',TPasJSONItemNumber.Create(aObject.fOcclusionTexture.fIndex));
+      end;
+      if aObject.fOcclusionTexture.fTexCoord>0 then begin
+       JSONObject.Add('texCoord',TPasJSONItemNumber.Create(aObject.fOcclusionTexture.fTexCoord));
+      end;
+      if aObject.fOcclusionTexture.fStrength<>TDefaults.IdentityScalar then begin
+       JSONObject.Add('strength',TPasJSONItemNumber.Create(aObject.fOcclusionTexture.fStrength));
+      end;
+      ProcessExtensionsAndExtras(JSONObject,aObject.fOcclusionTexture);
+     finally
+      result.Add('occlusionTexture',JSONObject);
+     end;
+    end;
+    if not aObject.PBRMetallicRoughness.Empty then begin
+     JSONObject:=TPasJSONItemObject.Create;
+     try
+      if not CompareMem(@aObject.PBRMetallicRoughness.fBaseColorFactor,@TDefaults.IdentityVector4,SizeOf(TVector4)) then begin
+       JSONArray:=TPasJSONItemArray.Create;
+       try
+        JSONArray.Add(TPasJSONItemNumber.Create(aObject.PBRMetallicRoughness.fBaseColorFactor[0]));
+        JSONArray.Add(TPasJSONItemNumber.Create(aObject.PBRMetallicRoughness.fBaseColorFactor[1]));
+        JSONArray.Add(TPasJSONItemNumber.Create(aObject.PBRMetallicRoughness.fBaseColorFactor[2]));
+        JSONArray.Add(TPasJSONItemNumber.Create(aObject.PBRMetallicRoughness.fBaseColorFactor[3]));
+       finally
+        JSONObject.Add('baseColorFactor',JSONArray);
+       end;
+      end;
+      if not aObject.fPBRMetallicRoughness.fBaseColorTexture.Empty then begin
+       JSONSubObject:=TPasJSONItemObject.Create;
+       try
+        if aObject.fPBRMetallicRoughness.fBaseColorTexture.fIndex>=0 then begin
+         JSONSubObject.Add('index',TPasJSONItemNumber.Create(aObject.fPBRMetallicRoughness.fBaseColorTexture.fIndex));
+        end;
+        if aObject.fPBRMetallicRoughness.fBaseColorTexture.fTexCoord>0 then begin
+         JSONSubObject.Add('texCoord',TPasJSONItemNumber.Create(aObject.fPBRMetallicRoughness.fBaseColorTexture.fTexCoord));
+        end;
+        ProcessExtensionsAndExtras(JSONSubObject,aObject.fPBRMetallicRoughness.fBaseColorTexture);
+       finally
+        JSONObject.Add('baseColorTexture',JSONSubObject);
+       end;
+      end;
+      if aObject.fPBRMetallicRoughness.fMetallicFactor<>TDefaults.IdentityScalar then begin
+       JSONObject.Add('metallicFactor',TPasJSONItemNumber.Create(aObject.fPBRMetallicRoughness.fMetallicFactor));
+      end;
+      if not aObject.fPBRMetallicRoughness.fMetallicRoughnessTexture.Empty then begin
+       JSONSubObject:=TPasJSONItemObject.Create;
+       try
+        if aObject.fPBRMetallicRoughness.fMetallicRoughnessTexture.fIndex>=0 then begin
+         JSONSubObject.Add('index',TPasJSONItemNumber.Create(aObject.fPBRMetallicRoughness.fMetallicRoughnessTexture.fIndex));
+        end;
+        if aObject.fPBRMetallicRoughness.fMetallicRoughnessTexture.fTexCoord>0 then begin
+         JSONSubObject.Add('texCoord',TPasJSONItemNumber.Create(aObject.fPBRMetallicRoughness.fMetallicRoughnessTexture.fTexCoord));
+        end;
+        ProcessExtensionsAndExtras(JSONSubObject,aObject.fPBRMetallicRoughness.fMetallicRoughnessTexture);
+       finally
+        JSONObject.Add('metallicRoughnessTexture',JSONSubObject);
+       end;
+      end;
+      if aObject.fPBRMetallicRoughness.fRoughnessFactor<>TDefaults.IdentityScalar then begin
+       JSONObject.Add('roughnessFactor',TPasJSONItemNumber.Create(aObject.fPBRMetallicRoughness.fRoughnessFactor));
+      end;
+      ProcessExtensionsAndExtras(JSONObject,aObject.fPBRMetallicRoughness);
+     finally
+      result.Add('pbrMetallicRoughness',JSONObject);
+     end;
+    end;
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Material:TMaterial;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Material in fMaterials do begin
+    result.Add(ProcessMaterial(Material));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
@@ -4379,6 +4540,9 @@ begin
   end;
   if fImages.Count>0 then begin
    JSONRootItem.Add('images',ProcessImages);
+  end;
+  if fMaterials.Count>0 then begin
+   JSONRootItem.Add('materials',ProcessMaterials);
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
