@@ -830,13 +830,13 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                           end;
                     private
                      fSampler:TPasGLTFSizeInt;
-                     fTarget:TTarget;
+                     fTarget:TChannel.TTarget;
                     public
                      constructor Create; override;
                      destructor Destroy; override;
                     published
                      property Sampler:TPasGLTFSizeInt read fSampler write fSampler default -1;
-                     property Target:TTarget read fTarget;
+                     property Target:TChannel.TTarget read fTarget;
                    end;
                    TChannels=TPasGLTFObjectList<TChannel>;
                    TSampler=class(TBaseExtensionsExtrasObject)
@@ -3979,7 +3979,7 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
     if length(aObject.fName)>0 then begin
      result.Add('name',TPasJSONItemString.Create(aObject.fName));
     end;
-    if not aObject.Normalized then begin
+    if aObject.Normalized then begin
      result.Add('normalized',TPasJSONItemBoolean.Create(aObject.Normalized));
     end;
     if not aObject.fSparse.Empty then begin
@@ -4058,12 +4058,112 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessAnimations:TPasJSONItemArray;
+  function ProcessAnimation(const aObject:TAnimation):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+      Channel:TAnimation.TChannel;
+      Sampler:TAnimation.TSampler;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if length(aObject.fName)>0 then begin
+     result.Add('name',TPasJSONItemString.Create(aObject.fName));
+    end;
+    if aObject.fChannels.Count>0 then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Channel in aObject.fChannels do begin
+       JSONObject:=TPasJSONItemObject.Create;
+       try
+        if Channel.fSampler>=0 then begin
+         JSONObject.Add('sampler',TPasJSONItemNumber.Create(Channel.fSampler));
+        end;
+        if not Channel.fTarget.Empty then begin
+         JSONSubObject:=TPasJSONItemObject.Create;
+         try
+          if Channel.fTarget.fNode>=0 then begin
+           JSONSubObject.Add('node',TPasJSONItemNumber.Create(Channel.fTarget.fNode));
+          end;
+          if length(Channel.fTarget.fPath)>0 then begin
+           JSONSubObject.Add('path',TPasJSONItemString.Create(Channel.fTarget.fPath));
+          end;
+          ProcessExtensionsAndExtras(JSONSubObject,Channel.fTarget);
+         finally
+          JSONObject.Add('target',JSONSubObject);
+         end;
+        end;
+        ProcessExtensionsAndExtras(JSONObject,Channel);
+       finally
+        JSONArray.Add(JSONObject);
+       end;
+      end;
+     finally
+      result.Add('channels',JSONArray);
+     end;
+    end;
+    if aObject.fSamplers.Count>0 then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Sampler in aObject.fSamplers do begin
+       JSONObject:=TPasJSONItemObject.Create;
+       try
+        if Sampler.fInput>=0 then begin
+         JSONObject.Add('input',TPasJSONItemNumber.Create(Sampler.fInput));
+        end;
+        if Sampler.fOutput>=0 then begin
+         JSONObject.Add('output',TPasJSONItemNumber.Create(Sampler.fOutput));
+        end;
+        case Sampler.fInterpolation of
+         TPasGLTF.TAnimation.TSampler.TType.Linear:begin
+          JSONObject.Add('interpolation',TPasJSONItemString.Create('LINEAR'));
+         end;
+         TPasGLTF.TAnimation.TSampler.TType.Step:begin
+          JSONObject.Add('interpolation',TPasJSONItemString.Create('STEP'));
+         end;
+         TPasGLTF.TAnimation.TSampler.TType.CubicSpline:begin
+          JSONObject.Add('interpolation',TPasJSONItemString.Create('CUBICSPLINE'));
+         end;
+         else begin
+          Assert(false);
+         end;
+        end;
+       finally
+        JSONArray.Add(JSONObject);
+       end;
+      end;
+     finally
+      result.Add('samplers',JSONArray);
+     end;
+    end;
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Animation:TAnimation;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Animation in fAnimations do begin
+    result.Add(ProcessAnimation(Animation));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
  try
   if fAccessors.Count>0 then begin
    JSONRootItem.Add('accessors',ProcessAccessors);
+  end;
+  if fAnimations.Count>0 then begin
+   JSONRootItem.Add('animations',ProcessAnimations);
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
