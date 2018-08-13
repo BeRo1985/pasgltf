@@ -1283,10 +1283,10 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fMeshes:TMeshes;
               fNodes:TNodes;
               fSamplers:TSamplers;
+              fScene:TPasGLTFSizeInt;
               fScenes:TScenes;
               fSkins:TSkins;
               fTextures:TTextures;
-              fScene:TPasGLTFSizeInt;
               fExtensionsUsed:TStringList;
               fExtensionsRequired:TStringList;
               fRootPath:TPasGLTFUTF8String;
@@ -1315,10 +1315,10 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Meshes:TMeshes read fMeshes;
               property Nodes:TNodes read fNodes;
               property Samplers:TSamplers read fSamplers;
+              property Scene:TPasGLTFSizeInt read fScene write fScene;
               property Scenes:TScenes read fScenes;
               property Skins:TSkins read fSkins;
               property Textures:TTextures read fTextures;
-              property Scene:TPasGLTFSizeInt read fScene write fScene;
               property ExtensionsUsed:TStringList read fExtensionsUsed;
               property ExtensionsRequired:TStringList read fExtensionsRequired;
               property RootPath:TPasGLTFUTF8String read fRootPath write fRootPath;
@@ -2790,10 +2790,10 @@ begin
  fMeshes:=TMeshes.Create;
  fNodes:=TNodes.Create;
  fSamplers:=TSamplers.Create;
+ fScene:=-1;
  fScenes:=TScenes.Create;
  fSkins:=TSkins.Create;
  fTextures:=TTextures.Create;
- fScene:=-1;
  fExtensionsUsed:=TStringList.Create;
  fExtensionsRequired:=TStringList.Create;
  fRootPath:='';
@@ -3816,6 +3816,8 @@ begin
    ProcessNodes(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='samplers' then begin
    ProcessSamplers(JSONObjectProperty.Value);
+  end else if JSONObjectProperty.Key='scene' then begin
+   fScene:=TPasJSON.GetInt64(JSONObjectProperty.Value,fScene);
   end else if JSONObjectProperty.Key='scenes' then begin
    ProcessScenes(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='skins' then begin
@@ -4719,6 +4721,49 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessSamplers:TPasJSONItemArray;
+  function ProcessSampler(const aObject:TSampler):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if not aObject.Empty then begin
+     if aObject.fMinFilter<>TSampler.TMinFilter.None then begin
+      result.Add('minFilter',TPasJSONItemNumber.Create(TPasGLTFInt64(aObject.fMinFilter)));
+     end;
+     if aObject.fMagFilter<>TSampler.TMagFilter.None then begin
+      result.Add('magFilter',TPasJSONItemNumber.Create(TPasGLTFInt64(aObject.fMagFilter)));
+     end;
+     if length(aObject.fName)>0 then begin
+      result.Add('name',TPasJSONItemString.Create(aObject.fName));
+     end;
+     if aObject.fWrapS<>TSampler.TWrappingMode.Repeat_ then begin
+      result.Add('wrapS',TPasJSONItemNumber.Create(TPasGLTFInt64(aObject.fWrapS)));
+     end;
+     if aObject.fWrapT<>TSampler.TWrappingMode.Repeat_ then begin
+      result.Add('wrapS',TPasJSONItemNumber.Create(TPasGLTFInt64(aObject.fWrapT)));
+     end;
+     ProcessExtensionsAndExtras(result,aObject);
+    end;
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Sampler:TSampler;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Sampler in fSamplers do begin
+    result.Add(ProcessSampler(Sampler));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
@@ -4750,6 +4795,12 @@ begin
   end;
   if fNodes.Count>0 then begin
    JSONRootItem.Add('nodes',ProcessNodes);
+  end;
+  if fSamplers.Count>0 then begin
+   JSONRootItem.Add('samplers',ProcessSamplers);
+  end;
+  if fScene>=0 then begin
+   JSONRootItem.Add('scene',TPasJSONItemNumber.Create(fScene));
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
