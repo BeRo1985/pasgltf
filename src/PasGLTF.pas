@@ -4155,6 +4155,26 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessAsset:TPasJSONItemObject;
+ begin
+  result:=TPasJSONItemObject.Create;
+  try
+   if length(fAsset.fCopyright)>0 then begin
+    result.Add('copyright',TPasJSONItemString.Create(fAsset.fCopyright));
+   end;
+   if length(fAsset.fGenerator)>0 then begin
+    result.Add('generator',TPasJSONItemString.Create(fAsset.fGenerator));
+   end;
+   if length(fAsset.fMinVersion)>0 then begin
+    result.Add('minVersion',TPasJSONItemString.Create(fAsset.fMinVersion));
+   end;
+   result.Add('version',TPasJSONItemString.Create(fAsset.fVersion));
+   ProcessExtensionsAndExtras(result,fAsset);
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
@@ -4165,6 +4185,7 @@ begin
   if fAnimations.Count>0 then begin
    JSONRootItem.Add('animations',ProcessAnimations);
   end;
+  JSONRootItem.Add('asset',ProcessAsset);
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
  finally

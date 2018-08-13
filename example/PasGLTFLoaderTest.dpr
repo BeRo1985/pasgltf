@@ -299,6 +299,12 @@ begin
      try
       GLTFDocument.RootPath:=ExtractFilePath(InputFileName);
       GLTFDocument.LoadFromStream(ms);
+      ofs:=TFileStream.Create('output.gltf',fmCreate);
+      try
+       GLTFDocument.SaveToStream(ofs);
+      finally
+       ofs.Free;
+      end;
       Main;
      finally
       FreeAndNil(GLTFDocument);
