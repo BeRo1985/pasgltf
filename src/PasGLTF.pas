@@ -4621,6 +4621,104 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessNodes:TPasJSONItemArray;
+  function ProcessNode(const aObject:TNode):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if aObject.fCamera>=0 then begin
+     result.Add('camera',TPasJSONItemNumber.Create(aObject.fCamera));
+    end;
+    if aObject.fChildren.Count>0 then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Index:=0 to aObject.fChildren.Count-1 do begin
+       JSONArray.Add(TPasJSONItemNumber.Create(aObject.fChildren.Items[Index]));
+      end;
+     finally
+      result.Add('children',JSONArray);
+     end;
+    end;
+    if not CompareMem(@aObject.fMatrix,@TDefaults.IdentityMatrix,SizeOf(TMatrix)) then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Index:=0 to 15 do begin
+       JSONArray.Add(TPasJSONItemNumber.Create(aObject.fMatrix[Index]));
+      end;
+     finally
+      result.Add('matrix',JSONArray);
+     end;
+    end;
+    if length(aObject.fName)>0 then begin
+     result.Add('name',TPasJSONItemString.Create(aObject.fName));
+    end;
+    if aObject.fMesh>=0 then begin
+     result.Add('mesh',TPasJSONItemNumber.Create(aObject.fMesh));
+    end;
+    if not CompareMem(@aObject.fRotation,@TDefaults.IdentityQuaternion,SizeOf(TVector4)) then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Index:=0 to 3 do begin
+       JSONArray.Add(TPasJSONItemNumber.Create(aObject.fRotation[Index]));
+      end;
+     finally
+      result.Add('rotation',JSONArray);
+     end;
+    end;
+    if not CompareMem(@aObject.fScale,@TDefaults.IdentityVector3,SizeOf(TVector3)) then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Index:=0 to 2 do begin
+       JSONArray.Add(TPasJSONItemNumber.Create(aObject.fScale[Index]));
+      end;
+     finally
+      result.Add('scale',JSONArray);
+     end;
+    end;
+    if aObject.fSkin>=0 then begin
+     result.Add('skin',TPasJSONItemNumber.Create(aObject.fSkin));
+    end;
+    if not CompareMem(@aObject.fTranslation,@TDefaults.NullVector3,SizeOf(TVector3)) then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Index:=0 to 2 do begin
+       JSONArray.Add(TPasJSONItemNumber.Create(aObject.fTranslation[Index]));
+      end;
+     finally
+      result.Add('translation',JSONArray);
+     end;
+    end;
+    if aObject.fWeights.Count>0 then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Index:=0 to aObject.fWeights.Count-1 do begin
+       JSONArray.Add(TPasJSONItemNumber.Create(aObject.fWeights.Items[Index]));
+      end;
+     finally
+      result.Add('weights',JSONArray);
+     end;
+    end;
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Node:TNode;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Node in fNodes do begin
+    result.Add(ProcessNode(Node));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
@@ -4649,6 +4747,9 @@ begin
   end;
   if fMeshes.Count>0 then begin
    JSONRootItem.Add('meshes',ProcessMeshes);
+  end;
+  if fNodes.Count>0 then begin
+   JSONRootItem.Add('nodes',ProcessNodes);
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
