@@ -4764,6 +4764,45 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessScenes:TPasJSONItemArray;
+  function ProcessScene(const aObject:TScene):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if length(aObject.fName)>0 then begin
+     result.Add('name',TPasJSONItemString.Create(aObject.fName));
+    end;
+    if aObject.fNodes.Count>0 then begin
+     JSONArray:=TPasJSONItemArray.Create;
+     try
+      for Index:=0 to aObject.fNodes.Count-1 do begin
+       JSONArray.Add(TPasJSONItemNumber.Create(aObject.fNodes.Items[Index]));
+      end;
+     finally
+      result.Add('nodes',JSONArray);
+     end;
+    end;
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Scene:TScene;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Scene in fScenes do begin
+    result.Add(ProcessScene(Scene));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
@@ -4801,6 +4840,9 @@ begin
   end;
   if fScene>=0 then begin
    JSONRootItem.Add('scene',TPasJSONItemNumber.Create(fScene));
+  end;
+  if fScenes.Count>0 then begin
+   JSONRootItem.Add('scenes',ProcessScenes);
   end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
