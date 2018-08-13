@@ -4175,6 +4175,39 @@ function TPasGLTF.TDocument.SaveToJSON:TPasJSONRawByteString;
    raise;
   end;
  end;
+ function ProcessBuffers:TPasJSONItemArray;
+  function ProcessBuffer(const aObject:TBuffer):TPasJSONItemObject;
+  var Index:TPasJSONSizeInt;
+      JSONArray:TPasJSONItemArray;
+      JSONObject,JSONSubObject:TPasJSONItemObject;
+  begin
+   result:=TPasJSONItemObject.Create;
+   try
+    if length(aObject.fName)>0 then begin
+     result.Add('name',TPasJSONItemString.Create(aObject.fName));
+    end;
+    if length(aObject.fURI)>0 then begin
+     result.Add('uri',TPasJSONItemString.Create(aObject.fURI));
+    end;
+    result.Add('byteLength',TPasJSONItemNumber.Create(aObject.fByteLength));
+    ProcessExtensionsAndExtras(result,aObject);
+   except
+    FreeAndNil(result);
+    raise;
+   end;
+  end;
+ var Buffer:TBuffer;
+ begin
+  result:=TPasJSONItemArray.Create;
+  try
+   for Buffer in fBuffers do begin
+    result.Add(ProcessBuffer(Buffer));
+   end;
+  except
+   FreeAndNil(result);
+   raise;
+  end;
+ end;
 var JSONRootItem:TPasJSONItemObject;
 begin
  JSONRootItem:=TPasJSONItemObject.Create;
@@ -4186,6 +4219,9 @@ begin
    JSONRootItem.Add('animations',ProcessAnimations);
   end;
   JSONRootItem.Add('asset',ProcessAsset);
+  if fBuffers.Count>0 then begin
+   JSONRootItem.Add('buffers',ProcessBuffers);
+  end;
   ProcessExtensionsAndExtras(JSONRootItem,self);
   result:=TPasJSON.Stringify(JSONRootItem,false,[]);
  finally
