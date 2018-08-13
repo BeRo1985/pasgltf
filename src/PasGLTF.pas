@@ -1,12 +1,12 @@
 (******************************************************************************
  *                                 PasGLTF                                    *
  ******************************************************************************
- *                          Version 2018-06-05-16-18                          *
+ *                          Version 2018-08-13-18-87                          *
  ******************************************************************************
  *                                zlib license                                *
  *============================================================================*
  *                                                                            *
- * Copyright (C) 2016-2017, Benjamin Rosseaux (benjamin@rosseaux.de)          *
+ * Copyright (C) 2018, Benjamin Rosseaux (benjamin@rosseaux.de)               *
  *                                                                            *
  * This software is provided 'as-is', without any express or implied          *
  * warranty. In no event will the authors be held liable for any damages      *
@@ -4226,7 +4226,9 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
     end;
     result.Add('byteLength',TPasJSONItemNumber.Create(aObject.fByteLength));
     result.Add('byteOffset',TPasJSONItemNumber.Create(aObject.fByteOffset));
-    result.Add('byteStride',TPasJSONItemNumber.Create(aObject.fByteStride));
+    if aObject.fByteStride>0 then begin
+     result.Add('byteStride',TPasJSONItemNumber.Create(aObject.fByteStride));
+    end;
     if aObject.fTarget<>TBufferView.TTargetType.None then begin
      result.Add('target',TPasJSONItemNumber.Create(TPasGLTFInt64(aObject.fTarget)));
     end;
