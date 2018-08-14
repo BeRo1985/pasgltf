@@ -698,12 +698,17 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     IdentityQuaternion:TVector4=(0.0,0.0,0.0,1.0);
                     IdentityMatrix:TMatrix=(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
             end;
-            TBaseExtensionsExtrasObject=class
+            TBaseObject=class
+             public
+              constructor Create; reintroduce; virtual;
+              destructor Destroy; override;
+            end;
+            TBaseExtensionsExtrasObject=class(TBaseObject)
              private
               fExtensions:TPasJSONItemObject;
               fExtras:TPasJSONItemObject;
              public
-              constructor Create; reintroduce; virtual;
+              constructor Create; override;
               destructor Destroy; override;
              protected
               property Extensions:TPasJSONItemObject read fExtensions;
@@ -996,15 +1001,13 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
             TDocument=class;
             TImage=class(TBaseExtensionsExtrasObject)
              private
-              fDocument:TDocument;
               fBufferView:TPasGLTFSizeInt;
               fName:TPasGLTFUTF8String;
               fURI:TPasGLTFUTF8String;
               fMimeType:TPasGLTFUTF8String;
              public
-              constructor Create(const aDocument:TDocument); reintroduce;
+              constructor Create; override;
               destructor Destroy; override;
-              procedure GetResourceData(const aStream:TStream);
               procedure SetEmbeddedResourceData(const aStream:TStream);
              published
               property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView;
@@ -1297,6 +1300,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
              public
               constructor Create; override;
               destructor Destroy; override;
+              procedure GetImageResourceData(const aImage:TImage;const aStream:TStream);
               procedure LoadFromJSON(const aJSONRootItem:TPasJSONItem);
               procedure LoadFromBinary(const aStream:TStream);
               procedure LoadFromStream(const aStream:TStream);
@@ -2243,6 +2247,18 @@ begin
  end;
 end;
 
+{ TPasGLTF.TBaseObject }
+
+constructor TPasGLTF.TBaseObject.Create;
+begin
+ inherited Create;
+end;
+
+destructor TPasGLTF.TBaseObject.Destroy;
+begin
+ inherited Destroy;
+end;
+
 { TPasGLTF.TBaseExtensionsExtrasObject }
 
 constructor TPasGLTF.TBaseExtensionsExtrasObject.Create;
@@ -2508,10 +2524,9 @@ end;
 
 { TPasGLTF.TImage }
 
-constructor TPasGLTF.TImage.Create(const aDocument:TDocument);
+constructor TPasGLTF.TImage.Create;
 begin
  inherited Create;
- fDocument:=aDocument;
  fBufferView:=-1;
  fName:='';
  fURI:='';
@@ -2521,32 +2536,6 @@ end;
 destructor TPasGLTF.TImage.Destroy;
 begin
  inherited Destroy;
-end;
-
-procedure TPasGLTF.TImage.GetResourceData(const aStream:TStream);
-var BufferView:TBufferView;
-    Buffer:TBuffer;
-begin
- if fBufferView>=0 then begin
-  if fBufferView<fDocument.fBufferViews.Count then begin
-   BufferView:=fDocument.fBufferViews[fBufferView];
-   if (BufferView.fBuffer>=0) and (BufferView.fBuffer<fDocument.fBuffers.Count) then begin
-    Buffer:=fDocument.fBuffers[BufferView.fBuffer];
-    if (BufferView.fByteOffset+BufferView.fByteLength)<=Buffer.fData.Size then begin
-     aStream.WriteBuffer(PPasGLTFUInt8Array(Buffer.fData.Memory)^[BufferView.fByteOffset],BufferView.fByteLength);
-     aStream.Seek(-BufferView.fByteLength,soCurrent);
-    end else begin
-     raise EInOutError.Create('I/O error');
-    end;
-   end else begin
-    raise EInOutError.Create('I/O error');
-   end;
-  end else begin
-   raise EInOutError.Create('I/O error');
-  end;
- end else begin
-  fDocument.LoadURISource(fURI,aStream);
- end;
 end;
 
 procedure TPasGLTF.TImage.SetEmbeddedResourceData(const aStream:TStream);
@@ -2866,6 +2855,32 @@ begin
   if length(trim(Buffer.fURI))>0 then begin
    LoadURISource(Buffer.fURI,Buffer.fData);
   end;
+ end;
+end;
+
+procedure TPasGLTF.TDocument.GetImageResourceData(const aImage:TImage;const aStream:TStream);
+var BufferView:TBufferView;
+    Buffer:TBuffer;
+begin
+ if aImage.fBufferView>=0 then begin
+  if aImage.fBufferView<fBufferViews.Count then begin
+   BufferView:=fBufferViews[aImage.fBufferView];
+   if (BufferView.fBuffer>=0) and (BufferView.fBuffer<fBuffers.Count) then begin
+    Buffer:=fBuffers[BufferView.fBuffer];
+    if (BufferView.fByteOffset+BufferView.fByteLength)<=Buffer.fData.Size then begin
+     aStream.WriteBuffer(PPasGLTFUInt8Array(Buffer.fData.Memory)^[BufferView.fByteOffset],BufferView.fByteLength);
+     aStream.Seek(-BufferView.fByteLength,soCurrent);
+    end else begin
+     raise EInOutError.Create('I/O error');
+    end;
+   end else begin
+    raise EInOutError.Create('I/O error');
+   end;
+  end else begin
+   raise EInOutError.Create('I/O error');
+  end;
+ end else begin
+  LoadURISource(aImage.fURI,aStream);
  end;
 end;
 
@@ -3274,7 +3289,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TImage.Create(self);
+   result:=TImage.Create;
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fBufferView:=TPasJSON.GetInt64(JSONObject.Properties['bufferView'],result.fBufferView);

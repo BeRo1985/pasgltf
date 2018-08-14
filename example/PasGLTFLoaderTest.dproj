@@ -226,6 +226,7 @@
         <DCCReference Include="..\externals\pasdblstrutils\src\PasDblStrUtils.pas"/>
         <DCCReference Include="..\externals\pasjson\src\PasJSON.pas"/>
         <DCCReference Include="..\src\PasGLTF.pas"/>
+        <DCCReference Include="UnitGLTFOpenGL.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

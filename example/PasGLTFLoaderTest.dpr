@@ -15,7 +15,8 @@ uses
   UnitStaticLinking in 'UnitStaticLinking.pas',
   PasDblStrUtils in '..\externals\pasdblstrutils\src\PasDblStrUtils.pas',
   PasJSON in '..\externals\pasjson\src\PasJSON.pas',
-  PasGLTF in '..\src\PasGLTF.pas';
+  PasGLTF in '..\src\PasGLTF.pas',
+  UnitGLTFOpenGL in 'UnitGLTFOpenGL.pas';
 
 var InputFileName:ansistring;
 
@@ -24,6 +25,8 @@ var fs:TFileStream;
     StartPerformanceCounter:Int64=0;
 
     GLTFDocument:TPasGLTF.TDocument;
+
+    GLTFOpenGL:TGLTFOpenGL;
 
 procedure Main;
 const Title='PasGLTF loader test';
@@ -188,84 +191,98 @@ begin
 
  StartPerformanceCounter:=SDL_GetPerformanceCounter;
 
- FullScreen:=false;
- SDLRunning:=true;
- while SDLRunning do begin
+ GLTFOpenGL:=TGLTFOpenGL.Create(GLTFDocument);
+ try
 
-  while SDL_PollEvent(@Event)<>0 do begin
-   case Event.type_ of
-    SDL_QUITEV,SDL_APP_TERMINATING:begin
-     SDLRunning:=false;
-     break;
-    end;
-    SDL_APP_WILLENTERBACKGROUND:begin
-     //SDL_PauseAudio(1);
-    end;
-    SDL_APP_DIDENTERFOREGROUND:begin
-     //SDL_PauseAudio(0);
-    end;
-    SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
-    end;
-    SDL_KEYDOWN:begin
-     case Event.key.keysym.sym of
-      SDLK_ESCAPE:begin
-//     BackKey;
+  GLTFOpenGL.InitializeResources;
+  try
+
+   FullScreen:=false;
+   SDLRunning:=true;
+   while SDLRunning do begin
+
+    while SDL_PollEvent(@Event)<>0 do begin
+     case Event.type_ of
+      SDL_QUITEV,SDL_APP_TERMINATING:begin
        SDLRunning:=false;
        break;
       end;
-      SDLK_RETURN:begin
-       if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
-        FullScreen:=not FullScreen;
-        if FullScreen then begin
-         SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
-        end else begin
-         SDL_SetWindowFullscreen(SurfaceWindow,0);
+      SDL_APP_WILLENTERBACKGROUND:begin
+       //SDL_PauseAudio(1);
+      end;
+      SDL_APP_DIDENTERFOREGROUND:begin
+       //SDL_PauseAudio(0);
+      end;
+      SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
+      end;
+      SDL_KEYDOWN:begin
+       case Event.key.keysym.sym of
+        SDLK_ESCAPE:begin
+  //     BackKey;
+         SDLRunning:=false;
+         break;
+        end;
+        SDLK_RETURN:begin
+         if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+          FullScreen:=not FullScreen;
+          if FullScreen then begin
+           SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
+          end else begin
+           SDL_SetWindowFullscreen(SurfaceWindow,0);
+          end;
+         end;
+        end;
+        SDLK_F4:begin
+         if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+          SDLRunning:=false;
+          break;
+         end;
         end;
        end;
       end;
-      SDLK_F4:begin
-       if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
-        SDLRunning:=false;
-        break;
+      SDL_KEYUP:begin
+      end;
+      SDL_WINDOWEVENT:begin
+       case event.window.event of
+        SDL_WINDOWEVENT_RESIZED:begin
+         ScreenWidth:=event.window.Data1;
+         ScreenHeight:=event.window.Data2;
+         Resize(ScreenWidth,ScreenHeight);
+        end;
+       end;
+      end;
+      SDL_MOUSEMOTION:begin
+       if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
+       end;
+      end;
+      SDL_MOUSEBUTTONDOWN:begin
+       case event.button.button of
+        SDL_BUTTON_LEFT:begin
+        end;
+        SDL_BUTTON_RIGHT:begin
+        end;
+       end;
+      end;
+      SDL_MOUSEBUTTONUP:begin
+       case event.button.button of
+        SDL_BUTTON_LEFT:begin
+        end;
+        SDL_BUTTON_RIGHT:begin
+        end;
        end;
       end;
      end;
     end;
-    SDL_KEYUP:begin
-    end;
-    SDL_WINDOWEVENT:begin
-     case event.window.event of
-      SDL_WINDOWEVENT_RESIZED:begin
-       ScreenWidth:=event.window.Data1;
-       ScreenHeight:=event.window.Data2;
-       Resize(ScreenWidth,ScreenHeight);
-      end;
-     end;
-    end;
-    SDL_MOUSEMOTION:begin
-     if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
-     end;
-    end;
-    SDL_MOUSEBUTTONDOWN:begin
-     case event.button.button of
-      SDL_BUTTON_LEFT:begin
-      end;
-      SDL_BUTTON_RIGHT:begin
-      end;
-     end;
-    end;
-    SDL_MOUSEBUTTONUP:begin
-     case event.button.button of
-      SDL_BUTTON_LEFT:begin
-      end;
-      SDL_BUTTON_RIGHT:begin
-      end;
-     end;
-    end;
+    Draw;
+    SDL_GL_SwapWindow(SurfaceWindow);
    end;
+
+  finally
+   GLTFOpenGL.FinalizeResources;
   end;
-  Draw;
-  SDL_GL_SwapWindow(SurfaceWindow);
+
+ finally
+  GLTFOpenGL.Free;
  end;
 
  if assigned(SurfaceContext) then begin
@@ -299,7 +316,7 @@ begin
      try
       GLTFDocument.RootPath:=ExtractFilePath(InputFileName);
       GLTFDocument.LoadFromStream(ms);
-      ofs:=TFileStream.Create('output.gltf',fmCreate);
+{     ofs:=TFileStream.Create('output.gltf',fmCreate);
       try
        GLTFDocument.SaveToStream(ofs,false,true);
       finally
@@ -310,7 +327,7 @@ begin
        GLTFDocument.SaveToStream(ofs,true,false);
       finally
        ofs.Free;
-      end;
+      end;}
       Main;
      finally
       FreeAndNil(GLTFDocument);
