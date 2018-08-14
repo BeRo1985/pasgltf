@@ -945,6 +945,17 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
              public
               constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
+              function Decode(const aSkipEvery:TPasGLTFSizeUInt;
+                              const aSkipBytes:TPasGLTFSizeUInt;
+                              const aElementSize:TPasGLTFSizeUInt;
+                              const aCount:TPasGLTFSizeUInt;
+                              const aType:TPasGLTF.TAccessor.TType;
+                              const aComponentCount:TPasGLTFSizeUInt;
+                              const aComponentType:TPasGLTF.TAccessor.TComponentType;
+                              const aComponentSize:TPasGLTFSizeUInt;
+                              const aByteOffset:TPasGLTFSizeUInt;
+                              const aNormalized:boolean;
+                              const aForVertex:boolean):TPasGLTFDoubleDynamicArray;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
               property Buffer:TPasGLTFSizeInt read fBuffer write fBuffer;
@@ -2410,6 +2421,7 @@ var Index,
     SkipEvery,
     SkipBytes:TPasGLTFSizeInt;
     Indices:TPasGLTFDoubleDynamicArray;
+    BufferView:TBufferView;
 begin
  ComponentCount:=fType.GetComponentCount;
  ComponentSize:=fComponentType.GetSize;
@@ -2443,10 +2455,26 @@ begin
    end;
   end;
  end;
- SetLength(result,ComponentCount*fCount);
+ result:=nil;
  if fBufferView>=0 then begin
-
+  if fBufferView<fDocument.fBufferViews.Count then begin
+   BufferView:=fDocument.fBufferViews[fBufferView];
+   result:=BufferView.Decode(SkipEvery,
+                             SkipBytes,
+                             ElementSize,
+                             fCount,
+                             fType,
+                             ComponentCount,
+                             fComponentType,
+                             ComponentSize,
+                             fByteOffset,
+                             fNormalized,
+                             aForVertex);
+  end else begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+  end;
  end else begin
+  SetLength(result,ComponentCount*fCount);
   for Index:=0 to length(result)-1 do begin
    result[Index]:=0;
   end;
@@ -2579,6 +2607,117 @@ end;
 destructor TPasGLTF.TBufferView.Destroy;
 begin
  inherited Destroy;
+end;
+
+function TPasGLTF.TBufferView.Decode(const aSkipEvery:TPasGLTFSizeUInt;
+                                     const aSkipBytes:TPasGLTFSizeUInt;
+                                     const aElementSize:TPasGLTFSizeUInt;
+                                     const aCount:TPasGLTFSizeUInt;
+                                     const aType:TPasGLTF.TAccessor.TType;
+                                     const aComponentCount:TPasGLTFSizeUInt;
+                                     const aComponentType:TPasGLTF.TAccessor.TComponentType;
+                                     const aComponentSize:TPasGLTFSizeUInt;
+                                     const aByteOffset:TPasGLTFSizeUInt;
+                                     const aNormalized:boolean;
+                                     const aForVertex:boolean):TPasGLTFDoubleDynamicArray;
+var Stride,Offset,Index,
+    ComponentIndex,
+    OutputIndex:TPasGLTFSizeUInt;
+    Buffer:TPasGLTF.TBuffer;
+    BufferData,Source:PPPasGLTFUInt8Array;
+    Value:TPasGLTFDouble;
+begin
+
+ Buffer:=fDocument.fBuffers[fBuffer];
+
+ if fByteStride<>0 then begin
+  Stride:=fByteStride;
+ end else begin
+  Stride:=aElementSize;
+ end;
+
+ if aForVertex and ((Stride and 3)<>0) then begin
+  inc(Stride,4-(Stride and 3));
+ end;
+
+ SetLength(result,aCount*aComponentCount);
+
+ Offset:=fByteOffset+aByteOffset;
+
+ BufferData:=Buffer.fData.Memory;
+
+ if (((Stride*(aCount-1))+aElementSize)>fByteLength) or
+    ((Offset+((Stride*(aCount-1))+aElementSize))>TPasGLTFSizeUInt(Buffer.fData.Size)) then begin
+  raise EPasGLTFInvalidDocument.Create('Invalid document');
+ end;
+
+ OutputIndex:=0;
+
+ for Index:=1 to aCount do begin
+
+  Source:=@BufferData^[Offset+((Index-1)*Stride)];
+
+  for ComponentIndex:=1 to aComponentCount do begin
+
+   if (aSkipEvery>0) and (ComponentIndex>1) and (((ComponentIndex-1) mod aSkipEvery)=0)  then begin
+    Source:=@Source^[aSkipBytes];
+   end;
+
+   Value:=0.0;
+
+   case aComponentType of
+    TPasGLTF.TAccessor.TComponentType.SignedByte:begin
+     if aNormalized then begin
+      Value:=TPasGLTFInt8(TPasGLTFPointer(@Source^[0])^)/128.0;
+     end else begin
+      Value:=TPasGLTFInt8(TPasGLTFPointer(@Source^[0])^);
+     end;
+    end;
+    TPasGLTF.TAccessor.TComponentType.UnsignedByte:begin
+     if aNormalized then begin
+      Value:=TPasGLTFUInt8(TPasGLTFPointer(@Source^[0])^)/255.0;
+     end else begin
+      Value:=TPasGLTFUInt8(TPasGLTFPointer(@Source^[0])^);
+     end;
+    end;
+    TPasGLTF.TAccessor.TComponentType.SignedShort:begin
+     if aNormalized then begin
+      Value:=TPasGLTFInt16(TPasGLTFPointer(@Source^[0])^)/32768.0;
+     end else begin
+      Value:=TPasGLTFInt16(TPasGLTFPointer(@Source^[0])^);
+     end;
+    end;
+    TPasGLTF.TAccessor.TComponentType.UnsignedShort:begin
+     if aNormalized then begin
+      Value:=TPasGLTFUInt16(TPasGLTFPointer(@Source^[0])^)/65535.0;
+     end else begin
+      Value:=TPasGLTFUInt16(TPasGLTFPointer(@Source^[0])^);
+     end;
+    end;
+    TPasGLTF.TAccessor.TComponentType.UnsignedInt:begin
+     if aNormalized then begin
+      Value:=TPasGLTFUInt32(TPasGLTFPointer(@Source^[0])^)/4294967295.0;
+     end else begin
+      Value:=TPasGLTFUInt32(TPasGLTFPointer(@Source^[0])^);
+     end;
+    end;
+    TPasGLTF.TAccessor.TComponentType.Float:begin
+     Value:=TPasGLTFFloat(TPasGLTFPointer(@Source^[0])^);
+    end;
+    else {TPasGLTF.TAccessor.TComponentType.None:}begin
+     raise EPasGLTFInvalidDocument.Create('Invalid document');
+    end;
+   end;
+
+   result[OutputIndex]:=Value;
+   inc(OutputIndex);
+
+   Source:=@Source^[aComponentSize];
+
+  end;
+
+ end;
+
 end;
 
 { TPasGLTF.TCamera.TOrthographic }
