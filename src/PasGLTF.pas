@@ -368,6 +368,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
      PPasGLTFDouble=^TPasGLTFDouble;
      TPasGLTFDouble=Double;
 
+     TPasGLTFDoubleDynamicArray=array of TPasGLTFDouble;
+
      PPPasGLTFPtrUInt=^PPasGLTFPtrUInt;
      PPPasGLTFPtrInt=^PPasGLTFPtrInt;
      PPasGLTFPtrUInt=^TPasGLTFPtrUInt;
@@ -698,9 +700,12 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     IdentityQuaternion:TVector4=(0.0,0.0,0.0,1.0);
                     IdentityMatrix:TMatrix=(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
             end;
+            TDocument=class;
             TBaseObject=class
+             private
+              fDocument:TDocument;
              public
-              constructor Create; reintroduce; virtual;
+              constructor Create(const aDocument:TDocument); reintroduce; virtual;
               destructor Destroy; override;
             end;
             TBaseExtensionsExtrasObject=class(TBaseObject)
@@ -708,7 +713,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fExtensions:TPasJSONItemObject;
               fExtras:TPasJSONItemObject;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              protected
               property Extensions:TPasJSONItemObject read fExtensions;
@@ -729,6 +734,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      Float=5126
                     );
                    PComponentType=^TComponentType;
+                   TComponentTypeHelper=record helper for TComponentType
+                    function GetSize:TPasGLTFSizeInt; inline;
+                   end;
                    TRawComponentType=TPasGLTFUInt16;
                    PRawComponentType=^TRawComponentType;
                    TType=
@@ -743,6 +751,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      Mat4=7
                     );
                    PType=^TType;
+                   TTypeHelper=record helper for TType
+                    function GetComponentCount:TPasGLTFSizeInt; inline;
+                   end;
                    TRawType=TPasGLTFUInt8;
                    PRawType=^TRawType;
                    TMinMaxDynamicArray=TPasGLTFDynamicArray<TPasGLTFFloat>;
@@ -755,7 +766,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                             fByteOffset:TPasGLTFSizeUInt;
                             fEmpty:boolean;
                            public
-                            constructor Create; override;
+                            constructor Create(const aDocument:TDocument); override;
                             destructor Destroy; override;
                            published
                             property ComponentType:TComponentType read fComponentType write fComponentType default TComponentType.None;
@@ -769,7 +780,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                             fByteOffset:TPasGLTFSizeUInt;
                             fEmpty:boolean;
                            public
-                            constructor Create; override;
+                            constructor Create(const aDocument:TDocument); override;
                             destructor Destroy; override;
                            published
                             property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView default 0;
@@ -782,7 +793,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      fValues:TValues;
                      function GetEmpty:boolean;
                     public
-                     constructor Create; override;
+                     constructor Create(const aDocument:TDocument); override;
                      destructor Destroy; override;
                     published
                      property Count:TPasGLTFSizeInt read fCount write fCount default 0;
@@ -790,6 +801,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      property Values:TValues read fValues;
                      property Empty:boolean read GetEmpty;
                    end;
+              const TypeComponentCountTable:array[TType] of TPasGLTFSizeInt=(0,1,2,3,4,4,9,16);
              private
               fName:TPasGLTFUTF8String;
               fComponentType:TComponentType;
@@ -802,8 +814,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fMaxArray:TMinMaxDynamicArray;
               fSparse:TSparse;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
+              function Decode(const aForVertex:boolean=true):TPasGLTFDoubleDynamicArray;
              published
               property ComponentType:TComponentType read fComponentType write fComponentType default TComponentType.None;
               property Type_:TType read fType write fType default TType.None;
@@ -826,7 +839,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                             fPath:TPasGLTFUTF8String;
                             fEmpty:boolean;
                            public
-                            constructor Create; override;
+                            constructor Create(const aDocument:TDocument); override;
                             destructor Destroy; override;
                            published
                             property Node:TPasGLTFSizeInt read fNode write fNode default -1;
@@ -837,7 +850,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      fSampler:TPasGLTFSizeInt;
                      fTarget:TChannel.TTarget;
                     public
-                     constructor Create; override;
+                     constructor Create(const aDocument:TDocument); override;
                      destructor Destroy; override;
                     published
                      property Sampler:TPasGLTFSizeInt read fSampler write fSampler default -1;
@@ -858,7 +871,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      fOutput:TPasGLTFSizeInt;
                      fInterpolation:TType;
                     public
-                     constructor Create; override;
+                     constructor Create(const aDocument:TDocument); override;
                      destructor Destroy; override;
                     published
                      property Input:TPasGLTFSizeInt read fInput write fInput default -1;
@@ -871,7 +884,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fChannels:TChannels;
               fSamplers:TSamplers;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
@@ -887,7 +900,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fVersion:TPasGLTFUTF8String;
               fEmpty:boolean;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              published
               property Copyright:TPasGLTFUTF8String read fCopyright write fCopyright;
@@ -903,7 +916,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fURI:TPasGLTFUTF8String;
               fData:TMemoryStream;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
               procedure SetEmbeddedResourceData;
              published
@@ -930,7 +943,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fByteStride:TPasGLTFSizeUInt;
               fTarget:TTargetType;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
@@ -957,7 +970,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      fZFar:TPasGLTFFloat;
                      fEmpty:boolean;
                     public
-                     constructor Create; override;
+                     constructor Create(const aDocument:TDocument); override;
                      destructor Destroy; override;
                     published
                      property XMag:TPasGLTFFloat read fXMag write fXMag;
@@ -974,7 +987,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      fZFar:TPasGLTFFloat;
                      fEmpty:boolean;
                     public
-                     constructor Create; override;
+                     constructor Create(const aDocument:TDocument); override;
                      destructor Destroy; override;
                     published
                      property AspectRatio:TPasGLTFFloat read fAspectRatio write fAspectRatio;
@@ -989,7 +1002,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fPerspective:TPerspective;
               fName:TPasGLTFUTF8String;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              published
               property Type_:TType read fType write fType;
@@ -998,7 +1011,6 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Name:TPasGLTFUTF8String read fName write fName;
             end;
             TCameras=TPasGLTFObjectList<TCamera>;
-            TDocument=class;
             TImage=class(TBaseExtensionsExtrasObject)
              private
               fBufferView:TPasGLTFSizeInt;
@@ -1006,9 +1018,10 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fURI:TPasGLTFUTF8String;
               fMimeType:TPasGLTFUTF8String;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
               procedure SetEmbeddedResourceData(const aStream:TStream);
+              procedure GetResourceData(const aStream:TStream);
              published
               property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView;
               property Name:TPasGLTFUTF8String read fName write fName;
@@ -1031,7 +1044,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      fTexCoord:TPasGLTFSizeInt;
                      function GetEmpty:boolean;
                     public
-                     constructor Create; override;
+                     constructor Create(const aDocument:TDocument); override;
                      destructor Destroy; override;
                     published
                      property Index:TPasGLTFSizeInt read fIndex write fIndex;
@@ -1042,7 +1055,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     private
                      fScale:TPasGLTFFloat;
                     public
-                     constructor Create; override;
+                     constructor Create(const aDocument:TDocument); override;
                     published
                      property Scale:TPasGLTFFloat read fScale write fScale;
                    end;
@@ -1050,7 +1063,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     private
                      fStrength:TPasGLTFFloat;
                     public
-                     constructor Create; override;
+                     constructor Create(const aDocument:TDocument); override;
                     published
                      property Strength:TPasGLTFFloat read fStrength write fStrength;
                    end;
@@ -1063,7 +1076,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      fMetallicRoughnessTexture:TTexture;
                      function GetEmpty:boolean;
                     public
-                     constructor Create; override;
+                     constructor Create(const aDocument:TDocument); override;
                      destructor Destroy; override;
                     public
                      property BaseColorFactor:TVector4 read fBaseColorFactor write fBaseColorFactor;
@@ -1085,7 +1098,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fEmissiveTexture:TTexture;
               fEmissiveFactor:TVector3;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              public
               property EmissiveFactor:TVector3 read fEmissiveFactor write fEmissiveFactor;
@@ -1122,7 +1135,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      fAttributes:TAttributes;
                      fTargets:TAttributesList;
                     public
-                     constructor Create; override;
+                    constructor Create(const aDocument:TDocument); override;
                      destructor Destroy; override;
                     published
                      property Mode:TMode read fMode write fMode;
@@ -1138,7 +1151,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fWeights:TWeights;
               fPrimitives:TPrimitives;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              public
              published
@@ -1163,7 +1176,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fChildren:TChildren;
               fWeights:TWeights;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              public
               property Matrix:TMatrix read fMatrix write fMatrix;
@@ -1214,7 +1227,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fWrapT:TWrappingMode;
               function GetEmpty:boolean;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
@@ -1232,7 +1245,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fName:TPasGLTFUTF8String;
               fNodes:TScene.TNodes;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
@@ -1248,7 +1261,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fSkeleton:TPasGLTFSizeInt;
               fJoints:TSkin.TJoints;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
@@ -1263,7 +1276,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fSampler:TPasGLTFSizeInt;
               fSource:TPasGLTFSizeInt;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              published
               property Name:TPasGLTFUTF8String read fName write fName;
@@ -1298,9 +1311,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               procedure LoadURISource(const aURI:TPasGLTFUTF8String;const aStream:TStream);
               procedure LoadURISources;
              public
-              constructor Create; override;
+              constructor Create(const aDocument:TDocument=nil); override;
               destructor Destroy; override;
-              procedure GetImageResourceData(const aImage:TImage;const aStream:TStream);
               procedure LoadFromJSON(const aJSONRootItem:TPasJSONItem);
               procedure LoadFromBinary(const aStream:TStream);
               procedure LoadFromStream(const aStream:TStream);
@@ -2249,9 +2261,10 @@ end;
 
 { TPasGLTF.TBaseObject }
 
-constructor TPasGLTF.TBaseObject.Create;
+constructor TPasGLTF.TBaseObject.Create(const aDocument:TDocument);
 begin
  inherited Create;
+ fDocument:=aDocument;
 end;
 
 destructor TPasGLTF.TBaseObject.Destroy;
@@ -2261,9 +2274,9 @@ end;
 
 { TPasGLTF.TBaseExtensionsExtrasObject }
 
-constructor TPasGLTF.TBaseExtensionsExtrasObject.Create;
+constructor TPasGLTF.TBaseExtensionsExtrasObject.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fExtensions:=TPasJSONItemObject.Create;
  fExtras:=TPasJSONItemObject.Create;
 end;
@@ -2275,11 +2288,48 @@ begin
  inherited Destroy;
 end;
 
+{ TPasGLTF.TAccessor.TComponentTypeHelper }
+
+function TPasGLTF.TAccessor.TComponentTypeHelper.GetSize:TPasGLTFSizeInt;
+begin
+ case self of
+  TPasGLTF.TAccessor.TComponentType.SignedByte:begin
+   result:=SizeOf(TPasGLTFInt8);
+  end;
+  TPasGLTF.TAccessor.TComponentType.UnsignedByte:begin
+   result:=SizeOf(TPasGLTFUInt8);
+  end;
+  TPasGLTF.TAccessor.TComponentType.SignedShort:begin
+   result:=SizeOf(TPasGLTFInt16);
+  end;
+  TPasGLTF.TAccessor.TComponentType.UnsignedShort:begin
+   result:=SizeOf(TPasGLTFUInt16);
+  end;
+  TPasGLTF.TAccessor.TComponentType.UnsignedInt:begin
+   result:=SizeOf(TPasGLTFUInt32);
+  end;
+  TPasGLTF.TAccessor.TComponentType.Float:begin
+   result:=SizeOf(TPasGLTFFloat);
+  end;
+  else {TPasGLTF.TAccessor.TComponentType.None:}begin
+   result:=0;
+   Assert(false);
+  end;
+ end;
+end;
+
+{ TPasGLTF.TAccessor.TTypeHelper }
+
+function TPasGLTF.TAccessor.TTypeHelper.GetComponentCount:TPasGLTFSizeInt;
+begin
+ result:=TPasGLTF.TAccessor.TypeComponentCountTable[self];
+end;
+
 { TPasGLTF.TAccessor.TSparse.TIndices }
 
-constructor TPasGLTF.TAccessor.TSparse.TIndices.Create;
+constructor TPasGLTF.TAccessor.TSparse.TIndices.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fComponentType:=TComponentType.None;
  fBufferView:=0;
  fByteOffset:=0;
@@ -2293,9 +2343,9 @@ end;
 
 { TPasGLTF.TAccessor.TSparse.TValues }
 
-constructor TPasGLTF.TAccessor.TSparse.TValues.Create;
+constructor TPasGLTF.TAccessor.TSparse.TValues.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fBufferView:=0;
  fByteOffset:=0;
  fEmpty:=false;
@@ -2308,12 +2358,12 @@ end;
 
 { TPasGLTF.TAccessor.TSparse }
 
-constructor TPasGLTF.TAccessor.TSparse.Create;
+constructor TPasGLTF.TAccessor.TSparse.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fCount:=0;
- fIndices:=TIndices.Create;
- fValues:=TValues.Create;
+ fIndices:=TIndices.Create(fDocument);
+ fValues:=TValues.Create(fDocument);
 end;
 
 destructor TPasGLTF.TAccessor.TSparse.Destroy;
@@ -2330,9 +2380,9 @@ end;
 
 { TPasGLTF.TAccessor }
 
-constructor TPasGLTF.TAccessor.Create;
+constructor TPasGLTF.TAccessor.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fComponentType:=TComponentType.None;
  fType:=TType.None;
  fBufferView:=-1;
@@ -2341,7 +2391,7 @@ begin
  fNormalized:=TDefaults.AccessorNormalized;
  fMinArray:=TMinMaxDynamicArray.Create;
  fMaxArray:=TMinMaxDynamicArray.Create;
- fSparse:=TSparse.Create;
+ fSparse:=TSparse.Create(fDocument);
 end;
 
 destructor TPasGLTF.TAccessor.Destroy;
@@ -2352,11 +2402,71 @@ begin
  inherited Destroy;
 end;
 
+function TPasGLTF.TAccessor.Decode(const aForVertex:boolean=true):TPasGLTFDoubleDynamicArray;
+var Index,
+    ComponentCount,
+    ComponentSize,
+    ElementSize,
+    SkipEvery,
+    SkipBytes:TPasGLTFSizeInt;
+    Indices:TPasGLTFDoubleDynamicArray;
+begin
+ ComponentCount:=fType.GetComponentCount;
+ ComponentSize:=fComponentType.GetSize;
+ ElementSize:=ComponentSize*ComponentCount;
+ SkipEvery:=0;
+ SkipBytes:=0;
+ case fComponentType of
+  TPasGLTF.TAccessor.TComponentType.SignedByte,
+  TPasGLTF.TAccessor.TComponentType.UnsignedByte:begin
+   case fType of
+    TPasGLTF.TAccessor.TType.Mat2:begin
+     SkipEvery:=2;
+     SkipBytes:=2;
+     ElementSize:=8;
+    end;
+    TPasGLTF.TAccessor.TType.Mat3:begin
+     SkipEvery:=3;
+     SkipBytes:=1;
+     ElementSize:=12;
+    end;
+   end;
+  end;
+  TPasGLTF.TAccessor.TComponentType.SignedShort,
+  TPasGLTF.TAccessor.TComponentType.UnsignedShort:begin
+   case fType of
+    TPasGLTF.TAccessor.TType.Mat3:begin
+     SkipEvery:=6;
+     SkipBytes:=4;
+     ElementSize:=16;
+    end;
+   end;
+  end;
+ end;
+ SetLength(result,ComponentCount*fCount);
+ if fBufferView>=0 then begin
+
+ end else begin
+  for Index:=0 to length(result)-1 do begin
+   result[Index]:=0;
+  end;
+ end;
+ if fSparse.fCount>0 then begin
+  Indices:=nil;
+  try
+   SetLength(Indices,fSparse.fCount);
+
+  finally
+   Indices:=nil;
+  end;
+ end;
+end;
+
 { TPasGLTF.TAnimation.TChannel.TTarget }
 
-constructor TPasGLTF.TAnimation.TChannel.TTarget.Create;
+constructor TPasGLTF.TAnimation.TChannel.TTarget.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fNode:=-1;
  fPath:='';
  fEmpty:=false;
@@ -2369,11 +2479,11 @@ end;
 
 { TPasGLTF.TAnimation.TChannel }
 
-constructor TPasGLTF.TAnimation.TChannel.Create;
+constructor TPasGLTF.TAnimation.TChannel.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fSampler:=-1;
- fTarget:=TTarget.Create;
+ fTarget:=TTarget.Create(aDocument);
 end;
 
 destructor TPasGLTF.TAnimation.TChannel.Destroy;
@@ -2384,9 +2494,9 @@ end;
 
 { TPasGLTF.TAnimation.TSampler }
 
-constructor TPasGLTF.TAnimation.TSampler.Create;
+constructor TPasGLTF.TAnimation.TSampler.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fInput:=-1;
  fOutput:=-1;
  fInterpolation:=TType.Linear;
@@ -2399,9 +2509,9 @@ end;
 
 { TPasGLTF.TAnimation }
 
-constructor TPasGLTF.TAnimation.Create;
+constructor TPasGLTF.TAnimation.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fName:='';
  fChannels:=TChannels.Create;
  fSamplers:=TSamplers.Create;
@@ -2416,9 +2526,9 @@ end;
 
 { TPasGLTF.TAsset }
 
-constructor TPasGLTF.TAsset.Create;
+constructor TPasGLTF.TAsset.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fCopyright:='';
  fGenerator:='';
  fMinVersion:='';
@@ -2433,9 +2543,9 @@ end;
 
 { TPasGLTF.TBuffer }
 
-constructor TPasGLTF.TBuffer.Create;
+constructor TPasGLTF.TBuffer.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fByteLength:=0;
  fName:='';
  fURI:='';
@@ -2455,9 +2565,9 @@ end;
 
 { TPasGLTF.TBufferView }
 
-constructor TPasGLTF.TBufferView.Create;
+constructor TPasGLTF.TBufferView.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fName:='';
  fBuffer:=-1;
  fByteOffset:=0;
@@ -2473,9 +2583,9 @@ end;
 
 { TPasGLTF.TCamera.TOrthographic }
 
-constructor TPasGLTF.TCamera.TOrthographic.Create;
+constructor TPasGLTF.TCamera.TOrthographic.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fXMag:=TDefaults.FloatSentinel;
  fYMag:=TDefaults.FloatSentinel;
  fZNear:=-TDefaults.FloatSentinel;
@@ -2490,9 +2600,9 @@ end;
 
 { TPasGLTF.TCamera.TPerspective }
 
-constructor TPasGLTF.TCamera.TPerspective.Create;
+constructor TPasGLTF.TCamera.TPerspective.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fAspectRatio:=0.0;
  fYFov:=0.0;
  fZNear:=0.0;
@@ -2507,12 +2617,12 @@ end;
 
 { TPasGLTF.TCamera }
 
-constructor TPasGLTF.TCamera.Create;
+constructor TPasGLTF.TCamera.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fType:=TType.None;
- fOrthographic:=TOrthographic.Create;
- fPerspective:=TPerspective.Create;
+ fOrthographic:=TOrthographic.Create(fDocument);
+ fPerspective:=TPerspective.Create(fDocument);
 end;
 
 destructor TPasGLTF.TCamera.Destroy;
@@ -2524,9 +2634,9 @@ end;
 
 { TPasGLTF.TImage }
 
-constructor TPasGLTF.TImage.Create;
+constructor TPasGLTF.TImage.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fBufferView:=-1;
  fName:='';
  fURI:='';
@@ -2543,11 +2653,37 @@ begin
  fURI:='data:'+fMimeType+';base64,'+TBase64.Encode(aStream);
 end;
 
+procedure TPasGLTF.TImage.GetResourceData(const aStream:TStream);
+var BufferView:TBufferView;
+    Buffer:TBuffer;
+begin
+ if fBufferView>=0 then begin
+  if fBufferView<fDocument.fBufferViews.Count then begin
+   BufferView:=fDocument.fBufferViews[fBufferView];
+   if (BufferView.fBuffer>=0) and (BufferView.fBuffer<fDocument.fBuffers.Count) then begin
+    Buffer:=fDocument.fBuffers[BufferView.fBuffer];
+    if (BufferView.fByteOffset+BufferView.fByteLength)<=Buffer.fData.Size then begin
+     aStream.WriteBuffer(PPasGLTFUInt8Array(Buffer.fData.Memory)^[BufferView.fByteOffset],BufferView.fByteLength);
+     aStream.Seek(-BufferView.fByteLength,soCurrent);
+    end else begin
+     raise EInOutError.Create('I/O error');
+    end;
+   end else begin
+    raise EInOutError.Create('I/O error');
+   end;
+  end else begin
+   raise EInOutError.Create('I/O error');
+  end;
+ end else begin
+  fDocument.LoadURISource(fURI,aStream);
+ end;
+end;
+
 { TPasGLTF.TMaterial.TTexture }
 
-constructor TPasGLTF.TMaterial.TTexture.Create;
+constructor TPasGLTF.TMaterial.TTexture.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fIndex:=-1;
  fTexCoord:=0;
 end;
@@ -2564,30 +2700,30 @@ end;
 
 { TPasGLTF.TMaterial.TNormalTexture }
 
-constructor TPasGLTF.TMaterial.TNormalTexture.Create;
+constructor TPasGLTF.TMaterial.TNormalTexture.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fScale:=TDefaults.IdentityScalar;
 end;
 
 { TPasGLTF.TMaterial.TOcclusionTexture }
 
-constructor TPasGLTF.TMaterial.TOcclusionTexture.Create;
+constructor TPasGLTF.TMaterial.TOcclusionTexture.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fStrength:=TDefaults.IdentityScalar;
 end;
 
 { TPasGLTF.TMaterial.TPBRMetallicRoughness }
 
-constructor TPasGLTF.TMaterial.TPBRMetallicRoughness.Create;
+constructor TPasGLTF.TMaterial.TPBRMetallicRoughness.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fBaseColorFactor:=TDefaults.IdentityVector4;
- fBaseColorTexture:=TTexture.Create;
+ fBaseColorTexture:=TTexture.Create(fDocument);
  fRoughnessFactor:=TDefaults.IdentityScalar;
  fMetallicFactor:=TDefaults.IdentityScalar;
- fMetallicRoughnessTexture:=TTexture.Create;
+ fMetallicRoughnessTexture:=TTexture.Create(fDocument);
 end;
 
 destructor TPasGLTF.TMaterial.TPBRMetallicRoughness.Destroy;
@@ -2607,17 +2743,17 @@ end;
 
 { TPasGLTF.TMaterial }
 
-constructor TPasGLTF.TMaterial.Create;
+constructor TPasGLTF.TMaterial.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fName:='';
  fAlphaCutOff:=TDefaults.MaterialAlphaCutoff;
  fAlphaMode:=TAlphaMode.Opaque;
  fDoubleSided:=TDefaults.MaterialDoubleSided;
- fNormalTexture:=TNormalTexture.Create;
- fOcclusionTexture:=TOcclusionTexture.Create;
- fPBRMetallicRoughness:=TPBRMetallicRoughness.Create;
- fEmissiveTexture:=TTexture.Create;
+ fNormalTexture:=TNormalTexture.Create(fDocument);
+ fOcclusionTexture:=TOcclusionTexture.Create(fDocument);
+ fPBRMetallicRoughness:=TPBRMetallicRoughness.Create(fDocument);
+ fEmissiveTexture:=TTexture.Create(fDocument);
  fEmissiveFactor:=TDefaults.NullVector3;
 end;
 
@@ -2632,9 +2768,9 @@ end;
 
 { TPasGLTF.TMesh.TPrimitive }
 
-constructor TPasGLTF.TMesh.TPrimitive.Create;
+constructor TPasGLTF.TMesh.TPrimitive.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fMode:=TMode.Triangles;
  fIndices:=-1;
  fMaterial:=-1;
@@ -2651,9 +2787,9 @@ end;
 
 { TPasGLTF.TMesh }
 
-constructor TPasGLTF.TMesh.Create;
+constructor TPasGLTF.TMesh.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fName:='';
  fWeights:=TWeights.Create;
  fPrimitives:=TPrimitives.Create;
@@ -2668,9 +2804,9 @@ end;
 
 { TPasGLTF.TNode }
 
-constructor TPasGLTF.TNode.Create;
+constructor TPasGLTF.TNode.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fName:='';
  fCamera:=-1;
  fMesh:=-1;
@@ -2692,9 +2828,9 @@ end;
 
 { TPasGLTF.TSampler }
 
-constructor TPasGLTF.TSampler.Create;
+constructor TPasGLTF.TSampler.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fName:='';
  fMagFilter:=TMagFilter.None;
  fMinFilter:=TMinFilter.None;
@@ -2718,9 +2854,9 @@ end;
 
 { TPasGLTF.TScene }
 
-constructor TPasGLTF.TScene.Create;
+constructor TPasGLTF.TScene.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fName:='';
  fNodes:=TPasGLTF.TScene.TNodes.Create;
 end;
@@ -2733,9 +2869,9 @@ end;
 
 { TPasGLTF.TSkin }
 
-constructor TPasGLTF.TSkin.Create;
+constructor TPasGLTF.TSkin.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fName:='';
  fInverseBindMatrices:=-1;
  fSkeleton:=-1;
@@ -2750,9 +2886,9 @@ end;
 
 { TPasGLTF.TTexture }
 
-constructor TPasGLTF.TTexture.Create;
+constructor TPasGLTF.TTexture.Create(const aDocument:TDocument);
 begin
- inherited Create;
+ inherited Create(aDocument);
  fName:='';
  fSampler:=-1;
  fSource:=-1;
@@ -2765,10 +2901,10 @@ end;
 
 { TPasGLTF.TDocument }
 
-constructor TPasGLTF.TDocument.Create;
+constructor TPasGLTF.TDocument.Create(const aDocument:TDocument=nil);
 begin
- inherited Create;
- fAsset:=TAsset.Create;
+ inherited Create(aDocument);
+ fAsset:=TAsset.Create(fDocument);
  fAccessors:=TAccessors.Create;
  fAnimations:=TAnimations.Create;
  fBuffers:=TBuffers.Create;
@@ -2858,32 +2994,6 @@ begin
  end;
 end;
 
-procedure TPasGLTF.TDocument.GetImageResourceData(const aImage:TImage;const aStream:TStream);
-var BufferView:TBufferView;
-    Buffer:TBuffer;
-begin
- if aImage.fBufferView>=0 then begin
-  if aImage.fBufferView<fBufferViews.Count then begin
-   BufferView:=fBufferViews[aImage.fBufferView];
-   if (BufferView.fBuffer>=0) and (BufferView.fBuffer<fBuffers.Count) then begin
-    Buffer:=fBuffers[BufferView.fBuffer];
-    if (BufferView.fByteOffset+BufferView.fByteLength)<=Buffer.fData.Size then begin
-     aStream.WriteBuffer(PPasGLTFUInt8Array(Buffer.fData.Memory)^[BufferView.fByteOffset],BufferView.fByteLength);
-     aStream.Seek(-BufferView.fByteLength,soCurrent);
-    end else begin
-     raise EInOutError.Create('I/O error');
-    end;
-   end else begin
-    raise EInOutError.Create('I/O error');
-   end;
-  end else begin
-   raise EInOutError.Create('I/O error');
-  end;
- end else begin
-  LoadURISource(aImage.fURI,aStream);
- end;
-end;
-
 procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  function Required(const aJSONItem:TPasJSONItem;const aName:TPasGLTFUTF8String=''):TPasJSONItem;
  begin
@@ -2958,7 +3068,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TAccessor.Create;
+   result:=TAccessor.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fComponentType:=TAccessor.TComponentType(TPasJSON.GetInt64(Required(JSONObject.Properties['componentType'],'componentType'),TPasGLTFInt64(TAccessor.TComponentType.None)));
@@ -3049,7 +3159,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TAnimation.Create;
+   result:=TAnimation.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
@@ -3062,7 +3172,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
       if not (assigned(JSONArrayItem) and (JSONArrayItem is TPasJSONItemObject)) then begin
        raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
       end;
-      Channel:=TAnimation.TChannel.Create;
+      Channel:=TAnimation.TChannel.Create(self);
       try
        ProcessExtensionsAndExtras(TPasJSONItemObject(JSONArrayItem),Channel);
        Channel.fSampler:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONArrayItem).Properties['sampler'],'sampler'),Channel.fSampler);
@@ -3089,7 +3199,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
       if not (assigned(JSONArrayItem) and (JSONArrayItem is TPasJSONItemObject)) then begin
        raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
       end;
-      Sampler:=TAnimation.TSampler.Create;
+      Sampler:=TAnimation.TSampler.Create(self);
       try
        ProcessExtensionsAndExtras(TPasJSONItemObject(JSONArrayItem),Sampler);
        Sampler.fInput:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONArrayItem).Properties['input'],'input'),Sampler.fInput);
@@ -3156,7 +3266,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TBuffer.Create;
+   result:=TBuffer.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
@@ -3187,7 +3297,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TBufferView.Create;
+   result:=TBufferView.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fBuffer:=TPasJSON.GetInt64(Required(JSONObject.Properties['buffer'],'buffer'),result.fBuffer);
@@ -3222,7 +3332,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TCamera.Create;
+   result:=TCamera.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
@@ -3289,7 +3399,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TImage.Create;
+   result:=TImage.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fBufferView:=TPasJSON.GetInt64(JSONObject.Properties['bufferView'],result.fBufferView);
@@ -3323,7 +3433,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TMaterial.Create;
+   result:=TMaterial.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fAlphaCutOff:=TPasJSON.GetNumber(JSONObject.Properties['alphaCutoff'],result.fAlphaCutOff);
@@ -3462,7 +3572,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
     end;
     JSONObject:=TPasJSONItemObject(aJSONItem);
-    result:=TMesh.TPrimitive.Create;
+    result:=TMesh.TPrimitive.Create(self);
     try
      ProcessExtensionsAndExtras(JSONObject,result);
      begin
@@ -3510,7 +3620,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TMesh.Create;
+   result:=TMesh.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
@@ -3560,7 +3670,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TNode.Create;
+   result:=TNode.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fCamera:=TPasJSON.GetInt64(JSONObject.Properties['camera'],result.fCamera);
@@ -3648,7 +3758,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TSampler.Create;
+   result:=TSampler.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fMagFilter:=TSampler.TMagFilter(TPasJSON.GetInt64(JSONObject.Properties['magFilter'],TPasGLTFInt64(result.fMagFilter)));
@@ -3681,7 +3791,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TScene.Create;
+   result:=TScene.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
@@ -3721,7 +3831,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TSkin.Create;
+   result:=TSkin.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
@@ -3763,7 +3873,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
    end;
    JSONObject:=TPasJSONItemObject(aJSONItem);
-   result:=TTexture.Create;
+   result:=TTexture.Create(self);
    try
     ProcessExtensionsAndExtras(JSONObject,result);
     result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
@@ -3907,7 +4017,7 @@ begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
   end;
   if fBuffers.Count<1 then begin
-   fBuffers.Add(TBuffer.Create);
+   fBuffers.Add(TBuffer.Create(self));
   end;
   Stream:=fBuffers[0].fData;
   Stream.Clear;
