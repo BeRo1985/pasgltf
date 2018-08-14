@@ -312,7 +312,7 @@ begin
      fs.Seek(0,soBeginning);
      ms.CopyFrom(fs,fs.Size);
      ms.Seek(0,soBeginning);
-     GLTFDocument:=TPasGLTF.TDocument.Create;
+     GLTFDocument:=TPasGLTF.TDocument.Create(nil);
      try
       GLTFDocument.RootPath:=ExtractFilePath(InputFileName);
       GLTFDocument.LoadFromStream(ms);

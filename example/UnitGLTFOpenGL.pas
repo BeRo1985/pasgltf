@@ -14,9 +14,25 @@ interface
 
 uses SysUtils,Classes,PasGLTF,dglOpenGL;
 
-type TGLTFOpenGL=class
+type EGLTFOpenGL=class(Exception);
+
+     TGLTFOpenGL=class
       private
-       type TBufferView=record
+       type TAccessor=record
+             public
+              type TWorkBuffer=record
+                    Active:boolean;
+                    Handle:glUInt;
+                    Data:TBytes;
+                   end;
+                   PWorkBuffer=^TWorkBuffer;
+             public
+              BufferView:TPasGLTFSizeInt;
+              WorkBuffer:TWorkBuffer;
+            end;
+            PAccessor=^TAccessor;
+            TAccessors=array of TAccessor;
+            TBufferView=record
              Handle:glUInt;
              BufferView:TPasGLTF.TBufferView;
              Buffer:TPasGLTF.TBuffer;
@@ -26,6 +42,7 @@ type TGLTFOpenGL=class
       private
        fDocument:TPasGLTF.TDocument;
        fReady:boolean;
+       fAccessors:TAccessors;
        fBufferViews:TBufferViews;
       public
        constructor Create(const aDocument:TPasGLTF.TDocument); reintroduce;
@@ -46,10 +63,13 @@ begin
  inherited Create;
  fDocument:=aDocument;
  fReady:=false;
+ fAccessors:=nil;
+ fBufferViews:=nil;
 end;
 
 destructor TGLTFOpenGL.Destroy;
 begin
+ FinalizeResources;
  inherited Destroy;
 end;
 
@@ -74,6 +94,61 @@ procedure TGLTFOpenGL.InitializeResources;
    end;
   end;
  end;
+ procedure InitializeAccessors;
+ var Index,
+     ComponentCount,
+     ComponentSize,
+     ElementSize,
+     SkipEvery,
+     SkipBytes:TPasGLTFSizeInt;
+     Current:PAccessor;
+     Accessor:TPasGLTF.TAccessor;
+ begin
+  SetLength(fAccessors,fDocument.Accessors.Count);
+  for Index:=0 to fDocument.Accessors.Count-1 do begin
+   Current:=@fAccessors[Index];
+   Accessor:=fDocument.Accessors[Index];
+   ComponentCount:=Accessor.Type_.GetComponentCount;
+   ComponentSize:=Accessor.ComponentType.GetSize;
+   ElementSize:=ComponentSize*ComponentCount;
+   SkipEvery:=0;
+   SkipBytes:=0;
+   case Accessor.ComponentType of
+    TPasGLTF.TAccessor.TComponentType.SignedByte,
+    TPasGLTF.TAccessor.TComponentType.UnsignedByte:begin
+     case Accessor.Type_ of
+      TPasGLTF.TAccessor.TType.Mat2:begin
+       SkipEvery:=2;
+       SkipBytes:=2;
+       ElementSize:=8;
+      end;
+      TPasGLTF.TAccessor.TType.Mat3:begin
+       SkipEvery:=3;
+       SkipBytes:=1;
+       ElementSize:=12;
+      end;
+     end;
+    end;
+    TPasGLTF.TAccessor.TComponentType.SignedShort,
+    TPasGLTF.TAccessor.TComponentType.UnsignedShort:begin
+     case Accessor.Type_ of
+      TPasGLTF.TAccessor.TType.Mat3:begin
+       SkipEvery:=6;
+       SkipBytes:=4;
+       ElementSize:=16;
+      end;
+     end;
+    end;
+   end;
+   if Accessor.Sparse.Empty then begin
+    Current^.BufferView:=Accessor.BufferView;
+    if (Current^.BufferView<0) or (Current^.BufferView>=fDocument.BufferViews.Count) then begin
+     raise EGLTFOpenGL.Create('Ups');
+    end;
+   end else begin
+   end;
+  end;
+ end;
 begin
  if not fReady then begin
   InitializeBufferViews;
@@ -91,6 +166,17 @@ procedure TGLTFOpenGL.FinalizeResources;
    glDeleteBuffers(1,@Current^.Handle);
   end;
  end;
+ procedure FinalizeAccessors;
+ var Index:TPasGLTFSizeInt;
+     Current:PAccessor;
+ begin
+  for Index:=0 to length(fAccessors)-1 do begin
+   Current:=@fAccessors[Index];
+   if Current^.WorkBuffer.Active then begin
+    glDeleteBuffers(1,@Current^.WorkBuffer.Handle);
+   end;
+  end;
+ end;
 begin
  if fReady then begin
   fReady:=false;
@@ -99,7 +185,7 @@ begin
 end;
 
 procedure TGLTFOpenGL.Draw(const aScene:TPasGLTFSizeInt=-1);
-type TMatrix=TPasGLTF.TMatrix;
+type TMatrix=TPasGLTF.TMatrix4x4;
      PMatrix=^TMatrix;
  function MatrixFromRotation(const aRotation:TPasGLTF.TVector4):TMatrix;
  var qx2,qy2,qz2,qxqx2,qxqy2,qxqz2,qxqw2,qyqy2,qyqz2,qyqw2,qzqz2,qzqw2,l:TPasGLTFFloat;

@@ -323,17 +323,25 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
      PPasGLTFInt32=^TPasGLTFInt32;
      TPasGLTFInt32={$ifdef fpc}Int32{$else}longint{$endif};
 
+     TPasGLTFInt32DynamicArray=array of TPasGLTFInt32;
+
      PPPasGLTFUInt32=^PPasGLTFUInt32;
      PPasGLTFUInt32=^TPasGLTFUInt32;
      TPasGLTFUInt32={$ifdef fpc}UInt32{$else}longword{$endif};
+
+     TPasGLTFUInt32DynamicArray=array of TPasGLTFUInt32;
 
      PPPasGLTFInt64=^PPasGLTFInt64;
      PPasGLTFInt64=^TPasGLTFInt64;
      TPasGLTFInt64=Int64;
 
+     TPasGLTFInt64DynamicArray=array of TPasGLTFInt64;
+
      PPPasGLTFUInt64=^PPasGLTFUInt64;
      PPasGLTFUInt64=^TPasGLTFUInt64;
      TPasGLTFUInt64=UInt64;
+
+     TPasGLTFUInt64DynamicArray=array of TPasGLTFUInt64;
 
      PPPasGLTFChar=^PAnsiChar;
      PPasGLTFChar=PAnsiChar;
@@ -673,9 +681,14 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
              JSONChunkHeader:TChunkHeader;
             end;
             TVector2=array[0..1] of TPasGLTFFloat;
+            TVector2DynamicArray=array of TVector2;
             TVector3=array[0..2] of TPasGLTFFloat;
+            TVector3DynamicArray=array of TVector3;
             TVector4=array[0..3] of TPasGLTFFloat;
-            TMatrix=array[0..15] of TPasGLTFFloat;
+            TVector4DynamicArray=array of TVector4;
+            TMatrix2x2=array[0..3] of TPasGLTFFloat;
+            TMatrix3x3=array[0..9] of TPasGLTFFloat;
+            TMatrix4x4=array[0..15] of TPasGLTFFloat;
        const ChunkHeaderSize=SizeOf(TChunkHeader);
              GLBHeaderSize=SizeOf(TGLBHeader);
              GLBHeaderMagicNativeEndianness=TPasGLTFUInt32($46546c67);
@@ -698,7 +711,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     IdentityVector3:TVector3=(1.0,1.0,1.0);
                     IdentityVector4:TVector4=(1.0,1.0,1.0,1.0);
                     IdentityQuaternion:TVector4=(0.0,0.0,0.0,1.0);
-                    IdentityMatrix:TMatrix=(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
+                    IdentityMatrix:TMatrix4x4=(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
             end;
             TDocument=class;
             TBaseObject=class
@@ -817,6 +830,14 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
               function Decode(const aForVertex:boolean=true):TPasGLTFDoubleDynamicArray;
+              function DecodeAsInt32Array(const aForVertex:boolean=true):TPasGLTFInt32DynamicArray;
+              function DecodeAsUInt32Array(const aForVertex:boolean=true):TPasGLTFUInt32DynamicArray;
+              function DecodeAsInt64Array(const aForVertex:boolean=true):TPasGLTFInt64DynamicArray;
+              function DecodeAsUInt64Array(const aForVertex:boolean=true):TPasGLTFUInt64DynamicArray;
+              function DecodeAsFloatArray(const aForVertex:boolean=true):TPasGLTFFloatDynamicArray;
+              function DecodeAsVector2Array(const aForVertex:boolean=true):TVector2DynamicArray;
+              function DecodeAsVector3Array(const aForVertex:boolean=true):TVector3DynamicArray;
+              function DecodeAsVector4Array(const aForVertex:boolean=true):TVector4DynamicArray;
              published
               property ComponentType:TComponentType read fComponentType write fComponentType default TComponentType.None;
               property Type_:TType read fType write fType default TType.None;
@@ -1180,7 +1201,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fCamera:TPasGLTFSizeInt;
               fMesh:TPasGLTFSizeInt;
               fSkin:TPasGLTFSizeInt;
-              fMatrix:TMatrix;
+              fMatrix:TMatrix4x4;
               fRotation:TVector4;
               fScale:TVector3;
               fTranslation:TVector3;
@@ -1190,7 +1211,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              public
-              property Matrix:TMatrix read fMatrix write fMatrix;
+              property Matrix:TMatrix4x4 read fMatrix write fMatrix;
               property Rotation:TVector4 read fRotation write fRotation;
               property Scale:TVector3 read fScale write fScale;
               property Translation:TVector3 read fTranslation write fTranslation;
@@ -2519,6 +2540,100 @@ begin
   end else begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsInt32Array(const aForVertex:boolean):TPasGLTFInt32DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=Decode(aForVertex);
+ SetLength(result,length(DoubleArray));
+ for Index:=0 to length(DoubleArray)-1 do begin
+  result[Index]:=trunc(DoubleArray[Index]);
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsUInt32Array(const aForVertex:boolean):TPasGLTFUInt32DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=Decode(aForVertex);
+ SetLength(result,length(DoubleArray));
+ for Index:=0 to length(DoubleArray)-1 do begin
+  result[Index]:=trunc(DoubleArray[Index]);
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsInt64Array(const aForVertex:boolean):TPasGLTFInt64DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=Decode(aForVertex);
+ SetLength(result,length(DoubleArray));
+ for Index:=0 to length(DoubleArray)-1 do begin
+  result[Index]:=trunc(DoubleArray[Index]);
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsUInt64Array(const aForVertex:boolean):TPasGLTFUInt64DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=Decode(aForVertex);
+ SetLength(result,length(DoubleArray));
+ for Index:=0 to length(DoubleArray)-1 do begin
+  result[Index]:=trunc(DoubleArray[Index]);
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsFloatArray(const aForVertex:boolean):TPasGLTFFloatDynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=Decode(aForVertex);
+ SetLength(result,length(DoubleArray));
+ for Index:=0 to length(DoubleArray)-1 do begin
+  result[Index]:=DoubleArray[Index];
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsVector2Array(const aForVertex:boolean):TVector2DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=Decode(aForVertex);
+ SetLength(result,length(DoubleArray) shr 1);
+ for Index:=0 to length(result)-1 do begin
+  result[Index,0]:=trunc(DoubleArray[(Index shl 1) or 0]);
+  result[Index,1]:=trunc(DoubleArray[(Index shl 1) or 1]);
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsVector3Array(const aForVertex:boolean):TVector3DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=Decode(aForVertex);
+ SetLength(result,length(DoubleArray) div 2 );
+ for Index:=0 to length(result)-1 do begin
+  result[Index,0]:=trunc(DoubleArray[(Index*3)+0]);
+  result[Index,1]:=trunc(DoubleArray[(Index*3)+1]);
+  result[Index,2]:=trunc(DoubleArray[(Index*3)+2]);
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsVector4Array(const aForVertex:boolean):TVector4DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=Decode(aForVertex);
+ SetLength(result,length(DoubleArray) shr 2);
+ for Index:=0 to length(result)-1 do begin
+  result[Index,0]:=trunc(DoubleArray[(Index shl 2) or 0]);
+  result[Index,1]:=trunc(DoubleArray[(Index shl 2) or 1]);
+  result[Index,2]:=trunc(DoubleArray[(Index shl 2) or 2]);
+  result[Index,3]:=trunc(DoubleArray[(Index shl 2) or 3]);
  end;
 end;
 
@@ -4942,7 +5057,7 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
       result.Add('children',JSONArray);
      end;
     end;
-    if not CompareMem(@aObject.fMatrix,@TDefaults.IdentityMatrix,SizeOf(TMatrix)) then begin
+    if not CompareMem(@aObject.fMatrix,@TDefaults.IdentityMatrix,SizeOf(TMatrix4x4)) then begin
      JSONArray:=TPasJSONItemArray.Create;
      try
       for Index:=0 to 15 do begin
