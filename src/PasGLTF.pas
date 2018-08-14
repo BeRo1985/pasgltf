@@ -832,7 +832,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
              public
               constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
-              function Decode(const aForVertex:boolean=true):TPasGLTFDoubleDynamicArray;
+              function DecodeAsDoubleArray(const aForVertex:boolean=true):TPasGLTFDoubleDynamicArray;
               function DecodeAsInt32Array(const aForVertex:boolean=true):TPasGLTFInt32DynamicArray;
               function DecodeAsUInt32Array(const aForVertex:boolean=true):TPasGLTFUInt32DynamicArray;
               function DecodeAsInt64Array(const aForVertex:boolean=true):TPasGLTFInt64DynamicArray;
@@ -2440,7 +2440,7 @@ begin
  inherited Destroy;
 end;
 
-function TPasGLTF.TAccessor.Decode(const aForVertex:boolean=true):TPasGLTFDoubleDynamicArray;
+function TPasGLTF.TAccessor.DecodeAsDoubleArray(const aForVertex:boolean=true):TPasGLTFDoubleDynamicArray;
 var Index,
     ComponentIndex,
     ComponentCount,
@@ -2553,7 +2553,7 @@ function TPasGLTF.TAccessor.DecodeAsInt32Array(const aForVertex:boolean):TPasGLT
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
- DoubleArray:=Decode(aForVertex);
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
  SetLength(result,length(DoubleArray));
  for Index:=0 to length(result)-1 do begin
   result[Index]:=trunc(DoubleArray[Index]);
@@ -2564,7 +2564,7 @@ function TPasGLTF.TAccessor.DecodeAsUInt32Array(const aForVertex:boolean):TPasGL
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
- DoubleArray:=Decode(aForVertex);
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
  SetLength(result,length(DoubleArray));
  for Index:=0 to length(result)-1 do begin
   result[Index]:=trunc(DoubleArray[Index]);
@@ -2575,7 +2575,7 @@ function TPasGLTF.TAccessor.DecodeAsInt64Array(const aForVertex:boolean):TPasGLT
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
- DoubleArray:=Decode(aForVertex);
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
  SetLength(result,length(DoubleArray));
  for Index:=0 to length(result)-1 do begin
   result[Index]:=trunc(DoubleArray[Index]);
@@ -2586,7 +2586,7 @@ function TPasGLTF.TAccessor.DecodeAsUInt64Array(const aForVertex:boolean):TPasGL
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
- DoubleArray:=Decode(aForVertex);
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
  SetLength(result,length(DoubleArray));
  for Index:=0 to length(result)-1 do begin
   result[Index]:=trunc(DoubleArray[Index]);
@@ -2597,7 +2597,7 @@ function TPasGLTF.TAccessor.DecodeAsFloatArray(const aForVertex:boolean):TPasGLT
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
- DoubleArray:=Decode(aForVertex);
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
  SetLength(result,length(DoubleArray));
  for Index:=0 to length(result)-1 do begin
   result[Index]:=DoubleArray[Index];
@@ -2608,7 +2608,7 @@ function TPasGLTF.TAccessor.DecodeAsVector2Array(const aForVertex:boolean):TVect
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
- DoubleArray:=Decode(aForVertex);
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) and 1)=0);
  SetLength(result,length(DoubleArray) shr 1);
  for Index:=0 to length(result)-1 do begin
@@ -2621,7 +2621,7 @@ function TPasGLTF.TAccessor.DecodeAsVector3Array(const aForVertex:boolean):TVect
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
- DoubleArray:=Decode(aForVertex);
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) mod 3)=0);
  SetLength(result,length(DoubleArray) div 3);
  for Index:=0 to length(result)-1 do begin
@@ -2635,7 +2635,7 @@ function TPasGLTF.TAccessor.DecodeAsVector4Array(const aForVertex:boolean):TVect
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
- DoubleArray:=Decode(aForVertex);
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) and 3)=0);
  SetLength(result,length(DoubleArray) shr 2);
  for Index:=0 to length(result)-1 do begin
@@ -2650,7 +2650,7 @@ function TPasGLTF.TAccessor.DecodeAsMatrix2x2Array(const aForVertex:boolean=true
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
- DoubleArray:=Decode(aForVertex);
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) and 3)=0);
  SetLength(result,length(DoubleArray) shr 2);
  for Index:=0 to length(result)-1 do begin
@@ -2665,7 +2665,7 @@ function TPasGLTF.TAccessor.DecodeAsMatrix3x3Array(const aForVertex:boolean=true
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
- DoubleArray:=Decode(aForVertex);
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) mod 9)=0);
  SetLength(result,length(DoubleArray) div 9);
  for Index:=0 to length(result)-1 do begin
@@ -2685,7 +2685,7 @@ function TPasGLTF.TAccessor.DecodeAsMatrix4x4Array(const aForVertex:boolean=true
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
- DoubleArray:=Decode(aForVertex);
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) and 15)=0);
  SetLength(result,length(DoubleArray) shr 4);
  for Index:=0 to length(result)-1 do begin
