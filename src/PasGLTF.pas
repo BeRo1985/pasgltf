@@ -2415,13 +2415,16 @@ end;
 
 function TPasGLTF.TAccessor.Decode(const aForVertex:boolean=true):TPasGLTFDoubleDynamicArray;
 var Index,
+    ComponentIndex,
     ComponentCount,
     ComponentSize,
     ElementSize,
     SkipEvery,
-    SkipBytes:TPasGLTFSizeInt;
-    Indices:TPasGLTFDoubleDynamicArray;
-    BufferView:TBufferView;
+    SkipBytes,
+    IndicesComponentSize,
+    Base:TPasGLTFSizeInt;
+    Indices,
+    Values:TPasGLTFDoubleDynamicArray;
 begin
  ComponentCount:=fType.GetComponentCount;
  ComponentSize:=fComponentType.GetSize;
@@ -2458,18 +2461,17 @@ begin
  result:=nil;
  if fBufferView>=0 then begin
   if fBufferView<fDocument.fBufferViews.Count then begin
-   BufferView:=fDocument.fBufferViews[fBufferView];
-   result:=BufferView.Decode(SkipEvery,
-                             SkipBytes,
-                             ElementSize,
-                             fCount,
-                             fType,
-                             ComponentCount,
-                             fComponentType,
-                             ComponentSize,
-                             fByteOffset,
-                             fNormalized,
-                             aForVertex);
+   result:=fDocument.fBufferViews[fBufferView].Decode(SkipEvery,
+                                                      SkipBytes,
+                                                      ElementSize,
+                                                      fCount,
+                                                      fType,
+                                                      ComponentCount,
+                                                      fComponentType,
+                                                      ComponentSize,
+                                                      fByteOffset,
+                                                      fNormalized,
+                                                      aForVertex);
   end else begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
@@ -2480,12 +2482,42 @@ begin
   end;
  end;
  if fSparse.fCount>0 then begin
-  Indices:=nil;
-  try
-   SetLength(Indices,fSparse.fCount);
-
-  finally
-   Indices:=nil;
+  if (fSparse.fIndices.fBufferView>=0) and (fSparse.fIndices.fBufferView<fDocument.fBufferViews.Count) then begin
+   IndicesComponentSize:=fSparse.fIndices.fComponentType.GetSize;
+   Indices:=fDocument.fBufferViews[fSparse.fIndices.fBufferView].Decode(0,
+                                                                        0,
+                                                                        IndicesComponentSize,
+                                                                        fSparse.fCount,
+                                                                        TType.Scalar,
+                                                                        1,
+                                                                        fSparse.fIndices.fComponentType,
+                                                                        IndicesComponentSize,
+                                                                        fSparse.fIndices.fByteOffset,
+                                                                        false,
+                                                                        false);
+   if (fSparse.fValues.fBufferView>=0) and (fSparse.fValues.fBufferView<fDocument.fBufferViews.Count) then begin
+    Values:=fDocument.fBufferViews[fSparse.fValues.fBufferView].Decode(SkipEvery,
+                                                                       SkipBytes,
+                                                                       ElementSize,
+                                                                       fSparse.fCount,
+                                                                       fType,
+                                                                       ComponentCount,
+                                                                       fComponentType,
+                                                                       ComponentSize,
+                                                                       fSparse.fValues.fByteOffset,
+                                                                       fNormalized,
+                                                                       aForVertex);
+    for Index:=0 to length(Indices)-1 do begin
+     Base:=trunc(Indices[Index])*ComponentCount;
+     for ComponentIndex:=0 to ComponentCount-1 do begin
+      result[Base+ComponentIndex]:=Values[(Index*ComponentCount)+ComponentIndex];
+     end;
+    end;
+   end else begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
+   end;
+  end else begin
+   raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
   end;
  end;
 end;
