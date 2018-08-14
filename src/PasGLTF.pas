@@ -687,8 +687,11 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
             TVector4=array[0..3] of TPasGLTFFloat;
             TVector4DynamicArray=array of TVector4;
             TMatrix2x2=array[0..3] of TPasGLTFFloat;
+            TMatrix2x2DynamicArray=array of TMatrix2x2;
             TMatrix3x3=array[0..9] of TPasGLTFFloat;
+            TMatrix3x3DynamicArray=array of TMatrix3x3;
             TMatrix4x4=array[0..15] of TPasGLTFFloat;
+            TMatrix4x4DynamicArray=array of TMatrix4x4;
        const ChunkHeaderSize=SizeOf(TChunkHeader);
              GLBHeaderSize=SizeOf(TGLBHeader);
              GLBHeaderMagicNativeEndianness=TPasGLTFUInt32($46546c67);
@@ -838,6 +841,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               function DecodeAsVector2Array(const aForVertex:boolean=true):TVector2DynamicArray;
               function DecodeAsVector3Array(const aForVertex:boolean=true):TVector3DynamicArray;
               function DecodeAsVector4Array(const aForVertex:boolean=true):TVector4DynamicArray;
+              function DecodeAsMatrix2x2Array(const aForVertex:boolean=true):TMatrix2x2DynamicArray;
+              function DecodeAsMatrix3x3Array(const aForVertex:boolean=true):TMatrix3x3DynamicArray;
+              function DecodeAsMatrix4x4Array(const aForVertex:boolean=true):TMatrix4x4DynamicArray;
              published
               property ComponentType:TComponentType read fComponentType write fComponentType default TComponentType.None;
               property Type_:TType read fType write fType default TType.None;
@@ -2549,7 +2555,7 @@ var Index:TPasGLTFSizeInt;
 begin
  DoubleArray:=Decode(aForVertex);
  SetLength(result,length(DoubleArray));
- for Index:=0 to length(DoubleArray)-1 do begin
+ for Index:=0 to length(result)-1 do begin
   result[Index]:=trunc(DoubleArray[Index]);
  end;
 end;
@@ -2560,7 +2566,7 @@ var Index:TPasGLTFSizeInt;
 begin
  DoubleArray:=Decode(aForVertex);
  SetLength(result,length(DoubleArray));
- for Index:=0 to length(DoubleArray)-1 do begin
+ for Index:=0 to length(result)-1 do begin
   result[Index]:=trunc(DoubleArray[Index]);
  end;
 end;
@@ -2571,7 +2577,7 @@ var Index:TPasGLTFSizeInt;
 begin
  DoubleArray:=Decode(aForVertex);
  SetLength(result,length(DoubleArray));
- for Index:=0 to length(DoubleArray)-1 do begin
+ for Index:=0 to length(result)-1 do begin
   result[Index]:=trunc(DoubleArray[Index]);
  end;
 end;
@@ -2582,7 +2588,7 @@ var Index:TPasGLTFSizeInt;
 begin
  DoubleArray:=Decode(aForVertex);
  SetLength(result,length(DoubleArray));
- for Index:=0 to length(DoubleArray)-1 do begin
+ for Index:=0 to length(result)-1 do begin
   result[Index]:=trunc(DoubleArray[Index]);
  end;
 end;
@@ -2593,7 +2599,7 @@ var Index:TPasGLTFSizeInt;
 begin
  DoubleArray:=Decode(aForVertex);
  SetLength(result,length(DoubleArray));
- for Index:=0 to length(DoubleArray)-1 do begin
+ for Index:=0 to length(result)-1 do begin
   result[Index]:=DoubleArray[Index];
  end;
 end;
@@ -2603,10 +2609,11 @@ var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
  DoubleArray:=Decode(aForVertex);
+ Assert((length(DoubleArray) and 1)=0);
  SetLength(result,length(DoubleArray) shr 1);
  for Index:=0 to length(result)-1 do begin
-  result[Index,0]:=trunc(DoubleArray[(Index shl 1) or 0]);
-  result[Index,1]:=trunc(DoubleArray[(Index shl 1) or 1]);
+  result[Index,0]:=DoubleArray[(Index shl 1) or 0];
+  result[Index,1]:=DoubleArray[(Index shl 1) or 1];
  end;
 end;
 
@@ -2615,11 +2622,12 @@ var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
  DoubleArray:=Decode(aForVertex);
- SetLength(result,length(DoubleArray) div 2 );
+ Assert((length(DoubleArray) mod 3)=0);
+ SetLength(result,length(DoubleArray) div 3);
  for Index:=0 to length(result)-1 do begin
-  result[Index,0]:=trunc(DoubleArray[(Index*3)+0]);
-  result[Index,1]:=trunc(DoubleArray[(Index*3)+1]);
-  result[Index,2]:=trunc(DoubleArray[(Index*3)+2]);
+  result[Index,0]:=DoubleArray[(Index*3)+0];
+  result[Index,1]:=DoubleArray[(Index*3)+1];
+  result[Index,2]:=DoubleArray[(Index*3)+2];
  end;
 end;
 
@@ -2628,12 +2636,75 @@ var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
  DoubleArray:=Decode(aForVertex);
+ Assert((length(DoubleArray) and 3)=0);
  SetLength(result,length(DoubleArray) shr 2);
  for Index:=0 to length(result)-1 do begin
-  result[Index,0]:=trunc(DoubleArray[(Index shl 2) or 0]);
-  result[Index,1]:=trunc(DoubleArray[(Index shl 2) or 1]);
-  result[Index,2]:=trunc(DoubleArray[(Index shl 2) or 2]);
-  result[Index,3]:=trunc(DoubleArray[(Index shl 2) or 3]);
+  result[Index,0]:=DoubleArray[(Index shl 2) or 0];
+  result[Index,1]:=DoubleArray[(Index shl 2) or 1];
+  result[Index,2]:=DoubleArray[(Index shl 2) or 2];
+  result[Index,3]:=DoubleArray[(Index shl 2) or 3];
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsMatrix2x2Array(const aForVertex:boolean=true):TMatrix2x2DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=Decode(aForVertex);
+ Assert((length(DoubleArray) and 3)=0);
+ SetLength(result,length(DoubleArray) shr 2);
+ for Index:=0 to length(result)-1 do begin
+  result[Index,0]:=DoubleArray[(Index shl 2) or 0];
+  result[Index,1]:=DoubleArray[(Index shl 2) or 1];
+  result[Index,2]:=DoubleArray[(Index shl 2) or 2];
+  result[Index,3]:=DoubleArray[(Index shl 2) or 3];
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsMatrix3x3Array(const aForVertex:boolean=true):TMatrix3x3DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=Decode(aForVertex);
+ Assert((length(DoubleArray) mod 9)=0);
+ SetLength(result,length(DoubleArray) div 9);
+ for Index:=0 to length(result)-1 do begin
+  result[Index,0]:=DoubleArray[(Index*9)+0];
+  result[Index,1]:=DoubleArray[(Index*9)+1];
+  result[Index,2]:=DoubleArray[(Index*9)+2];
+  result[Index,3]:=DoubleArray[(Index*9)+3];
+  result[Index,4]:=DoubleArray[(Index*9)+4];
+  result[Index,5]:=DoubleArray[(Index*9)+5];
+  result[Index,6]:=DoubleArray[(Index*9)+6];
+  result[Index,7]:=DoubleArray[(Index*9)+7];
+  result[Index,8]:=DoubleArray[(Index*9)+8];
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsMatrix4x4Array(const aForVertex:boolean=true):TMatrix4x4DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=Decode(aForVertex);
+ Assert((length(DoubleArray) and 15)=0);
+ SetLength(result,length(DoubleArray) shr 4);
+ for Index:=0 to length(result)-1 do begin
+  result[Index,0]:=DoubleArray[(Index shl 4) or 0];
+  result[Index,1]:=DoubleArray[(Index shl 4) or 1];
+  result[Index,2]:=DoubleArray[(Index shl 4) or 2];
+  result[Index,3]:=DoubleArray[(Index shl 4) or 3];
+  result[Index,4]:=DoubleArray[(Index shl 4) or 4];
+  result[Index,5]:=DoubleArray[(Index shl 4) or 5];
+  result[Index,6]:=DoubleArray[(Index shl 4) or 6];
+  result[Index,7]:=DoubleArray[(Index shl 4) or 7];
+  result[Index,8]:=DoubleArray[(Index shl 4) or 8];
+  result[Index,9]:=DoubleArray[(Index shl 4) or 9];
+  result[Index,10]:=DoubleArray[(Index shl 4) or 10];
+  result[Index,11]:=DoubleArray[(Index shl 4) or 11];
+  result[Index,12]:=DoubleArray[(Index shl 4) or 12];
+  result[Index,13]:=DoubleArray[(Index shl 4) or 13];
+  result[Index,14]:=DoubleArray[(Index shl 4) or 14];
+  result[Index,15]:=DoubleArray[(Index shl 4) or 15];
  end;
 end;
 
