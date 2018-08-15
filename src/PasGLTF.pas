@@ -841,6 +841,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               function DecodeAsVector2Array(const aForVertex:boolean=true):TVector2DynamicArray;
               function DecodeAsVector3Array(const aForVertex:boolean=true):TVector3DynamicArray;
               function DecodeAsVector4Array(const aForVertex:boolean=true):TVector4DynamicArray;
+              function DecodeAsColorArray(const aForVertex:boolean=true):TVector4DynamicArray;
               function DecodeAsMatrix2x2Array(const aForVertex:boolean=true):TMatrix2x2DynamicArray;
               function DecodeAsMatrix3x3Array(const aForVertex:boolean=true):TMatrix3x3DynamicArray;
               function DecodeAsMatrix4x4Array(const aForVertex:boolean=true):TMatrix4x4DynamicArray;
@@ -2643,6 +2644,32 @@ begin
   result[Index,1]:=DoubleArray[(Index shl 2) or 1];
   result[Index,2]:=DoubleArray[(Index shl 2) or 2];
   result[Index,3]:=DoubleArray[(Index shl 2) or 3];
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsColorArray(const aForVertex:boolean=true):TVector4DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
+ if fType=TType.Vec3 then begin
+  Assert((length(DoubleArray) mod 3)=0);
+  SetLength(result,length(DoubleArray) div 3);
+  for Index:=0 to length(result)-1 do begin
+   result[Index,0]:=DoubleArray[(Index*3)+0];
+   result[Index,1]:=DoubleArray[(Index*3)+1];
+   result[Index,2]:=DoubleArray[(Index*3)+2];
+   result[Index,3]:=1.0;
+  end;
+ end else begin
+  Assert((length(DoubleArray) and 3)=0);
+  SetLength(result,length(DoubleArray) shr 2);
+  for Index:=0 to length(result)-1 do begin
+   result[Index,0]:=DoubleArray[(Index shl 2) or 0];
+   result[Index,1]:=DoubleArray[(Index shl 2) or 1];
+   result[Index,2]:=DoubleArray[(Index shl 2) or 2];
+   result[Index,3]:=DoubleArray[(Index shl 2) or 3];
+  end;
  end;
 end;
 
