@@ -735,7 +735,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Extensions:TPasJSONItemObject read fExtensions;
               property Extras:TPasJSONItemObject read fExtras;
             end;
-            TAttributes=TPasGLTFUTF8StringHashMap<TPasGLTFSizeUInt>;
+            TAttributes=TPasGLTFUTF8StringHashMap<TPasGLTFSizeInt>;
             TAttributesList=TPasGLTFObjectList<TAttributes>;
             TAccessor=class(TBaseExtensionsExtrasObject)
              public
@@ -2869,7 +2869,7 @@ var Stride,Offset,Index,
     ComponentIndex,
     OutputIndex:TPasGLTFSizeUInt;
     Buffer:TPasGLTF.TBuffer;
-    BufferData,Source:PPPasGLTFUInt8Array;
+    BufferData,Source:PPasGLTFUInt8Array;
     Value:TPasGLTFDouble;
 begin
 
@@ -3158,7 +3158,7 @@ begin
  fMode:=TMode.Triangles;
  fIndices:=-1;
  fMaterial:=-1;
- fAttributes:=TAttributes.Create(0);
+ fAttributes:=TAttributes.Create(-1);
  fTargets:=TAttributesList.Create;
 end;
 
@@ -3981,7 +3981,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
         if not (assigned(JSONArrayItem) and (JSONArrayItem is TPasJSONItemObject)) then begin
          raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
         end;
-        Attributes:=TAttributes.Create(0);
+        Attributes:=TAttributes.Create(-1);
         try
          for JSONObjectProperty in TPasJSONItemObject(JSONArrayItem) do begin
           Attributes.Add(JSONObjectProperty.Key,TPasJSON.GetInt64(JSONObjectProperty.Value,0));

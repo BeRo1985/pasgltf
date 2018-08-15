@@ -39,11 +39,36 @@ type EGLTFOpenGL=class(Exception);
             end;
             PBufferView=^TBufferView;
             TBufferViews=array of TBufferView;
+            TVertex=packed record
+             Position:TPasGLTF.TVector3;
+             Normal:TPasGLTF.TVector3;
+             Tangent:TPasGLTF.TVector4;
+             TexCoord0:TPasGLTF.TVector2;
+             TexCoord1:TPasGLTF.TVector2;
+             Color0:TPasGLTF.TVector4;
+             Joints0:TPasGLTF.TVector4;
+             Weights0:TPasGLTF.TVector4;
+            end;
+            PVertex=^TVertex;
+            TVertices=array of TVertex;
+            TMesh=record
+             public
+              type TPrimitive=record
+                    Vertices:TVertices;
+                   end;
+                   PPrimitive=^TPrimitive;
+                   TPrimitives=array of TPrimitive;
+             public
+              Primitives:TPrimitives;
+            end;
+            PMesh=^TMesh;
+            TMeshes=array of TMesh;
       private
        fDocument:TPasGLTF.TDocument;
        fReady:boolean;
        fAccessors:TAccessors;
        fBufferViews:TBufferViews;
+       fMeshes:TMeshes;
       public
        constructor Create(const aDocument:TPasGLTF.TDocument); reintroduce;
        destructor Destroy; override;
@@ -65,6 +90,7 @@ begin
  fReady:=false;
  fAccessors:=nil;
  fBufferViews:=nil;
+ fMeshes:=nil;
 end;
 
 destructor TGLTFOpenGL.Destroy;
@@ -149,9 +175,39 @@ procedure TGLTFOpenGL.InitializeResources;
    end;
   end;
  end;
+ procedure InitializeMeshes;
+ var Index,
+     PrimitiveIndex,
+     AccessorIndex:TPasGLTFSizeInt;
+     SourceMesh:TPasGLTF.TMesh;
+     SourceMeshPrimitive:TPasGLTF.TMesh.TPrimitive;
+     DestinationMesh:PMesh;
+     DestinationMeshPrimitive:TMesh.PPrimitive;
+     TemporaryPositions:TPasGLTF.TVector3DynamicArray;
+ begin
+  SetLength(fMeshes,fDocument.Meshes.Count);
+  for Index:=0 to fDocument.Meshes.Count-1 do begin
+   SourceMesh:=fDocument.Meshes.Items[Index];
+   DestinationMesh:=@fMeshes[Index];
+   SetLength(DestinationMesh.Primitives,SourceMesh.Primitives.Count);
+   for PrimitiveIndex:=0 to SourceMesh.Primitives.Count-1 do begin
+    SourceMeshPrimitive:=SourceMesh.Primitives.Items[PrimitiveIndex];
+    DestinationMeshPrimitive:=@DestinationMesh.Primitives[PrimitiveIndex];
+    begin
+     AccessorIndex:=SourceMeshPrimitive.Attributes['POSITION'];
+     if AccessorIndex>=0 then begin
+      TemporaryPositions:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+     end else begin
+      raise EGLTFOpenGL.Create('Missing position data');
+     end;
+    end;
+   end;
+  end;
+ end;
 begin
  if not fReady then begin
   InitializeBufferViews;
+  InitializeMeshes;
   fReady:=true;
  end;
 end;
