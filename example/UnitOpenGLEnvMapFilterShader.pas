@@ -197,16 +197,6 @@ end;
 procedure TEnvMapFilterShader.BindAttributes;
 begin
  inherited BindAttributes;
- glBindAttribLocation(ProgramHandle,0,'aPosition');
- glBindAttribLocation(ProgramHandle,1,'aNormal');
- glBindAttribLocation(ProgramHandle,2,'aTangent');
- glBindAttribLocation(ProgramHandle,3,'aTexCoord0');
- glBindAttribLocation(ProgramHandle,4,'aTexCoord1');
- glBindAttribLocation(ProgramHandle,5,'aColor0');
- glBindAttribLocation(ProgramHandle,6,'aJoints0');
- glBindAttribLocation(ProgramHandle,7,'aJoints1');
- glBindAttribLocation(ProgramHandle,8,'aWeights0');
- glBindAttribLocation(ProgramHandle,9,'aWeights1');
 end;
 
 procedure TEnvMapFilterShader.BindVariables;

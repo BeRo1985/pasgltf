@@ -25,7 +25,8 @@ uses
   UnitOpenGLPBRShader in 'UnitOpenGLPBRShader.pas',
   UnitOpenGLFrameBufferObject in 'UnitOpenGLFrameBufferObject.pas',
   UnitOpenGLBRDFLUTShader in 'UnitOpenGLBRDFLUTShader.pas',
-  UnitOpenGLEnvMapFilterShader in 'UnitOpenGLEnvMapFilterShader.pas';
+  UnitOpenGLEnvMapFilterShader in 'UnitOpenGLEnvMapFilterShader.pas',
+  UnitOpenGLEnvMapDrawShader in 'UnitOpenGLEnvMapDrawShader.pas';
 
 var InputFileName:ansistring;
 
@@ -47,7 +48,11 @@ var fs:TFileStream;
 
     EnvMapFBO:TFBO;
 
+    EnvMapDrawShader:TEnvMapDrawShader;
+
     EmptyVertexArrayObjectHandle:glUInt;
+
+    EnvMapTextureHandle:glUInt=0;
 
 procedure Main;
 const Title='PasGLTF loader test';
@@ -66,7 +71,7 @@ var Event:TSDL_Event;
     SDLRunning,OldShowCursor:boolean;
     Time:double;
  procedure Draw;
- var ModelMatrix,ViewMatrix,ProjectionMatrix:UnitMath3D.TMatrix4x4;
+ var ModelMatrix,ViewMatrix,ProjectionMatrix,InverseViewProjectionMatrix:UnitMath3D.TMatrix4x4;
      LightDirection:UnitMath3D.TVector3;
      t:double;
  begin
@@ -74,21 +79,37 @@ var Event:TSDL_Event;
   glClearColor(0.0,0.0,0.0,0.0);
   glClearDepth(1.0);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
-  glEnable(GL_DEPTH_TEST);
-  glDepthFunc(GL_LEQUAL);
-  glCullFace(GL_NONE);
   ModelMatrix:=Matrix4x4Identity;
   t:=Time;
   ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*4.0,sin(t*0.25)*4.0,cos(t)*4.0),Vector3Origin,Vector3YAxis);
   ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,0.1,128.0);
   LightDirection:=Vector3Norm(Vector3(0.25,-0.5,-1.0));
-  PBRShader.Bind;
-  glUniform3fv(PBRShader.uLightDirection,1,@LightDirection);
-  GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
-                  TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
-                  TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
-                  PBRShader);
-  PBRShader.Unbind;
+  InverseViewProjectionMatrix:=Matrix4x4TermInverse(Matrix4x4TermMul(ViewMatrix,ProjectionMatrix));
+  begin
+   glDisable(GL_DEPTH_TEST);
+   glCullFace(GL_NONE);
+   glActiveTexture(GL_TEXTURE0);
+   glBindTexture(GL_TEXTURE_2D,EnvMapTextureHandle);
+   EnvMapDrawShader.Bind;
+   glUniform1i(EnvMapDrawShader.uTexture,0);
+   glUniformMatrix4fv(EnvMapDrawShader.uInverseViewProjectionMatrix,1,false,@InverseViewProjectionMatrix);
+   glBindVertexArray(EmptyVertexArrayObjectHandle);
+   glDrawArrays(GL_TRIANGLES,0,3);
+   glBindVertexArray(0);
+   EnvMapDrawShader.Unbind;
+  end;
+  begin
+   glEnable(GL_DEPTH_TEST);
+   glDepthFunc(GL_LEQUAL);
+   glCullFace(GL_NONE);
+   PBRShader.Bind;
+   glUniform3fv(PBRShader.uLightDirection,1,@LightDirection);
+   GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
+                   TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
+                   TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
+                   PBRShader);
+   PBRShader.Unbind;
+  end;
  end;
  procedure Resize(NewWidth,NewHeight:longint);
  var Factor:int64;
@@ -135,7 +156,6 @@ var Index:int32;
     MemoryStream:TMemoryStream;
     ImageData:TPasGLTFPointer;
     ImageWidth,ImageHeight:TPasGLTFInt32;
-    Handle:glUInt;
 begin
 
  //FastMM4.FullDebugModeScanMemoryPoolBeforeEveryOperation:=true;
@@ -277,7 +297,7 @@ begin
    EnvMapFilterShader:=TEnvMapFilterShader.Create;
    try
     FillChar(EnvMapFBO,SizeOf(TFBO),#0);
-    Handle:=0;
+    EnvMapTextureHandle:=0;
     MemoryStream:=TMemoryStream.Create;
     try
      MemoryStream.LoadFromFile(IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)))+'equirectangularmap.jpg');
@@ -285,10 +305,10 @@ begin
      ImageHeight:=2048;
      if LoadImage(MemoryStream.Memory,MemoryStream.Size,ImageData,ImageWidth,ImageHeight) then begin
       try
-       glGenTextures(1,@Handle);
-       glBindTexture(GL_TEXTURE_2D,Handle);
-       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
-       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+       glGenTextures(1,@EnvMapTextureHandle);
+       glBindTexture(GL_TEXTURE_2D,EnvMapTextureHandle);
+       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
+       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
        glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,ImageWidth,ImageHeight,0,GL_RGBA,GL_UNSIGNED_BYTE,ImageData);
@@ -306,9 +326,9 @@ begin
     EnvMapFBO.Textures:=1;
     EnvMapFBO.TextureFormats[0]:=GL_TEXTURE_RGBA8UB;
     EnvMapFBO.Format:=GL_TEXTURE_RGBA8UB;
-    EnvMapFBO.SWrapMode:=wmGL_CLAMP_TO_EDGE;
-    EnvMapFBO.TWrapMode:=wmGL_CLAMP_TO_EDGE;
-    EnvMapFBO.RWrapMode:=wmGL_CLAMP_TO_EDGE;
+    EnvMapFBO.SWrapMode:=wmGL_REPEAT;
+    EnvMapFBO.TWrapMode:=wmGL_REPEAT;
+    EnvMapFBO.RWrapMode:=wmGL_REPEAT;
     EnvMapFBO.MinFilterMode:=fmGL_LINEAR;
     EnvMapFBO.MagFilterMode:=fmGL_LINEAR;
     EnvMapFBO.Flags:=FBOFlagMipMap or FBOFlagMipMapLevelWiseFill;
@@ -317,7 +337,7 @@ begin
     for Index:=0 to EnvMapFBO.WorkMaxLevel do begin
      glActiveTexture(GL_TEXTURE0);
      if Index=0 then begin
-      glBindTexture(GL_TEXTURE_2D,Handle);
+      glBindTexture(GL_TEXTURE_2D,EnvMapTextureHandle);
      end else begin
       glBindTexture(GL_TEXTURE_2D,EnvMapFBO.TextureHandles[0]);
      end;
@@ -337,124 +357,128 @@ begin
      glBindFrameBuffer(GL_FRAMEBUFFER,0);
     end;
     EnvMapFilterShader.Unbind;
-    if Handle>0 then begin
-     glDeleteTextures(1,@Handle);
-    end;
    finally
     FreeAndNil(EnvMapFilterShader);
    end;
 
    try
 
-    GLTFOpenGL:=TGLTFOpenGL.Create(GLTFDocument);
+    EnvMapDrawShader:=TEnvMapDrawShader.Create;
     try
 
-     GLTFOpenGL.InitializeResources;
+     GLTFOpenGL:=TGLTFOpenGL.Create(GLTFDocument);
      try
 
-      GLTFOpenGL.UploadResources;
+      GLTFOpenGL.InitializeResources;
       try
 
-       PBRShader:=TPBRShader.Create;
+       GLTFOpenGL.UploadResources;
        try
 
-        FullScreen:=false;
-        SDLRunning:=true;
-        while SDLRunning do begin
+        PBRShader:=TPBRShader.Create;
+        try
 
-         while SDL_PollEvent(@Event)<>0 do begin
-          case Event.type_ of
-           SDL_QUITEV,SDL_APP_TERMINATING:begin
-            SDLRunning:=false;
-            break;
-           end;
-           SDL_APP_WILLENTERBACKGROUND:begin
-            //SDL_PauseAudio(1);
-           end;
-           SDL_APP_DIDENTERFOREGROUND:begin
-            //SDL_PauseAudio(0);
-           end;
-           SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
-           end;
-           SDL_KEYDOWN:begin
-            case Event.key.keysym.sym of
-             SDLK_ESCAPE:begin
-       //     BackKey;
-              SDLRunning:=false;
-              break;
-             end;
-             SDLK_RETURN:begin
-              if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
-               FullScreen:=not FullScreen;
-               if FullScreen then begin
-                SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
-               end else begin
-                SDL_SetWindowFullscreen(SurfaceWindow,0);
-               end;
-              end;
-             end;
-             SDLK_F4:begin
-              if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+         FullScreen:=false;
+         SDLRunning:=true;
+         while SDLRunning do begin
+
+          while SDL_PollEvent(@Event)<>0 do begin
+           case Event.type_ of
+            SDL_QUITEV,SDL_APP_TERMINATING:begin
+             SDLRunning:=false;
+             break;
+            end;
+            SDL_APP_WILLENTERBACKGROUND:begin
+             //SDL_PauseAudio(1);
+            end;
+            SDL_APP_DIDENTERFOREGROUND:begin
+             //SDL_PauseAudio(0);
+            end;
+            SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
+            end;
+            SDL_KEYDOWN:begin
+             case Event.key.keysym.sym of
+              SDLK_ESCAPE:begin
+        //     BackKey;
                SDLRunning:=false;
                break;
               end;
+              SDLK_RETURN:begin
+               if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+                FullScreen:=not FullScreen;
+                if FullScreen then begin
+                 SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
+                end else begin
+                 SDL_SetWindowFullscreen(SurfaceWindow,0);
+                end;
+               end;
+              end;
+              SDLK_F4:begin
+               if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+                SDLRunning:=false;
+                break;
+               end;
+              end;
              end;
             end;
-           end;
-           SDL_KEYUP:begin
-           end;
-           SDL_WINDOWEVENT:begin
-            case event.window.event of
-             SDL_WINDOWEVENT_RESIZED:begin
-              ScreenWidth:=event.window.Data1;
-              ScreenHeight:=event.window.Data2;
-              Resize(ScreenWidth,ScreenHeight);
+            SDL_KEYUP:begin
+            end;
+            SDL_WINDOWEVENT:begin
+             case event.window.event of
+              SDL_WINDOWEVENT_RESIZED:begin
+               ScreenWidth:=event.window.Data1;
+               ScreenHeight:=event.window.Data2;
+               Resize(ScreenWidth,ScreenHeight);
+              end;
              end;
             end;
-           end;
-           SDL_MOUSEMOTION:begin
-            if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
-            end;
-           end;
-           SDL_MOUSEBUTTONDOWN:begin
-            case event.button.button of
-             SDL_BUTTON_LEFT:begin
-             end;
-             SDL_BUTTON_RIGHT:begin
+            SDL_MOUSEMOTION:begin
+             if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
              end;
             end;
-           end;
-           SDL_MOUSEBUTTONUP:begin
-            case event.button.button of
-             SDL_BUTTON_LEFT:begin
+            SDL_MOUSEBUTTONDOWN:begin
+             case event.button.button of
+              SDL_BUTTON_LEFT:begin
+              end;
+              SDL_BUTTON_RIGHT:begin
+              end;
              end;
-             SDL_BUTTON_RIGHT:begin
+            end;
+            SDL_MOUSEBUTTONUP:begin
+             case event.button.button of
+              SDL_BUTTON_LEFT:begin
+              end;
+              SDL_BUTTON_RIGHT:begin
+              end;
              end;
             end;
            end;
           end;
+          Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
+          Draw;
+          SDL_GL_SwapWindow(SurfaceWindow);
          end;
-         Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
-         Draw;
-         SDL_GL_SwapWindow(SurfaceWindow);
+
+        finally
+
+         PBRShader.Free;
+
         end;
 
        finally
-
-        PBRShader.Free;
-
+        GLTFOpenGL.UnloadResources;
        end;
 
       finally
-       GLTFOpenGL.UnloadResources;
+       GLTFOpenGL.FinalizeResources;
       end;
 
      finally
-      GLTFOpenGL.FinalizeResources;
+      GLTFOpenGL.Free;
      end;
 
     finally
-     GLTFOpenGL.Free;
+     EnvMapDrawShader.Free;
     end;
 
    finally
@@ -463,6 +487,10 @@ begin
 
   finally
    DestroyFrameBuffer(BRDFLUTFBO);
+  end;
+
+  if EnvMapTextureHandle>0 then begin
+   glDeleteTextures(1,@EnvMapTextureHandle);
   end;
 
  finally

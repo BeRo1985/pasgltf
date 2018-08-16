@@ -1,4 +1,4 @@
-unit UnitOpenGLBRDFLUTShader;
+unit UnitOpenGLEnvMapDrawShader;
 {$ifdef fpc}
  {$mode delphi}
  {$ifdef cpui386}
@@ -111,7 +111,10 @@ interface
 
 uses dglOpenGL,UnitOpenGLShader;
 
-type TBRDFLUTShader=class(TShader)
+type TEnvMapDrawShader=class(TShader)
+      public
+       uTexture:glInt;
+       uInverseViewProjectionMatrix:glInt;
       public
        constructor Create;
        destructor Destroy; override;
@@ -121,7 +124,7 @@ type TBRDFLUTShader=class(TShader)
 
 implementation
 
-constructor TBRDFLUTShader.Create;
+constructor TEnvMapDrawShader.Create;
 var f,v:ansistring;
 begin
  v:='#version 330'+#13#10+
@@ -133,64 +136,32 @@ begin
  f:='#version 330'+#13#10+
     'in vec2 vTexCoord;'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
-    'const int numSamples = 1024;'+#13#10+
-    'vec2 Hammersley(const in int index, const in int numSamples){'+#13#10+
-//  '  uint reversedIndex = bitfieldReverse(uint(index));'+#13#10+ // >= OpenGL 4.0
-    '  uint reversedIndex = uint(index);'+#13#10+
-    '  reversedIndex = (reversedIndex << 16u) | (reversedIndex >> 16u);'+#13#10+
-    '  reversedIndex = ((reversedIndex & 0x00ff00ffu) << 8u) | ((reversedIndex & 0xff00ff00u) >> 8u);'+#13#10+
-    '  reversedIndex = ((reversedIndex & 0x0f0f0f0fu) << 4u) | ((reversedIndex & 0xf0f0f0f0u) >> 4u);'+#13#10+
-    '  reversedIndex = ((reversedIndex & 0x33333333u) << 2u) | ((reversedIndex & 0xccccccccu) >> 2u);'+#13#10+
-    '  reversedIndex = ((reversedIndex & 0x55555555u) << 1u) | ((reversedIndex & 0xaaaaaaaau) >> 1u);'+#13#10+
-    '  return vec2(fract(float(index) / float(numSamples)), float(reversedIndex) * 2.3283064365386963e-10);'+#13#10+
-    '}'+#13#10+
-    'vec3 ImportanceSampleGGX(const in vec2 e, const in float roughness){'+#13#10+
-    '  float m = roughness * roughness;'+#13#10+
-    '  float m2 = m * m;'+#13#10+
-    '  float phi = (2.0 * 3.1415926535897932384626433832795) * e.x;'+#13#10+
-    '  float cosTheta = sqrt((1.0 - e.y) / (1.0 + ((m2 - 1.0) * e.y)));'+#13#10+
-    '  float sinTheta = sqrt(1.0 - (cosTheta * cosTheta));'+#13#10+
-    '  return vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);'+#13#10+
-    '}'+#13#10+
-    'float specularG(const in float roughness, const in float nDotV, const in float nDotL){'+#13#10+
-    '  float a = roughness * roughness;'+#13#10+
-    '  float a2 = a * a;'+#13#10+
-    '  vec2 GVL = vec2(nDotV, nDotL);'+#13#10+
-    '  GVL = GVL + sqrt((GVL * (GVL - (GVL * a2))) + vec2(a2));'+#13#10+
-    '  return 1.0 / (GVL.x * GVL.y);'+#13#10+
-    '}'+#13#10+
+    'uniform mat4 uInverseViewProjectionMatrix;'+#13#10+
+    'uniform sampler2D uTexture;'+#13#10+
     'void main(){'+#13#10+
-    '  float roughness = vTexCoord.x;'+#13#10+
-    '  float nDotV = vTexCoord.y;'+#13#10+
-    '  vec3 V = vec3(sqrt(1.0 - (nDotV * nDotV)), 0.0, nDotV);'+#13#10+
-    '  vec2 r = vec2(0.0);'+#13#10+
-    '  for(int i = 0; i < numSamples; i++){'+#13#10+
-    '    vec3 H = ImportanceSampleGGX(Hammersley(i, numSamples), roughness);'+#13#10+
-    '    vec3 L = -reflect(V, H);'+#13#10+ //((2.0 * dot(V, H )) * H) - V;
-    '    float nDotL = clamp(L.z, 0.0, 1.0);'+#13#10+
-    '    if(nDotL > 0.0){'+#13#10+
-    '      float vDotH = clamp(dot(V, H), 0.0, 1.0);'+#13#10+
-    '      r += (vec2(1.0, 0.0) + (vec2(-1.0, 1.0) * pow(1.0 - vDotH, 5.0))) * (nDotL * specularG(roughness, nDotV, nDotL) * ((4.0 * vDotH) / clamp(H.z, 0.0, 1.0)));'+#13#10+
-    '    }'+#13#10+
-    '  }'+#13#10+
-    '  oOutput = vec4(r / float(numSamples), 0.0, 1.0);'+#13#10+
+    '  vec4 p0 = uInverseViewProjectionMatrix * vec4((vTexCoord * 2.0) - vec2(1.0), 1.0, 1.0),'+#13#10+
+    '       p1 = uInverseViewProjectionMatrix * vec4((vTexCoord * 2.0) - vec2(1.0), -1.0, 1.0);'+#13#10+
+    '  vec3 rayDirection = normalize((p1.xyz / p1.w) - (p0.xyz / p0.w));'+#13#10+
+    '	 oOutput = texture(uTexture, vec2((atan(rayDirection.z, rayDirection.x) / 6.283185307179586476925286766559) + 0.5, acos(rayDirection.y) / 3.1415926535897932384626433832795));'+#13#10+
     '}'+#13#10;
  inherited Create(f,v);
 end;
 
-destructor TBRDFLUTShader.Destroy;
+destructor TEnvMapDrawShader.Destroy;
 begin
  inherited Destroy;
 end;
 
-procedure TBRDFLUTShader.BindAttributes;
+procedure TEnvMapDrawShader.BindAttributes;
 begin
  inherited BindAttributes;
 end;
 
-procedure TBRDFLUTShader.BindVariables;
+procedure TEnvMapDrawShader.BindVariables;
 begin
  inherited BindVariables;
+ uTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uTexture')));
+ uInverseViewProjectionMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uInverseViewProjectionMatrix')));
 end;
 
 end.
