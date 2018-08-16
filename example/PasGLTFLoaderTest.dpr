@@ -244,8 +244,8 @@ begin
    BRDFLUTFBO.Height:=512;
    BRDFLUTFBO.Depth:=0;
    BRDFLUTFBO.Textures:=1;
-   BRDFLUTFBO.TextureFormats[0]:=GL_TEXTURE_RGBA16F;
-   BRDFLUTFBO.Format:=GL_TEXTURE_RGBA16F;
+   BRDFLUTFBO.TextureFormats[0]:=GL_TEXTURE_RGBA8UB;
+   BRDFLUTFBO.Format:=GL_TEXTURE_RGBA8UB;
    BRDFLUTFBO.SWrapMode:=wmGL_CLAMP_TO_EDGE;
    BRDFLUTFBO.TWrapMode:=wmGL_CLAMP_TO_EDGE;
    BRDFLUTFBO.RWrapMode:=wmGL_CLAMP_TO_EDGE;
@@ -281,6 +281,8 @@ begin
     MemoryStream:=TMemoryStream.Create;
     try
      MemoryStream.LoadFromFile(IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)))+'equirectangularmap.jpg');
+     ImageWidth:=2048;
+     ImageHeight:=2048;
      if LoadImage(MemoryStream.Memory,MemoryStream.Size,ImageData,ImageWidth,ImageHeight) then begin
       try
        glGenTextures(1,@Handle);
@@ -298,8 +300,8 @@ begin
     finally
      MemoryStream.Free;
     end;
-    EnvMapFBO.Width:=2048;
-    EnvMapFBO.Height:=2048;
+    EnvMapFBO.Width:=ImageWidth;
+    EnvMapFBO.Height:=ImageHeight;
     EnvMapFBO.Depth:=0;
     EnvMapFBO.Textures:=1;
     EnvMapFBO.TextureFormats[0]:=GL_TEXTURE_RGBA8UB;
