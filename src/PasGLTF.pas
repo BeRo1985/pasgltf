@@ -1258,9 +1258,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                    PMinFilter=^TMinFilter;
                    TWrappingMode=
                     (
+                     Repeat_=10497,
                      ClampToEdge=33071,
-                     MirroredRepeat=33648,
-                     Repeat_=10497
+                     MirroredRepeat=33648
                     );
                     PWrappingMode=^TWrappingMode;
              private
@@ -1603,7 +1603,6 @@ end;
 
 procedure TPasGLTFObjectList<T>.SetCount(const pNewCount:TPasGLTFSizeInt);
 var Index,NewAllocated:TPasGLTFSizeInt;
-    Item:TPasGLTFPointer;
 begin
  if fCount<pNewCount then begin
   NewAllocated:=RoundUpToPowerOfTwoSizeUInt(pNewCount);
@@ -1942,7 +1941,7 @@ const PRIME32_1=TPasGLTFUInt32(2654435761);
       v4Initialization=TPasGLTFUInt32(TPasGLTFUInt64(TPasGLTFInt64(TPasGLTFInt64(Seed)-TPasGLTFInt64(PRIME32_1))));
       HashInitialization=TPasGLTFUInt32(TPasGLTFUInt64(TPasGLTFUInt64(Seed)+TPasGLTFUInt64(PRIME32_5)));
 var v1,v2,v3,v4:TPasGLTFUInt32;
-    p,e,Limit:PPasGLTFUInt8;
+    p,e:PPasGLTFUInt8;
 begin
  p:=Data;
  if DataLength>=16 then begin
@@ -2575,6 +2574,7 @@ function TPasGLTF.TAccessor.DecodeAsInt32Array(const aForVertex:boolean):TPasGLT
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  SetLength(result,length(DoubleArray));
  for Index:=0 to length(result)-1 do begin
@@ -2586,6 +2586,7 @@ function TPasGLTF.TAccessor.DecodeAsUInt32Array(const aForVertex:boolean):TPasGL
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  SetLength(result,length(DoubleArray));
  for Index:=0 to length(result)-1 do begin
@@ -2597,6 +2598,7 @@ function TPasGLTF.TAccessor.DecodeAsInt64Array(const aForVertex:boolean):TPasGLT
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  SetLength(result,length(DoubleArray));
  for Index:=0 to length(result)-1 do begin
@@ -2608,6 +2610,7 @@ function TPasGLTF.TAccessor.DecodeAsUInt64Array(const aForVertex:boolean):TPasGL
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  SetLength(result,length(DoubleArray));
  for Index:=0 to length(result)-1 do begin
@@ -2619,6 +2622,7 @@ function TPasGLTF.TAccessor.DecodeAsFloatArray(const aForVertex:boolean):TPasGLT
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  SetLength(result,length(DoubleArray));
  for Index:=0 to length(result)-1 do begin
@@ -2630,6 +2634,7 @@ function TPasGLTF.TAccessor.DecodeAsVector2Array(const aForVertex:boolean):TVect
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) and 1)=0);
  SetLength(result,length(DoubleArray) shr 1);
@@ -2643,6 +2648,7 @@ function TPasGLTF.TAccessor.DecodeAsVector3Array(const aForVertex:boolean):TVect
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) mod 3)=0);
  SetLength(result,length(DoubleArray) div 3);
@@ -2657,6 +2663,7 @@ function TPasGLTF.TAccessor.DecodeAsVector4Array(const aForVertex:boolean):TVect
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) and 3)=0);
  SetLength(result,length(DoubleArray) shr 2);
@@ -2672,6 +2679,7 @@ function TPasGLTF.TAccessor.DecodeAsColorArray(const aForVertex:boolean=true):TV
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  if fType=TType.Vec3 then begin
   Assert((length(DoubleArray) mod 3)=0);
@@ -2698,6 +2706,7 @@ function TPasGLTF.TAccessor.DecodeAsMatrix2x2Array(const aForVertex:boolean=true
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) and 3)=0);
  SetLength(result,length(DoubleArray) shr 2);
@@ -2713,6 +2722,7 @@ function TPasGLTF.TAccessor.DecodeAsMatrix3x3Array(const aForVertex:boolean=true
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) mod 9)=0);
  SetLength(result,length(DoubleArray) div 9);
@@ -2733,6 +2743,7 @@ function TPasGLTF.TAccessor.DecodeAsMatrix4x4Array(const aForVertex:boolean=true
 var Index:TPasGLTFSizeInt;
     DoubleArray:TPasGLTFDoubleDynamicArray;
 begin
+ result:=nil;
  DoubleArray:=DecodeAsDoubleArray(aForVertex);
  Assert((length(DoubleArray) and 15)=0);
  SetLength(result,length(DoubleArray) shr 4);
@@ -2893,6 +2904,8 @@ var Stride,Offset,Index,
     BufferData,Source:PPasGLTFUInt8Array;
     Value:TPasGLTFDouble;
 begin
+
+ result:=nil;
 
  Buffer:=fDocument.fBuffers[fBuffer];
 
@@ -3436,8 +3449,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   function ProcessAccessor(const aJSONItem:TPasJSONItem):TAccessor;
    procedure ProcessSparse(const aJSONItem:TPasJSONItem;const aSparse:TAccessor.TSparse);
    var JSONObject:TPasJSONItemObject;
-       JSONItem,JSONArrayItem:TPasJSONItem;
-       Type_:TPasGLTFUTF8String;
+       JSONItem:TPasJSONItem;
    begin
     if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
      raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -3650,7 +3662,6 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  end;
  procedure ProcessAsset(const aJSONItem:TPasJSONItem);
  var JSONObject:TPasJSONItemObject;
-     JSONObjectProperty:TPasJSONItemObjectProperty;
  begin
   if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -3665,7 +3676,6 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  procedure ProcessBuffers(const aJSONItem:TPasJSONItem);
   function ProcessBuffer(const aJSONItem:TPasJSONItem):TBuffer;
   var JSONObject:TPasJSONItemObject;
-      JSONItem,JSONArrayItem:TPasJSONItem;
   begin
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -3696,7 +3706,6 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  procedure ProcessBufferViews(const aJSONItem:TPasJSONItem);
   function ProcessBufferView(const aJSONItem:TPasJSONItem):TBufferView;
   var JSONObject:TPasJSONItemObject;
-      JSONItem,JSONArrayItem:TPasJSONItem;
   begin
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -3797,8 +3806,6 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  procedure ProcessImages(const aJSONItem:TPasJSONItem);
   function ProcessImage(const aJSONItem:TPasJSONItem):TImage;
   var JSONObject:TPasJSONItemObject;
-      JSONItem:TPasJSONItem;
-      Type_:TPasGLTFUTF8String;
   begin
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -4156,8 +4163,6 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  procedure ProcessSamplers(const aJSONItem:TPasJSONItem);
   function ProcessSampler(const aJSONItem:TPasJSONItem):TSampler;
   var JSONObject:TPasJSONItemObject;
-      JSONItem:TPasJSONItem;
-      Type_:TPasGLTFUTF8String;
   begin
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -4272,7 +4277,6 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  procedure ProcessTextures(const aJSONItem:TPasJSONItem);
   function ProcessTexture(const aJSONItem:TPasJSONItem):TTexture;
   var JSONObject:TPasJSONItemObject;
-      JSONItem:TPasJSONItem;
   begin
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -4408,6 +4412,7 @@ begin
     (GLBHeader.JSONChunkHeader.ChunkLength<2) then begin
   raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
  end;
+ RawJSONRawByteString:='';
  SetLength(RawJSONRawByteString,GLBHeader.JSONChunkHeader.ChunkLength);
  aStream.ReadBuffer(RawJSONRawByteString[1],length(RawJSONRawByteString));
  LoadFromJSON(TPasJSON.Parse(RawJSONRawByteString,[],TPasJSONEncoding.UTF8));
@@ -4592,8 +4597,7 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
  end;
  function ProcessAnimations:TPasJSONItemArray;
   function ProcessAnimation(const aObject:TAnimation):TPasJSONItemObject;
-  var Index:TPasJSONSizeInt;
-      JSONArray:TPasJSONItemArray;
+  var JSONArray:TPasJSONItemArray;
       JSONObject,JSONSubObject:TPasJSONItemObject;
       Channel:TAnimation.TChannel;
       Sampler:TAnimation.TSampler;
@@ -4709,9 +4713,6 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
  end;
  function ProcessBuffers:TPasJSONItemArray;
   function ProcessBuffer(const aObject:TBuffer):TPasJSONItemObject;
-  var Index:TPasJSONSizeInt;
-      JSONArray:TPasJSONItemArray;
-      JSONObject,JSONSubObject:TPasJSONItemObject;
   begin
    result:=TPasJSONItemObject.Create;
    try
@@ -4742,9 +4743,6 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
  end;
  function ProcessBufferViews:TPasJSONItemArray;
   function ProcessBufferView(const aObject:TBufferView):TPasJSONItemObject;
-  var Index:TPasJSONSizeInt;
-      JSONArray:TPasJSONItemArray;
-      JSONObject,JSONSubObject:TPasJSONItemObject;
   begin
    result:=TPasJSONItemObject.Create;
    try
@@ -4782,9 +4780,7 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
  end;
  function ProcessCameras:TPasJSONItemArray;
   function ProcessCamera(const aObject:TCamera):TPasJSONItemObject;
-  var Index:TPasJSONSizeInt;
-      JSONArray:TPasJSONItemArray;
-      JSONObject,JSONSubObject:TPasJSONItemObject;
+  var JSONObject:TPasJSONItemObject;
   begin
    result:=TPasJSONItemObject.Create;
    try
@@ -4854,9 +4850,6 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
  end;
  function ProcessImages:TPasJSONItemArray;
   function ProcessImage(const aObject:TImage):TPasJSONItemObject;
-  var Index:TPasJSONSizeInt;
-      JSONArray:TPasJSONItemArray;
-      JSONObject,JSONSubObject:TPasJSONItemObject;
   begin
    result:=TPasJSONItemObject.Create;
    try
@@ -4893,8 +4886,7 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
  end;
  function ProcessMaterials:TPasJSONItemArray;
   function ProcessMaterial(const aObject:TMaterial):TPasJSONItemObject;
-  var Index:TPasJSONSizeInt;
-      JSONArray:TPasJSONItemArray;
+  var JSONArray:TPasJSONItemArray;
       JSONObject,JSONSubObject:TPasJSONItemObject;
   begin
    result:=TPasJSONItemObject.Create;
@@ -5055,7 +5047,7 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
  function ProcessMeshes:TPasJSONItemArray;
   function ProcessMesh(const aObject:TMesh):TPasJSONItemObject;
   var Index:TPasJSONSizeInt;
-      JSONArray,JSONSubArray:TPasJSONItemArray;
+      JSONArray:TPasJSONItemArray;
       JSONObject,JSONSubObject:TPasJSONItemObject;
       Primitive:TMesh.TPrimitive;
       Attributes:TAttributes;
@@ -5159,7 +5151,6 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
   function ProcessNode(const aObject:TNode):TPasJSONItemObject;
   var Index:TPasJSONSizeInt;
       JSONArray:TPasJSONItemArray;
-      JSONObject,JSONSubObject:TPasJSONItemObject;
   begin
    result:=TPasJSONItemObject.Create;
    try
@@ -5255,9 +5246,6 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
  end;
  function ProcessSamplers:TPasJSONItemArray;
   function ProcessSampler(const aObject:TSampler):TPasJSONItemObject;
-  var Index:TPasJSONSizeInt;
-      JSONArray:TPasJSONItemArray;
-      JSONObject,JSONSubObject:TPasJSONItemObject;
   begin
    result:=TPasJSONItemObject.Create;
    try
@@ -5300,7 +5288,6 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
   function ProcessScene(const aObject:TScene):TPasJSONItemObject;
   var Index:TPasJSONSizeInt;
       JSONArray:TPasJSONItemArray;
-      JSONObject,JSONSubObject:TPasJSONItemObject;
   begin
    result:=TPasJSONItemObject.Create;
    try
@@ -5339,7 +5326,6 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
   function ProcessSkin(const aObject:TSkin):TPasJSONItemObject;
   var Index:TPasJSONSizeInt;
       JSONArray:TPasJSONItemArray;
-      JSONObject,JSONSubObject:TPasJSONItemObject;
   begin
    result:=TPasJSONItemObject.Create;
    try
@@ -5382,9 +5368,6 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
  end;
  function ProcessTextures:TPasJSONItemArray;
   function ProcessTexture(const aObject:TTexture):TPasJSONItemObject;
-  var Index:TPasJSONSizeInt;
-      JSONArray:TPasJSONItemArray;
-      JSONObject,JSONSubObject:TPasJSONItemObject;
   begin
    result:=TPasJSONItemObject.Create;
    try
