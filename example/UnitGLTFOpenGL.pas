@@ -63,11 +63,17 @@ type EGLTFOpenGL=class(Exception);
             end;
             PMesh=^TMesh;
             TMeshes=array of TMesh;
+            TTexture=record
+             Handle:glUInt;
+            end;
+            PTexture=^TTexture;
+            TTextures=array of TTexture;
       private
        fDocument:TPasGLTF.TDocument;
        fReady:boolean;
        fUploaded:boolean;
        fMeshes:TMeshes;
+       fTextures:TTextures;
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
        fVertexArrayHandle:glInt;
@@ -625,30 +631,22 @@ procedure TGLTFOpenGL.InitializeResources;
   end;
 
  end;
+ procedure InitializeTextures;
+ begin
+  SetLength(fTextures,fDocument.Textures.Count);
+ end;
 begin
  if not fReady then begin
   InitializeMeshes;
+  InitializeTextures;
   fReady:=true;
  end;
 end;
 
 procedure TGLTFOpenGL.FinalizeResources;
- procedure FinalizeMeshes;
- var Index,
-     PrimitiveIndex:TPasGLTFSizeInt;
-     Mesh:PMesh;
- begin
-  for Index:=0 to length(fMeshes)-1 do begin
-   Mesh:=@fMeshes[Index];
-   for PrimitiveIndex:=0 to length(Mesh^.Primitives) do begin
-
-   end;
-  end;
- end;
 begin
  if fReady then begin
   fReady:=false;
-  FinalizeMeshes;
  end;
 end;
 
@@ -743,6 +741,54 @@ var AllVertices:TAllVertices;
   glBindVertexArray(0);
 
  end;
+ procedure LoadTextures;
+ var Index:TPasGLTFSizeInt;
+     SourceTexture:TPasGLTF.TTexture;
+     SourceSampler:TPasGLTF.TSampler;
+     MemoryStream:TMemoryStream;
+     ImageData:TPasGLTFPointer;
+     ImageWidth,ImageHeight:TPasGLTFInt32;
+     Handle:glUInt;
+ begin
+  for Index:=0 to length(fTextures)-1 do begin
+   Handle:=0;
+   SourceTexture:=fDocument.Textures[Index];
+   if (SourceTexture.Source>=0) and (SourceTexture.Source<fDocument.Images.Count) then begin
+    MemoryStream:=TMemoryStream.Create;
+    try
+     fDocument.Images[SourceTexture.Source].GetResourceData(MemoryStream);
+     if LoadImage(MemoryStream.Memory,MemoryStream.Size,ImageData,ImageWidth,ImageHeight) then begin
+      try
+       glGenTextures(1,@Handle);
+       glBindTexture(GL_TEXTURE_2D,Handle);
+       if (SourceTexture.Sampler>=0) and (SourceTexture.Sampler<fDocument.Samplers.Count) then begin
+        SourceSampler:=fDocument.Samplers[SourceTexture.Sampler];
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,glEnum(SourceSampler.WrapS));
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,glEnum(SourceSampler.WrapT));
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,glEnum(SourceSampler.MinFilter));
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,glEnum(SourceSampler.MagFilter));
+       end else begin
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+       end;
+{      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,0);
+       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,0);}
+       glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,ImageWidth,ImageHeight,0,GL_RGBA,GL_UNSIGNED_BYTE,ImageData);
+       glGenerateMipmap(GL_TEXTURE_2D);
+     finally
+       FreeMem(ImageData);
+      end;
+     end;
+    finally
+     FreeAndNil(MemoryStream);
+    end;
+   end;
+   fTextures[Index].Handle:=Handle;
+  end;
+  glBindTexture(GL_TEXTURE_2D,0);
+ end;
 begin
  if not fUploaded then begin
   fUploaded:=true;
@@ -752,6 +798,7 @@ begin
    try
     CollectVerticesAndIndicesFromMeshes;
     CreateOpenGLObjects;
+    LoadTextures;
    finally
     FreeAndNil(AllIndices);
    end;
@@ -771,10 +818,20 @@ procedure TGLTFOpenGL.UnloadResources;
   glDeleteBuffers(1,@fVertexBufferObjectHandle);
   glDeleteBuffers(1,@fIndexBufferObjectHandle);
  end;
+ procedure UnloadTextures;
+ var Index:TPasGLTFSizeInt;
+ begin
+  for Index:=0 to length(fTextures)-1 do begin
+   if fTextures[Index].Handle>0 then begin
+    glDeleteTextures(1,@fTextures[Index].Handle);
+   end;
+  end;
+ end;
 begin
  if fUploaded then begin
   fUploaded:=false;
   DeleteOpenGLObjects;
+  UnloadTextures;
  end;
 end;
 
