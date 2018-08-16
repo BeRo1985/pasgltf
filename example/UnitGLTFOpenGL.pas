@@ -56,6 +56,7 @@ type EGLTFOpenGL=class(Exception);
             TMesh=record
              public
               type TPrimitive=record
+                    PrimitiveMode:glEnum;
                     Vertices:TVertices;
                     Indices:TPasGLTFUInt32DynamicArray;
                    end;
@@ -283,81 +284,6 @@ begin
 end;
 
 procedure TGLTFOpenGL.InitializeResources;
- procedure InitializeBufferViews;
- var Index:TPasGLTFSizeInt;
-     Current:PBufferView;
- begin
-  SetLength(fBufferViews,fDocument.BufferViews.Count);
-  for Index:=0 to fDocument.BufferViews.Count-1 do begin
-   Current:=@fBufferViews[Index];
-   Current^.BufferView:=fDocument.BufferViews[Index];
-   if (Current^.BufferView.Buffer>=0) and
-      (Current^.BufferView.Buffer<fDocument.Buffers.Count) then begin
-    Current^.Buffer:=fDocument.Buffers[Current^.BufferView.Buffer];
-    glGenBuffers(1,@Current^.Handle);
-    glBindBuffer(glEnum(Current^.BufferView.Target),Current^.Handle);
-    glBufferData(glEnum(Current^.BufferView.Target),Current^.BufferView.ByteLength,@PPasGLTFUInt8Array(Current^.Buffer.Data.Memory)^[Current^.BufferView.ByteOffset],GL_STATIC_DRAW);
-    glBindBuffer(glEnum(Current^.BufferView.Target),0);
-   end else begin
-    Assert(false);
-   end;
-  end;
- end;
- procedure InitializeAccessors;
- var Index,
-     ComponentCount,
-     ComponentSize,
-     ElementSize,
-     SkipEvery,
-     SkipBytes:TPasGLTFSizeInt;
-     Current:PAccessor;
-     Accessor:TPasGLTF.TAccessor;
- begin
-  SetLength(fAccessors,fDocument.Accessors.Count);
-  for Index:=0 to fDocument.Accessors.Count-1 do begin
-   Current:=@fAccessors[Index];
-   Accessor:=fDocument.Accessors[Index];
-   ComponentCount:=Accessor.Type_.GetComponentCount;
-   ComponentSize:=Accessor.ComponentType.GetSize;
-   ElementSize:=ComponentSize*ComponentCount;
-   SkipEvery:=0;
-   SkipBytes:=0;
-   case Accessor.ComponentType of
-    TPasGLTF.TAccessor.TComponentType.SignedByte,
-    TPasGLTF.TAccessor.TComponentType.UnsignedByte:begin
-     case Accessor.Type_ of
-      TPasGLTF.TAccessor.TType.Mat2:begin
-       SkipEvery:=2;
-       SkipBytes:=2;
-       ElementSize:=8;
-      end;
-      TPasGLTF.TAccessor.TType.Mat3:begin
-       SkipEvery:=3;
-       SkipBytes:=1;
-       ElementSize:=12;
-      end;
-     end;
-    end;
-    TPasGLTF.TAccessor.TComponentType.SignedShort,
-    TPasGLTF.TAccessor.TComponentType.UnsignedShort:begin
-     case Accessor.Type_ of
-      TPasGLTF.TAccessor.TType.Mat3:begin
-       SkipEvery:=6;
-       SkipBytes:=4;
-       ElementSize:=16;
-      end;
-     end;
-    end;
-   end;
-   if Accessor.Sparse.Empty then begin
-    Current^.BufferView:=Accessor.BufferView;
-    if (Current^.BufferView<0) or (Current^.BufferView>=fDocument.BufferViews.Count) then begin
-     raise EGLTFOpenGL.Create('Ups');
-    end;
-   end else begin
-   end;
-  end;
- end;
  procedure InitializeMeshes;
  var Index,
      PrimitiveIndex,
@@ -623,6 +549,36 @@ procedure TGLTFOpenGL.InitializeResources;
     end;
 
     begin
+     // Primitive mode
+     case SourceMeshPrimitive.Mode of
+      TPasGLTF.TMesh.TPrimitive.TMode.Points:begin
+       DestinationMeshPrimitive^.PrimitiveMode:=GL_POINTS;
+      end;
+      TPasGLTF.TMesh.TPrimitive.TMode.Lines:begin
+       DestinationMeshPrimitive^.PrimitiveMode:=GL_LINES;
+      end;
+      TPasGLTF.TMesh.TPrimitive.TMode.LineLoop:begin
+       DestinationMeshPrimitive^.PrimitiveMode:=GL_LINE_LOOP;
+      end;
+      TPasGLTF.TMesh.TPrimitive.TMode.LineStrip:begin
+       DestinationMeshPrimitive^.PrimitiveMode:=GL_LINE_STRIP;
+      end;
+      TPasGLTF.TMesh.TPrimitive.TMode.Triangles:begin
+       DestinationMeshPrimitive^.PrimitiveMode:=GL_TRIANGLES;
+      end;
+      TPasGLTF.TMesh.TPrimitive.TMode.TriangleStrip:begin
+       DestinationMeshPrimitive^.PrimitiveMode:=GL_TRIANGLE_STRIP;
+      end;
+      TPasGLTF.TMesh.TPrimitive.TMode.TriangleFan:begin
+       DestinationMeshPrimitive^.PrimitiveMode:=GL_TRIANGLE_FAN;
+      end;
+      else begin
+       raise EGLTFOpenGL.Create('Invalid primitive mode');
+      end;
+     end;
+    end;
+
+    begin
      // Generate vertex array buffer
      SetLength(DestinationMeshPrimitive^.Vertices,length(TemporaryPositions));
      for VertexIndex:=0 to length(TemporaryPositions)-1 do begin
@@ -671,37 +627,28 @@ procedure TGLTFOpenGL.InitializeResources;
  end;
 begin
  if not fReady then begin
-  InitializeBufferViews;
   InitializeMeshes;
   fReady:=true;
  end;
 end;
 
 procedure TGLTFOpenGL.FinalizeResources;
- procedure FinalizeBufferViews;
- var Index:TPasGLTFSizeInt;
-     Current:PBufferView;
+ procedure FinalizeMeshes;
+ var Index,
+     PrimitiveIndex:TPasGLTFSizeInt;
+     Mesh:PMesh;
  begin
-  for Index:=0 to length(fBufferViews)-1 do begin
-   Current:=@fBufferViews[Index];
-   glDeleteBuffers(1,@Current^.Handle);
-  end;
- end;
- procedure FinalizeAccessors;
- var Index:TPasGLTFSizeInt;
-     Current:PAccessor;
- begin
-  for Index:=0 to length(fAccessors)-1 do begin
-   Current:=@fAccessors[Index];
-   if Current^.WorkBuffer.Active then begin
-    glDeleteBuffers(1,@Current^.WorkBuffer.Handle);
+  for Index:=0 to length(fMeshes)-1 do begin
+   Mesh:=@fMeshes[Index];
+   for PrimitiveIndex:=0 to length(Mesh^.Primitives) do begin
+
    end;
   end;
  end;
 begin
  if fReady then begin
   fReady:=false;
-  FinalizeBufferViews;
+  FinalizeMeshes;
  end;
 end;
 
