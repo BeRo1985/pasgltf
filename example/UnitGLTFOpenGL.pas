@@ -23,13 +23,13 @@ type EGLTFOpenGL=class(Exception);
               const Position=0;
                     Normal=1;
                     Tangent=2;
-                    TexCoord0=2;
-                    TexCoord1=3;
-                    Color0=4;
-                    Joints0=5;
-                    Joints1=6;
-                    Weights0=7;
-                    Weights1=8;
+                    TexCoord0=3;
+                    TexCoord1=4;
+                    Color0=5;
+                    Joints0=6;
+                    Joints1=7;
+                    Weights0=8;
+                    Weights1=9;
             end;
             TVertex=packed record
              Position:TPasGLTF.TVector3;
@@ -608,6 +608,8 @@ procedure TGLTFOpenGL.InitializeResources;
       end;
       if VertexIndex<length(TemporaryColor0) then begin
        Vertex^.Color0:=TemporaryColor0[VertexIndex];
+      end else begin
+       Vertex^.Color0:=TPasGLTF.TDefaults.IdentityVector4;
       end;
       if VertexIndex<length(TemporaryJoints0) then begin
        Vertex^.Joints0:=TemporaryJoints0[VertexIndex];
@@ -844,6 +846,7 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
       Material:TPasGLTF.TMaterial;
+      TextureFlags:TPasGLTFUInt32;
   begin
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
@@ -868,6 +871,32 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
      end else begin
       glEnable(GL_CULL_FACE);
       glCullFace(GL_BACK);
+     end;
+     TextureFlags:=0;
+     if (Material.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
+      TextureFlags:=TextureFlags or (1 or (2*ord(Material.PBRMetallicRoughness.BaseColorTexture.TexCoord=1)));
+     end;
+     if (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
+      glActiveTexture(GL_TEXTURE1);
+      glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index].Handle);
+      TextureFlags:=TextureFlags or (4 or (8*ord(Material.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord=1)));
+     end;
+     if (Material.NormalTexture.Index>=0) and (Material.NormalTexture.Index<length(fTextures)) then begin
+      glActiveTexture(GL_TEXTURE2);
+      glBindTexture(GL_TEXTURE_2D,fTextures[Material.NormalTexture.Index].Handle);
+      TextureFlags:=TextureFlags or (16 or (32*ord(Material.NormalTexture.TexCoord=1)));
+     end;
+     if (Material.OcclusionTexture.Index>=0) and (Material.OcclusionTexture.Index<length(fTextures)) then begin
+      glActiveTexture(GL_TEXTURE3);
+      glBindTexture(GL_TEXTURE_2D,fTextures[Material.OcclusionTexture.Index].Handle);
+      TextureFlags:=TextureFlags or (64 or (128*ord(Material.OcclusionTexture.TexCoord=1)));
+     end;
+     if (Material.EmissiveTexture.Index>=0) and (Material.EmissiveTexture.Index<length(fTextures)) then begin
+      glActiveTexture(GL_TEXTURE4);
+      glBindTexture(GL_TEXTURE_2D,fTextures[Material.EmissiveTexture.Index].Handle);
+      TextureFlags:=TextureFlags or (256 or (512*ord(Material.EmissiveTexture.TexCoord=1)));
      end;
      glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
     end;
@@ -908,12 +937,18 @@ begin
  glBindVertexArray(fVertexArrayHandle);
  glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fIndexBufferObjectHandle);
+ glUniform1i(aPBRShader.uPBRMetallicRoughnessBaseColorTexture,0);
+ glUniform1i(aPBRShader.uPBRMetallicRoughnessMetallicRoughnessTexture,1);
+ glUniform1i(aPBRShader.uNormalTexture,2);
+ glUniform1i(aPBRShader.uOcclusionTexture,3);
+ glUniform1i(aPBRShader.uEmissiveTexture,4);
  for Index:=0 to Scene.Nodes.Count-1 do begin
   DrawNode(fDocument.Nodes[Scene.Nodes.Items[Index]],TPasGLTF.TDefaults.IdentityMatrix);
  end;
  glBindVertexArray(0);
  glBindBuffer(GL_ARRAY_BUFFER,0);
  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+ glActiveTexture(GL_TEXTURE0);
 end;
 
 end.

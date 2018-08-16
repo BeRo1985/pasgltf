@@ -114,9 +114,11 @@ uses dglOpenGL,UnitOpenGLShader;
 type TPBRShader=class(TShader)
       public
        uColor:glInt;
-       uMaterialAlbedoTexture:glInt;
-       uMaterialNormalMapTexture:glInt;
-       uMaterialPropertiesTexture:glInt;
+       uPBRMetallicRoughnessBaseColorTexture:glInt;
+       uPBRMetallicRoughnessMetallicRoughnessTexture:glInt;
+       uNormalTexture:glInt;
+       uOcclusionTexture:glInt;
+       uEmissiveTexture:glInt;
        uModelViewMatrix:glInt;
        uModelViewProjectionMatrix:glInt;
        uLightDirection:glInt;
@@ -147,7 +149,8 @@ begin
     'uniform mat4 uModelViewMatrix;'+#13#10+
     'uniform mat4 uModelViewProjectionMatrix;'+#13#10+
     'out vec3 vViewSpacePosition;'+#13#10+
-    'out vec2 vTexCoord;'+#13#10+
+    'out vec2 vTexCoord0;'+#13#10+
+    'out vec2 vTexCoord1;'+#13#10+
     'out vec3 vNormal;'+#13#10+
     'out vec3 vTangent;'+#13#10+
     'out vec3 vBitangent;'+#13#10+
@@ -156,7 +159,8 @@ begin
       'vNormal = aNormal;'+#13#10+
       'vTangent = aTangent.xyz;'+#13#10+
       'vBitangent = cross(vNormal,vTangent)*aTangent.w;'+#13#10+
-      'vTexCoord = aTexCoord0;'+#13#10+
+      'vTexCoord0 = aTexCoord0;'+#13#10+
+      'vTexCoord1 = aTexCoord1;'+#13#10+
       'vColor = aColor0;'+#13#10+
       'vViewSpacePosition = (uModelViewMatrix * vec4(aPosition,1.0)).xyz;'+#13#10+
       'gl_Position = uModelViewProjectionMatrix * vec4(aPosition,1.0);'+#13#10+
@@ -164,13 +168,19 @@ begin
  f:='#version 430'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
     'in vec3 vViewSpacePosition;'+#13#10+
-    'in vec2 vTexCoord;'+#13#10+
+    'in vec2 vTexCoord0;'+#13#10+
+    'in vec2 vTexCoord1;'+#13#10+
     'in vec3 vNormal;'+#13#10+
     'in vec3 vTangent;'+#13#10+
     'in vec3 vBitangent;'+#13#10+
     'in vec4 vColor;'+#13#10+
+    'uniform sampler2D uPBRMetallicRoughnessBaseColorTexture;'+#13#10+
+    'uniform sampler2D uPBRMetallicRoughnessMetallicRoughnessTexture;'+#13#10+
+    'uniform sampler2D uNormalTexture;'+#13#10+
+    'uniform sampler2D uOcclusionTexture;'+#13#10+
+    'uniform sampler2D uEmissiveTexture;'+#13#10+
     'void main(){'+#13#10+
-      'oOutput = vec4(1.0);'+#13#10+
+      'oOutput = texture(uPBRMetallicRoughnessBaseColorTexture, vTexCoord0) * vColor;'+#13#10+
     '}'+#13#10;
  inherited Create(f,v);
 end;
@@ -199,9 +209,11 @@ procedure TPBRShader.BindVariables;
 begin
  inherited BindVariables;
  uColor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uColor')));
- uMaterialAlbedoTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMaterialAlbedoTexture')));
- uMaterialNormalMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMaterialNormalMapTexture')));
- uMaterialPropertiesTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMaterialPropertiesTexture')));
+ uPBRMetallicRoughnessBaseColorTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uPBRMetallicRoughnessBaseColorTexture')));
+ uPBRMetallicRoughnessMetallicRoughnessTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('PBRMetallicRoughnessMetallicRoughnessTexture')));
+ uNormalTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uNormalTexture')));
+ uOcclusionTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uOcclusionTexture')));
+ uEmissiveTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveTexture')));
  uModelViewMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewMatrix')));
  uModelViewProjectionMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewProjectionMatrix')));
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
