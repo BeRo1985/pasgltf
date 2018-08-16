@@ -47,7 +47,9 @@ type EGLTFOpenGL=class(Exception);
              TexCoord1:TPasGLTF.TVector2;
              Color0:TPasGLTF.TVector4;
              Joints0:TPasGLTF.TVector4;
+             Joints1:TPasGLTF.TVector4;
              Weights0:TPasGLTF.TVector4;
+             Weights1:TPasGLTF.TVector4;
             end;
             PVertex=^TVertex;
             TVertices=array of TVertex;
@@ -178,31 +180,147 @@ procedure TGLTFOpenGL.InitializeResources;
  procedure InitializeMeshes;
  var Index,
      PrimitiveIndex,
-     AccessorIndex:TPasGLTFSizeInt;
+     AccessorIndex,
+     IndexIndex:TPasGLTFSizeInt;
      SourceMesh:TPasGLTF.TMesh;
      SourceMeshPrimitive:TPasGLTF.TMesh.TPrimitive;
      DestinationMesh:PMesh;
      DestinationMeshPrimitive:TMesh.PPrimitive;
-     TemporaryPositions:TPasGLTF.TVector3DynamicArray;
+     TemporaryPositions,
+     TemporaryNormals:TPasGLTF.TVector3DynamicArray;
+     TemporaryTangents,
+     TemporaryColor0,
+     TemporaryJoints0,
+     TemporaryJoints1,
+     TemporaryWeights0,
+     TemporaryWeights1:TPasGLTF.TVector4DynamicArray;
+     TemporaryTexCoord0,
+     TemporaryTexCoord1:TPasGLTF.TVector2DynamicArray;
+     TemporaryIndices:TPasGLTFUInt32DynamicArray;
  begin
+
   SetLength(fMeshes,fDocument.Meshes.Count);
+
   for Index:=0 to fDocument.Meshes.Count-1 do begin
+
    SourceMesh:=fDocument.Meshes.Items[Index];
+
    DestinationMesh:=@fMeshes[Index];
+
    SetLength(DestinationMesh.Primitives,SourceMesh.Primitives.Count);
+
    for PrimitiveIndex:=0 to SourceMesh.Primitives.Count-1 do begin
+
     SourceMeshPrimitive:=SourceMesh.Primitives.Items[PrimitiveIndex];
+
     DestinationMeshPrimitive:=@DestinationMesh.Primitives[PrimitiveIndex];
+
     begin
-     AccessorIndex:=SourceMeshPrimitive.Attributes['POSITION'];
-     if AccessorIndex>=0 then begin
-      TemporaryPositions:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
-     end else begin
-      raise EGLTFOpenGL.Create('Missing position data');
+     // Load accessor data
+     begin
+      AccessorIndex:=SourceMeshPrimitive.Attributes['POSITION'];
+      if AccessorIndex>=0 then begin
+       TemporaryPositions:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+      end else begin
+       raise EGLTFOpenGL.Create('Missing position data');
+      end;
+     end;
+     begin
+      AccessorIndex:=SourceMeshPrimitive.Attributes['NORMAL'];
+      if AccessorIndex>=0 then begin
+       TemporaryNormals:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+      end else begin
+       TemporaryNormals:=nil;
+      end;
+     end;
+     begin
+      AccessorIndex:=SourceMeshPrimitive.Attributes['TANGENT'];
+      if AccessorIndex>=0 then begin
+       TemporaryTangents:=fDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
+      end else begin
+       TemporaryTangents:=nil;
+      end;
+     end;
+     begin
+      AccessorIndex:=SourceMeshPrimitive.Attributes['TEXCOORD_0'];
+      if AccessorIndex>=0 then begin
+       TemporaryTexCoord0:=fDocument.Accessors[AccessorIndex].DecodeAsVector2Array(true);
+      end else begin
+       TemporaryTexCoord0:=nil;
+      end;
+     end;
+     begin
+      AccessorIndex:=SourceMeshPrimitive.Attributes['TEXCOORD_1'];
+      if AccessorIndex>=0 then begin
+       TemporaryTexCoord1:=fDocument.Accessors[AccessorIndex].DecodeAsVector2Array(true);
+      end else begin
+       TemporaryTexCoord1:=nil;
+      end;
+     end;
+     begin
+      AccessorIndex:=SourceMeshPrimitive.Attributes['COLOR_0'];
+      if AccessorIndex>=0 then begin
+       TemporaryColor0:=fDocument.Accessors[AccessorIndex].DecodeAsColorArray(true);
+      end else begin
+       TemporaryColor0:=nil;
+      end;
+     end;
+     begin
+      AccessorIndex:=SourceMeshPrimitive.Attributes['JOINTS_0'];
+      if AccessorIndex>=0 then begin
+       TemporaryJoints0:=fDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
+      end else begin
+       TemporaryJoints0:=nil;
+      end;
+     end;
+     begin
+      AccessorIndex:=SourceMeshPrimitive.Attributes['JOINTS_1'];
+      if AccessorIndex>=0 then begin
+       TemporaryJoints1:=fDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
+      end else begin
+       TemporaryJoints1:=nil;
+      end;
+     end;
+     begin
+      AccessorIndex:=SourceMeshPrimitive.Attributes['WEIGHTS_0'];
+      if AccessorIndex>=0 then begin
+       TemporaryWeights0:=fDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
+      end else begin
+       TemporaryWeights0:=nil;
+      end;
+     end;
+     begin
+      AccessorIndex:=SourceMeshPrimitive.Attributes['WEIGHTS_1'];
+      if AccessorIndex>=0 then begin
+       TemporaryWeights1:=fDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
+      end else begin
+       TemporaryWeights1:=nil;
+      end;
      end;
     end;
+
+    begin
+     // load or generate vertex indices
+     if SourceMeshPrimitive.Indices>=0 then begin
+      TemporaryIndices:=fDocument.Accessors[SourceMeshPrimitive.Indices].DecodeAsUInt32Array(false);
+     end else begin
+      SetLength(TemporaryIndices,length(TemporaryPositions));
+      for IndexIndex:=0 to length(TemporaryIndices)-1 do begin
+       TemporaryIndices[IndexIndex]:=IndexIndex;
+      end;
+     end;
+    end;
+
+    begin
+     // Generate missing data
+     if length(TemporaryNormals)=0 then begin
+     end;
+    end;
+
    end;
+
   end;
+
  end;
 begin
  if not fReady then begin
