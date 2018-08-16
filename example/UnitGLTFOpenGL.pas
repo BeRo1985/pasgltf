@@ -12,7 +12,7 @@ unit UnitGLTFOpenGL;
 
 interface
 
-uses SysUtils,Classes,Math,PasGLTF,dglOpenGL;
+uses SysUtils,Classes,Math,PasGLTF,dglOpenGL,UnitOpenGLImage;
 
 type EGLTFOpenGL=class(Exception);
 

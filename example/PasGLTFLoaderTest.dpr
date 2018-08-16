@@ -16,7 +16,10 @@ uses
   PasDblStrUtils in '..\externals\pasdblstrutils\src\PasDblStrUtils.pas',
   PasJSON in '..\externals\pasjson\src\PasJSON.pas',
   PasGLTF in '..\src\PasGLTF.pas',
-  UnitGLTFOpenGL in 'UnitGLTFOpenGL.pas';
+  UnitGLTFOpenGL in 'UnitGLTFOpenGL.pas',
+  UnitOpenGLImage in 'UnitOpenGLImage.pas',
+  UnitOpenGLImageJPEG in 'UnitOpenGLImageJPEG.pas',
+  UnitOpenGLImagePNG in 'UnitOpenGLImagePNG.pas';
 
 var InputFileName:ansistring;
 
