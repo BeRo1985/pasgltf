@@ -31,27 +31,6 @@ type EGLTFOpenGL=class(Exception);
                     Weights0=7;
                     Weights1=8;
             end;
-            TAccessor=record
-             public
-              type TWorkBuffer=record
-                    Active:boolean;
-                    Handle:glUInt;
-                    Data:TBytes;
-                   end;
-                   PWorkBuffer=^TWorkBuffer;
-             public
-              BufferView:TPasGLTFSizeInt;
-              WorkBuffer:TWorkBuffer;
-            end;
-            PAccessor=^TAccessor;
-            TAccessors=array of TAccessor;
-            TBufferView=record
-             Handle:glUInt;
-             BufferView:TPasGLTF.TBufferView;
-             Buffer:TPasGLTF.TBuffer;
-            end;
-            PBufferView=^TBufferView;
-            TBufferViews=array of TBufferView;
             TVertex=packed record
              Position:TPasGLTF.TVector3;
              Normal:TPasGLTF.TVector3;
@@ -88,8 +67,6 @@ type EGLTFOpenGL=class(Exception);
        fDocument:TPasGLTF.TDocument;
        fReady:boolean;
        fUploaded:boolean;
-       fAccessors:TAccessors;
-       fBufferViews:TBufferViews;
        fMeshes:TMeshes;
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
@@ -296,8 +273,6 @@ begin
  fDocument:=aDocument;
  fReady:=false;
  fUploaded:=false;
- fAccessors:=nil;
- fBufferViews:=nil;
  fMeshes:=nil;
 end;
 

@@ -45,6 +45,12 @@ var Event:TSDL_Event;
     SDLRunning,OldShowCursor:boolean;
  procedure Draw;
  begin
+  glViewport(0,0,ViewPortWidth,ViewPortHeight);
+  glClearColor(0.0,0.0,0.0,0.0);
+  glClearDepth(1.0);
+  glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+  glDisable(GL_DEPTH_TEST);
+  glCullFace(GL_NONE);
   GLTFOpenGL.Draw;
  end;
  procedure Resize(NewWidth,NewHeight:longint);
