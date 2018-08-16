@@ -684,6 +684,9 @@ var AllVertices:TAllVertices;
     Primitive^.CountIndices:=length(Primitive^.Indices);
     AllVertices.Add(Primitive^.Vertices);
     AllIndices.Add(Primitive^.Indices);
+    for IndexIndex:=Primitive^.StartBufferIndexOffset to (Primitive^.StartBufferIndexOffset+Primitive^.CountIndices)-1 do begin
+     Primitive^.Indices[IndexIndex]:=Primitive^.Indices[IndexIndex]+Primitive^.StartBufferVertexOffset;
+    end;
    end;
   end;
  end;
