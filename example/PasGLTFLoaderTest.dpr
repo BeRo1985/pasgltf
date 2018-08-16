@@ -45,6 +45,7 @@ var Event:TSDL_Event;
     SDLRunning,OldShowCursor:boolean;
  procedure Draw;
  begin
+  GLTFOpenGL.Draw;
  end;
  procedure Resize(NewWidth,NewHeight:longint);
  var Factor:int64;

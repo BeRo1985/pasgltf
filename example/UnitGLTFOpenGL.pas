@@ -693,7 +693,7 @@ var AllVertices:TAllVertices;
   for Index:=0 to length(fMeshes)-1 do begin
    Mesh:=@fMeshes[Index];
    for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
-    Primitive:=@Mesh.Primitives[PrimitiveIndex];
+    Primitive:=@Mesh^.Primitives[PrimitiveIndex];
     Primitive^.StartBufferVertexOffset:=AllVertices.Count;
     Primitive^.StartBufferIndexOffset:=AllIndices.Count;
     Primitive^.CountVertices:=length(Primitive^.Vertices);
@@ -807,6 +807,15 @@ procedure TGLTFOpenGL.Draw(const aScene:TPasGLTFSizeInt=-1);
  procedure DrawNode(const aNode:TPasGLTF.TNode;const aMatrix:TMatrix);
  var Index:TPasGLTFSizeInt;
      Matrix:TMatrix;
+  procedure DrawMesh(const aMesh:TMesh);
+  var PrimitiveIndex:TPasGLTFSizeInt;
+      Primitive:TMesh.PPrimitive;
+  begin
+   for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
+    Primitive:=@aMesh.Primitives[PrimitiveIndex];
+    glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
+   end;
+  end;
  begin
   Matrix:=MatrixMul(
            aMatrix,
@@ -817,6 +826,9 @@ procedure TGLTFOpenGL.Draw(const aScene:TPasGLTFSizeInt=-1);
              MatrixMul(
               MatrixFromRotation(aNode.Rotation),
               MatrixFromTranslation(aNode.Translation)))));
+  if (aNode.Mesh>=0) and (aNode.Mesh<length(fMeshes)) then begin
+   DrawMesh(fMeshes[aNode.Mesh]);
+  end;
   for Index:=0 to aNode.Children.Count-1 do begin
    DrawNode(fDocument.Nodes[aNode.Children.Items[Index]],Matrix);
   end;
@@ -829,9 +841,15 @@ begin
  end else begin
   Scene:=fDocument.Scenes[aScene];
  end;
+ glBindVertexArray(fVertexArrayHandle);
+ glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
+ glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fIndexBufferObjectHandle);
  for Index:=0 to Scene.Nodes.Count-1 do begin
   DrawNode(fDocument.Nodes[Scene.Nodes.Items[Index]],TPasGLTF.TDefaults.IdentityMatrix);
  end;
+ glBindVertexArray(0);
+ glBindBuffer(GL_ARRAY_BUFFER,0);
+ glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
 end;
 
 end.

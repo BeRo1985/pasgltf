@@ -329,6 +329,10 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
      PPasGLTFUInt32=^TPasGLTFUInt32;
      TPasGLTFUInt32={$ifdef fpc}UInt32{$else}longword{$endif};
 
+     PPPasGLTFUInt32Array=^PPasGLTFUInt32Array;
+     PPasGLTFUInt32Array=^TPasGLTFUInt32Array;
+     TPasGLTFUInt32Array=array[0..65535] of TPasGLTFUInt32;
+
      TPasGLTFUInt32DynamicArray=array of TPasGLTFUInt32;
 
      PPPasGLTFInt64=^PPasGLTFInt64;
