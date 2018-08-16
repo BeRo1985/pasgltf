@@ -262,7 +262,7 @@ begin
     '  return clamp((x * ((a * x) + vec3(b))) / (x * ((c * x) + vec3(d)) + vec3(e)), vec3(0.0), vec3(1.0));'+#13#10+
     '}'+#13#10+
     'vec3 toneMappingAndToLDR(vec3 x){'+#13#10+
-    '  float exposure = 1.0;'+#13#10+
+    '  float exposure = 0.5;'+#13#10+
     '  return convertLinearRGBToSRGB(ACESFilm(x * exposure));'+#13#10+
     '}'+#13#10+
     'void main(){'+#13#10+
@@ -307,7 +307,7 @@ begin
     '       diffuseColor = materialAlbedo.xyz * (vec3(1.0) - f0) * (1.0 - materialMetallic) * PI,'+#13#10+
     '       specularColor = mix(f0, materialAlbedo.xyz, materialMetallic) * PI;'+#13#10+
     '  vec3 color = vec3(0.0);'+#13#10+
-{   '  color += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
+{}  '  color += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
     '                              pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
     '                              -uLightDirection,'+#13#10+
     '                              materialNormal.xyz,'+#13#10+
@@ -327,7 +327,7 @@ begin
     '                   ) * ambientOcclusion) +'+#13#10+
     '                  // Bounce light'+#13#10+
     '                  (clamp(-materialNormal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
-    '                 ) * diffuseLambert(diffuseColor) * materialCavity));'+#13#10+  {}
+    '                 ) * diffuseLambert(diffuseColor) * materialCavity));'+#13#10+ (*{}
     '  color += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
     '                         pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
     '                         -uLightDirection,'+#13#10+
@@ -339,7 +339,7 @@ begin
     '                         materialTransparency,'+#13#10+
     '                         materialRoughness,'+#13#10+
     '                         materialCavity,'+#13#10+
-    '                         materialMetallic);'+#13#10+
+    '                         materialMetallic);'+#13#10+(**)
     '  {'+#13#10+
     '    float NoV = clamp(abs(dot(materialNormal.xyz, viewDirection)), 1e-3, 1.0),'+#13#10+
     '          ao = materialCavity * ambientOcclusion,'+#13#10+
@@ -347,8 +347,7 @@ begin
     '  	 vec2 brdf = textureLod(uBRDFLUTTexture, vec2(materialRoughness, NoV), 0.0).xy;'+#13#10+
 		'    vec3 rayDirection = -normalize(reflect(viewDirection, materialNormal.xyz));'+#13#10+
     '    color += getEnvMap(uEnvMapTexture, clamp((8.0 - 1.0) - (1.0 - (1.2 * log2(materialRoughness))), 0.0, min(8.0, float(uEnvMapMaxLevel))), rayDirection).xyz * ((specularColor * brdf.x) + brdf.yyy) * specularOcclusion;'+#13#10+
-//  '    color += getEnvMap(uEnvMapTexture, clamp(materialRoughness * float(uEnvMapMaxLevel), 0.0, float(uEnvMapMaxLevel)), rayDirection).xyz * ((specularColor * brdf.x) + brdf.yyy) * specularOcclusion;'+#13#10+
-    '    color += getEnvMap(uEnvMapTexture, float(uEnvMapMaxLevel), rayDirection).xyz * diffuseColor * ao;'+#13#10+
+    '    color += getEnvMap(uEnvMapTexture, min(8.0, float(uEnvMapMaxLevel)), rayDirection).xyz * diffuseColor * ao;'+#13#10+
     '  }'+#13#10+
     '  oOutput = vec4(toneMappingAndToLDR((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10+
    '}'+#13#10;
