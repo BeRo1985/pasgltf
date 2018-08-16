@@ -78,6 +78,7 @@ var Event:TSDL_Event;
   glViewport(0,0,ViewPortWidth,ViewPortHeight);
   glClearColor(0.0,0.0,0.0,0.0);
   glClearDepth(1.0);
+  glViewport(ViewPortX,ViewPortY,ViewPortWidth,ViewPortHeight);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
   ModelMatrix:=Matrix4x4Identity;
   t:=Time;
