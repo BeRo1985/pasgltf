@@ -182,7 +182,33 @@ begin
     'uniform sampler2D uEmissiveTexture;'+#13#10+
     'uniform uint uTextureFlags;'+#13#10+
     'void main(){'+#13#10+
-      'oOutput = texture(uBaseColorTexture, vTexCoord0) * vColor;'+#13#10+
+      'vec4 baseColorTexture, metallicRoughnessTexture, normalTexture, occlusionTexture, emissiveTexture;'+#13#10+
+      'if((uTextureFlags & 1u) != 0){'+#13#10+
+        'baseColorTexture = texture(uBaseColorTexture, ((uTextureFlags & 2u) != 0) ? vTexCoord1 : vTexCoord0);'+#13#10+
+      '}else{'+#13#10+
+        'baseColorTexture = vec4(1.0);'+#13#10+
+      '}'+#13#10+
+      'if((uTextureFlags & 4u) != 0){'+#13#10+
+        'metallicRoughnessTexture = texture(uMetallicRoughnessTexture, ((uTextureFlags & 8u) != 0) ? vTexCoord1 : vTexCoord0);'+#13#10+
+      '}else{'+#13#10+
+        'metallicRoughnessTexture = vec4(1.0);'+#13#10+
+      '}'+#13#10+
+      'if((uTextureFlags & 16u) != 0){'+#13#10+
+        'normalTexture = texture(uNormalTexture, ((uTextureFlags & 32u) != 0) ? vTexCoord1 : vTexCoord0);'+#13#10+
+      '}else{'+#13#10+
+        'normalTexture = vec4(1.0);'+#13#10+
+      '}'+#13#10+
+      'if((uTextureFlags & 64u) != 0){'+#13#10+
+        'occlusionTexture = texture(uOcclusionTexture, ((uTextureFlags & 128u) != 0) ? vTexCoord1 : vTexCoord0);'+#13#10+
+      '}else{'+#13#10+
+        'occlusionTexture = vec4(1.0);'+#13#10+
+      '}'+#13#10+
+      'if((uTextureFlags & 256u) != 0){'+#13#10+
+        'emissiveTexture = texture(uEmissiveTexture, ((uTextureFlags & 512u) != 0) ? vTexCoord1 : vTexCoord0);'+#13#10+
+      '}else{'+#13#10+
+        'emissiveTexture = vec4(0.0);'+#13#10+
+      '}'+#13#10+
+      'oOutput = baseColorTexture * vColor;'+#13#10+
     '}'+#13#10;
  inherited Create(f,v);
 end;
