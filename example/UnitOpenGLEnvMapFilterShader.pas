@@ -113,6 +113,9 @@ uses dglOpenGL,UnitOpenGLShader;
 
 type TEnvMapFilterShader=class(TShader)
       public
+       uTexture:glInt;
+       uMipMapLevel:glInt;
+      public
        constructor Create;
        destructor Destroy; override;
        procedure BindAttributes; override;
@@ -209,6 +212,8 @@ end;
 procedure TEnvMapFilterShader.BindVariables;
 begin
  inherited BindVariables;
+ uTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uTexture')));
+ uMipMapLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMipMapLevel')));
 end;
 
 end.
