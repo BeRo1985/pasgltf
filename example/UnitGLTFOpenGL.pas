@@ -55,6 +55,7 @@ type EGLTFOpenGL=class(Exception);
                     StartBufferIndexOffset:TPasGLTFSizeUInt;
                     CountVertices:TPasGLTFSizeUInt;
                     CountIndices:TPasGLTFSizeUInt;
+                    Material:TPasGLTFSizeInt;
                    end;
                    PPrimitive=^TPrimitive;
                    TPrimitives=array of TPrimitive;
@@ -336,6 +337,8 @@ procedure TGLTFOpenGL.InitializeResources;
     SourceMeshPrimitive:=SourceMesh.Primitives.Items[PrimitiveIndex];
 
     DestinationMeshPrimitive:=@DestinationMesh.Primitives[PrimitiveIndex];
+
+    DestinationMeshPrimitive^.Material:=SourceMeshPrimitive.Material;
 
     begin
      // Load accessor data
@@ -843,11 +846,35 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
       ModelMatrix:TPasGLTF.TMatrix4x4;
+      Material:TPasGLTF.TMaterial;
   begin
    ModelMatrix:=MatrixMul(aModelMatrix,Matrix);
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
-    glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
+    if (Primitive^.Material>=0) and (Primitive^.Material<fDocument.Materials.Count) then begin
+     Material:=fDocument.Materials[Primitive^.Material];
+     case Material.AlphaMode of
+      TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
+       glDisable(GL_BLEND);
+      end;
+      TPasGLTF.TMaterial.TAlphaMode.Mask:begin
+       glDisable(GL_BLEND);
+       glEnable(GL_ALPHA_TEST);
+       glAlphaFunc(GL_GREATER,Material.AlphaCutOff);
+      end;
+      TPasGLTF.TMaterial.TAlphaMode.Blend:begin
+       glEnable(GL_BLEND);
+       glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+      end;
+     end;
+     if Material.DoubleSided then begin
+      glDisable(GL_CULL_FACE);
+     end else begin
+      glEnable(GL_CULL_FACE);
+      glCullFace(GL_BACK);
+     end;
+     glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
+    end;
    end;
   end;
  begin
