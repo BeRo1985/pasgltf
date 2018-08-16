@@ -68,7 +68,7 @@ var Event:TSDL_Event;
   t:=Time;
   ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*4.0,sin(t*0.25)*4.0,cos(t)*4.0),Vector3Origin,Vector3YAxis);
   ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,0.1,128.0);
-  LightDirection:=Vector3Norm(Vector3(0.0,-1.0,-1.0));
+  LightDirection:=Vector3Norm(Vector3(0.25,-0.5,-1.0));
   PBRShader.Bind;
   glUniform3fv(PBRShader.uLightDirection,1,@LightDirection);
   GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),

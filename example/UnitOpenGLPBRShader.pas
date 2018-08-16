@@ -274,11 +274,11 @@ begin
     '    emissiveTexture = vec4(0.0);'+#13#10+
     '  }'+#13#10+
     '  mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
-    '  vec4 materialAlbedo = baseColorTexture * uBaseColorFactor,'+#13#10+
-    '       materialNormal = vec4(normalize(tangentSpace * normalTexture.xyz), normalTexture.w);'+#13#10+
+    '  vec4 materialAlbedo = vec4(pow(baseColorTexture.xyz, vec3(2.2)), baseColorTexture.w) * uBaseColorFactor,'+#13#10+
+    '       materialNormal = vec4(normalize(tangentSpace * normalTexture.xyz), normalTexture.w * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.z);'+#13#10+
     '  float materialRoughness = max(1e-3, metallicRoughnessTexture.y * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.y),'+#13#10+
-    '        materialCavity = occlusionTexture.y * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.w,'+#13#10+
-    '        materialMetallic = metallicRoughnessTexture.x * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.x,'+#13#10+
+    '        materialCavity = occlusionTexture.x * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.w,'+#13#10+
+    '        materialMetallic = metallicRoughnessTexture.z * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.x,'+#13#10+
     '        materialTransparency = 0.0,'+#13#10+
     '        refractiveAngle = 0.0,'+#13#10+
     '        ambientOcclusion = 1.0,'+#13#10+
@@ -306,8 +306,8 @@ begin
     '                   ) * ambientOcclusion) +'+#13#10+
     '                  // Bounce light'+#13#10+
     '                  (clamp(-materialNormal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
-    '                 ) * diffuseLambert(diffuseColor) * materialCavity)) * smoothstep(0.15, 0.1, uLightDirection.y);'+#13#10+
-    '  oOutput = vec4(toneMappingAndToLDR(color * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10+
+    '                 ) * diffuseLambert(diffuseColor) * materialCavity));'+#13#10+
+    '  oOutput = vec4(toneMappingAndToLDR((color + emissiveTexture.xyz) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10+
    '}'+#13#10;
  inherited Create(f,v);
 end;
