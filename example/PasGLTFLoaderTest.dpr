@@ -20,7 +20,8 @@ uses
   UnitOpenGLImage in 'UnitOpenGLImage.pas',
   UnitOpenGLImageJPEG in 'UnitOpenGLImageJPEG.pas',
   UnitOpenGLImagePNG in 'UnitOpenGLImagePNG.pas',
-  UnitMath3D in 'UnitMath3D.pas';
+  UnitMath3D in 'UnitMath3D.pas',
+  UnitOpenGLShader in 'UnitOpenGLShader.pas';
 
 var InputFileName:ansistring;
 
@@ -54,7 +55,8 @@ var Event:TSDL_Event;
   glClearColor(0.0,0.0,0.0,0.0);
   glClearDepth(1.0);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
-  glDisable(GL_DEPTH_TEST);
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LEQUAL);
   glCullFace(GL_NONE);
   ModelMatrix:=Matrix4x4Identity;
   ViewMatrix:=Matrix4x4LookAt(Vector3(0.0,0.0,-4.0),Vector3Origin,Vector3YAxis);
