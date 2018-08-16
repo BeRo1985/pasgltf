@@ -66,7 +66,7 @@ var Event:TSDL_Event;
   glCullFace(GL_NONE);
   ModelMatrix:=Matrix4x4Identity;
   t:=Time;
-  ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*4.0,0.0,cos(t)*4.0),Vector3Origin,Vector3YAxis);
+  ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*4.0,cos(t*0.5)*4.0,cos(t)*4.0),Vector3Origin,Vector3YAxis);
   ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,0.1,128.0);
   LightDirection:=Vector3Norm(Vector3(0.0,-1.0,-1.0));
   PBRShader.Bind;

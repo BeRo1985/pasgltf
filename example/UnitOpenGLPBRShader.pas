@@ -297,7 +297,7 @@ begin
     '                  // Bounce light'+#13#10+
     '                  (clamp(-materialNormal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
     '                 ) * diffuseLambert(diffuseColor) * materialCavity)) * smoothstep(0.15, 0.1, uLightDirection.y);'+#13#10+
-    '  oOutput = vec4(color * vColor.xyz, materialAlbedo.w * vColor.w);'+#13#10+
+    '  oOutput = vec4(pow(color * vColor.xyz, vec3(0.45)), materialAlbedo.w * vColor.w);'+#13#10+
    '}'+#13#10;
  inherited Create(f,v);
 end;
