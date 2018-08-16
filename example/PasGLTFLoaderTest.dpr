@@ -19,7 +19,8 @@ uses
   UnitGLTFOpenGL in 'UnitGLTFOpenGL.pas',
   UnitOpenGLImage in 'UnitOpenGLImage.pas',
   UnitOpenGLImageJPEG in 'UnitOpenGLImageJPEG.pas',
-  UnitOpenGLImagePNG in 'UnitOpenGLImagePNG.pas';
+  UnitOpenGLImagePNG in 'UnitOpenGLImagePNG.pas',
+  UnitMath3D in 'UnitMath3D.pas';
 
 var InputFileName:ansistring;
 
@@ -47,7 +48,7 @@ var Event:TSDL_Event;
     ShowCursor:boolean;
     SDLRunning,OldShowCursor:boolean;
  procedure Draw;
- var ModelMatrix,ViewMatrix,ProjectionMatrix:TPasGLTF.TMatrix4x4;
+ var ModelMatrix,ViewMatrix,ProjectionMatrix:UnitMath3D.TMatrix4x4;
  begin
   glViewport(0,0,ViewPortWidth,ViewPortHeight);
   glClearColor(0.0,0.0,0.0,0.0);
@@ -55,10 +56,12 @@ var Event:TSDL_Event;
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
   glDisable(GL_DEPTH_TEST);
   glCullFace(GL_NONE);
-  ModelMatrix:=TPasGLTF.TDefaults.IdentityMatrix;
-  ViewMatrix:=TPasGLTF.TDefaults.IdentityMatrix;
-  ProjectionMatrix:=TPasGLTF.TDefaults.IdentityMatrix;
-  GLTFOpenGL.Draw(ModelMatrix,ViewMatrix,ProjectionMatrix);
+  ModelMatrix:=Matrix4x4Identity;
+  ViewMatrix:=Matrix4x4LookAt(Vector3(0.0,0.0,-4.0),Vector3Origin,Vector3YAxis);
+  ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,0.1,128.0);
+  GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
+                  TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
+                  TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^));
  end;
  procedure Resize(NewWidth,NewHeight:longint);
  var Factor:int64;
