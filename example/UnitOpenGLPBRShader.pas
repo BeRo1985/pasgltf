@@ -122,6 +122,7 @@ type TPBRShader=class(TShader)
        uTextureFlags:glInt;
        uMetallicRoughnessNormalScaleOcclusionStrengthFactor:glInt;
        uEmissiveFactor:glInt;
+       uModelMatrix:glInt;
        uModelViewMatrix:glInt;
        uModelViewProjectionMatrix:glInt;
        uLightDirection:glInt;
@@ -149,6 +150,7 @@ begin
     'layout(location = 7) in vec4 aJoints1;'+#13#10+
     'layout(location = 8) in vec4 aWeights0;'+#13#10+
     'layout(location = 9) in vec4 aWeights1;'+#13#10+
+    'uniform mat4 uModelMatrix;'+#13#10+
     'uniform mat4 uModelViewMatrix;'+#13#10+
     'uniform mat4 uModelViewProjectionMatrix;'+#13#10+
     'out vec3 vViewSpacePosition;'+#13#10+
@@ -159,7 +161,7 @@ begin
     'out vec3 vBitangent;'+#13#10+
     'out vec4 vColor;'+#13#10+
     'void main(){'+#13#10+
-      'mat3 baseMatrix = transpose(inverse(mat3(uModelViewMatrix)));'+#13#10+
+      'mat3 baseMatrix = transpose(inverse(mat3(uModelMatrix)));'+#13#10+
       'vNormal = baseMatrix * aNormal;'+#13#10+
       'vTangent = baseMatrix * aTangent.xyz;'+#13#10+
       'vBitangent = cross(vNormal, vTangent) * aTangent.w;'+#13#10+
@@ -236,6 +238,14 @@ begin
     '                   specularG(materialRoughness, nDotV, nDotL);'+#13#10+
     '	 return (diffuse + specular) * ((materialCavity * nDotL * lightColor) * lightLit);'+#13#10+
     '}'+#13#10+
+    'vec3 ACESFilm(vec3 x){'+#13#10+
+    '  const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14f;'+#13#10+
+    '  return pow(clamp((x * ((a * x) + vec3(b))) / (x * ((c * x) + vec3(d)) + vec3(e)), vec3(0.0), vec3(1.0)), vec3(1.0 / 2.2));'+#13#10+
+    '}'+#13#10+
+    'vec3 toneMappingAndToLDR(vec3 x){'+#13#10+
+    '  float exposure = 1.0;'+#13#10+
+    '  return ACESFilm(x * exposure);'+#13#10+
+    '}'+#13#10+
     'void main(){'+#13#10+
     '  vec4 baseColorTexture, metallicRoughnessTexture, normalTexture, occlusionTexture, emissiveTexture;'+#13#10+
     '  if((uTextureFlags & 1u) != 0){'+#13#10+
@@ -297,7 +307,7 @@ begin
     '                  // Bounce light'+#13#10+
     '                  (clamp(-materialNormal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
     '                 ) * diffuseLambert(diffuseColor) * materialCavity)) * smoothstep(0.15, 0.1, uLightDirection.y);'+#13#10+
-    '  oOutput = vec4(pow(color * vColor.xyz, vec3(0.45)), materialAlbedo.w * vColor.w);'+#13#10+
+    '  oOutput = vec4(toneMappingAndToLDR(color * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10+
    '}'+#13#10;
  inherited Create(f,v);
 end;
@@ -334,6 +344,7 @@ begin
  uEmissiveFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveFactor')));
  uMetallicRoughnessNormalScaleOcclusionStrengthFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMetallicRoughnessNormalScaleOcclusionStrengthFactor')));
  uTextureFlags:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uTextureFlags')));
+ uModelMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelMatrix')));
  uModelViewMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewMatrix')));
  uModelViewProjectionMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewProjectionMatrix')));
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));

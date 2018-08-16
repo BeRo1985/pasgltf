@@ -933,6 +933,7 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
    ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
    ModelViewMatrix:=MatrixMul(ModelMatrix,aViewMatrix);
    ModelViewProjectionMatrix:=MatrixMul(ModelViewMatrix,aProjectionMatrix);
+   glUniformMatrix4fv(aPBRShader.uModelMatrix,1,false,@ModelMatrix);
    glUniformMatrix4fv(aPBRShader.uModelViewMatrix,1,false,@ModelViewMatrix);
    glUniformMatrix4fv(aPBRShader.uModelViewProjectionMatrix,1,false,@ModelViewProjectionMatrix);
    DrawMesh(fMeshes[aNode.Mesh]);
