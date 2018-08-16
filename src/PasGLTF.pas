@@ -2271,7 +2271,7 @@ begin
  try
   Size:=length(aInput);
   if Size>0 then begin
-   if (Size and 4)=0 then begin
+   if (Size and 3)=0 then begin
     result:=true;
     SetLength(Buffer,(Size*3) shr 2);
     Value:=0;
