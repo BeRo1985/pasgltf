@@ -142,7 +142,7 @@ begin
     '  vec4 p0 = uInverseViewProjectionMatrix * vec4((vTexCoord * 2.0) - vec2(1.0), 1.0, 1.0),'+#13#10+
     '       p1 = uInverseViewProjectionMatrix * vec4((vTexCoord * 2.0) - vec2(1.0), -1.0, 1.0);'+#13#10+
     '  vec3 rayDirection = normalize((p1.xyz / p1.w) - (p0.xyz / p0.w));'+#13#10+
-    '	 oOutput = texture(uTexture, vec2((atan(rayDirection.z, rayDirection.x) / 6.283185307179586476925286766559) + 0.5, acos(rayDirection.y) / 3.1415926535897932384626433832795));'+#13#10+
+    '	 oOutput = textureLod(uTexture, vec2((atan(rayDirection.z, rayDirection.x) / 6.283185307179586476925286766559) + 0.5, acos(rayDirection.y) / 3.1415926535897932384626433832795), 0.0);'+#13#10+
     '}'+#13#10;
  inherited Create(f,v);
 end;

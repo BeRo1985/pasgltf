@@ -87,7 +87,7 @@ var Event:TSDL_Event;
   InverseViewProjectionMatrix:=Matrix4x4TermInverse(Matrix4x4TermMul(ViewMatrix,ProjectionMatrix));
   begin
    glDisable(GL_DEPTH_TEST);
-   glCullFace(GL_NONE);
+   glDisable(GL_CULL_FACE);
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D,EnvMapTextureHandle);
    EnvMapDrawShader.Bind;
@@ -100,8 +100,9 @@ var Event:TSDL_Event;
   end;
   begin
    glEnable(GL_DEPTH_TEST);
+   glEnable(GL_CULL_FACE);
    glDepthFunc(GL_LEQUAL);
-   glCullFace(GL_NONE);
+   glCullFace(GL_BACK);
    PBRShader.Bind;
    glUniform3fv(PBRShader.uLightDirection,1,@LightDirection);
    GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
