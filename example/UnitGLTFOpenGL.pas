@@ -384,6 +384,7 @@ procedure TGLTFOpenGL.InitializeResources;
      p0,p1,p2:PVector3;
      t1t0,t2t0:TVector2;
      t0,t1,t2:PVector2;
+     Vertex:PVertex;
      Area:TPasGLTFFloat;
  begin
 
@@ -616,6 +617,43 @@ procedure TGLTFOpenGL.InitializeResources;
          TemporaryTangents[VertexIndex,3]:=1.0;
         end;
        end;
+      end;
+     end;
+    end;
+
+    begin
+     // Generate vertex array buffer
+     SetLength(DestinationMeshPrimitive^.Vertices,length(TemporaryPositions));
+     for VertexIndex:=0 to length(TemporaryPositions)-1 do begin
+      Vertex:=@DestinationMeshPrimitive^.Vertices[VertexIndex];
+      FillChar(Vertex^,SizeOf(TVertex),#0);
+      Vertex^.Position:=TemporaryPositions[VertexIndex];
+      if VertexIndex<length(TemporaryNormals) then begin
+       Vertex^.Normal:=TemporaryNormals[VertexIndex];
+      end;
+      if VertexIndex<length(TemporaryTangents) then begin
+       Vertex^.Tangent:=TemporaryTangents[VertexIndex];
+      end;
+      if VertexIndex<length(TemporaryTexCoord0) then begin
+       Vertex^.TexCoord0:=TemporaryTexCoord0[VertexIndex];
+      end;
+      if VertexIndex<length(TemporaryTexCoord1) then begin
+       Vertex^.TexCoord1:=TemporaryTexCoord1[VertexIndex];
+      end;
+      if VertexIndex<length(TemporaryColor0) then begin
+       Vertex^.Color0:=TemporaryColor0[VertexIndex];
+      end;
+      if VertexIndex<length(TemporaryJoints0) then begin
+       Vertex^.Joints0:=TemporaryJoints0[VertexIndex];
+      end;
+      if VertexIndex<length(TemporaryJoints1) then begin
+       Vertex^.Joints1:=TemporaryJoints1[VertexIndex];
+      end;
+      if VertexIndex<length(TemporaryWeights0) then begin
+       Vertex^.Weights0:=TemporaryWeights0[VertexIndex];
+      end;
+      if VertexIndex<length(TemporaryWeights1) then begin
+       Vertex^.Weights1:=TemporaryWeights1[VertexIndex];
       end;
      end;
     end;
