@@ -12,7 +12,7 @@ unit UnitGLTFOpenGL;
 
 interface
 
-uses SysUtils,Classes,PasGLTF,dglOpenGL;
+uses SysUtils,Classes,Math,PasGLTF,dglOpenGL;
 
 type EGLTFOpenGL=class(Exception);
 
@@ -384,6 +384,7 @@ procedure TGLTFOpenGL.InitializeResources;
      p0,p1,p2:PVector3;
      t1t0,t2t0:TVector2;
      t0,t1,t2:PVector2;
+     Area:TPasGLTFFloat;
  begin
 
   SetLength(fMeshes,fDocument.Meshes.Count);
@@ -564,16 +565,32 @@ procedure TGLTFOpenGL.InitializeResources;
         p2p0:=Vector3Sub(p2^,p0^);
         t1t0:=Vector2Sub(t1^,t0^);
         t2t0:=Vector2Sub(t2^,t0^);
-        Normal:=Vector3Cross(p2p0,p1p0);
+        Normal:=Vector3Normalize(Vector3Cross(p1p0,p2p0));
         if Vector3Dot(TemporaryNormals[TemporaryTriangleIndices[IndexIndex+0]],Normal)<0.0 then begin
          Normal:=Vector3Neg(Normal);
         end;
-        Tangent[0]:=(t1t0[1]*p2p0[0])-(t2t0[1]*p1p0[0]);
+        Area:=(t1t0[0]*t2t0[1])-(t2t0[0]*t1t0[1]);
+        if IsZero(Area) then begin
+         Tangent[0]:=0.0;
+         Tangent[1]:=1.0;
+         Tangent[2]:=0.0;
+         Bitangent[0]:=1.0;
+         Bitangent[1]:=0.0;
+         Bitangent[2]:=0.0;
+        end else begin
+         Tangent[0]:=((t2t0[1]*p1p0[0])-(t1t0[1]*p2p0[0]))/Area;
+         Tangent[1]:=((t2t0[1]*p1p0[1])-(t1t0[1]*p2p0[1]))/Area;
+         Tangent[2]:=((t2t0[1]*p1p0[2])-(t1t0[1]*p2p0[2]))/Area;
+         Bitangent[0]:=((t1t0[0]*p2p0[0])-(t2t0[0]*p1p0[0]))/Area;
+         Bitangent[1]:=((t1t0[0]*p2p0[1])-(t2t0[0]*p1p0[1]))/Area;
+         Bitangent[2]:=((t1t0[0]*p2p0[2])-(t2t0[0]*p1p0[2]))/Area;
+        end;
+{       Tangent[0]:=(t1t0[1]*p2p0[0])-(t2t0[1]*p1p0[0]);
         Tangent[1]:=(t1t0[1]*p2p0[1])-(t2t0[1]*p1p0[1]);
         Tangent[2]:=(t1t0[1]*p2p0[2])-(t2t0[1]*p1p0[2]);
         Bitangent[0]:=(t1t0[0]*p2p0[0])-(t2t0[0]*p1p0[0]);
         Bitangent[1]:=(t1t0[0]*p2p0[1])-(t2t0[0]*p1p0[1]);
-        Bitangent[2]:=(t1t0[0]*p2p0[2])-(t2t0[0]*p1p0[2]);
+        Bitangent[2]:=(t1t0[0]*p2p0[2])-(t2t0[0]*p1p0[2]);}
         if Vector3Dot(Vector3Cross(Bitangent,Tangent),Normal)<0.0 then begin
          Tangent:=Vector3Neg(Tangent);
          Bitangent:=Vector3Neg(Bitangent);
