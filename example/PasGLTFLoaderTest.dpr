@@ -321,9 +321,9 @@ begin
      end;
      glUniform1i(EnvMapFilterShader.uTexture,0);
      glUniform1i(EnvMapFilterShader.uMipMapLevel,Index);
-     glBindFrameBuffer(GL_FRAMEBUFFER,EnvMapFBO.FBOs[0]);
+     glBindFrameBuffer(GL_FRAMEBUFFER,EnvMapFBO.FBOs[Index]);
      glDrawBuffer(GL_COLOR_ATTACHMENT0);
-     glViewport(0,0,EnvMapFBO.Width,EnvMapFBO.Height);
+     glViewport(0,0,EnvMapFBO.Width shr Index,EnvMapFBO.Height shr Index);
      glClearColor(0.0,0.0,0.0,0.0);
      glClearDepth(1.0);
      glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
