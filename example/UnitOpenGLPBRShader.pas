@@ -126,6 +126,8 @@ type TPBRShader=class(TShader)
        uModelViewMatrix:glInt;
        uModelViewProjectionMatrix:glInt;
        uLightDirection:glInt;
+       uBRDFLUTTexture:glInt;
+       uEnvMapTexture:glInt;
        constructor Create;
        destructor Destroy; override;
        procedure BindAttributes; override;
@@ -183,6 +185,8 @@ begin
     'uniform sampler2D uNormalTexture;'+#13#10+
     'uniform sampler2D uOcclusionTexture;'+#13#10+
     'uniform sampler2D uEmissiveTexture;'+#13#10+
+    'uniform sampler2D uBRDFLUTTexture;'+#13#10+
+    'uniform sampler2D uEnvMapTexture;'+#13#10+
     'uniform uint uTextureFlags;'+#13#10+
     'uniform vec4 uBaseColorFactor;'+#13#10+
     'uniform vec3 uEmissiveFactor;'+#13#10+
@@ -397,6 +401,8 @@ begin
  uModelViewMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewMatrix')));
  uModelViewProjectionMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewProjectionMatrix')));
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
+ uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
+ uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
 end;
 
 end.
