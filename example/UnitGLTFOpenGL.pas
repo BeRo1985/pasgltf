@@ -12,7 +12,7 @@ unit UnitGLTFOpenGL;
 
 interface
 
-uses SysUtils,Classes,Math,PasGLTF,dglOpenGL,UnitOpenGLImage;
+uses SysUtils,Classes,Math,PasGLTF,dglOpenGL,UnitOpenGLImage,UnitOpenGLPBRShader;
 
 type EGLTFOpenGL=class(Exception);
 
@@ -85,7 +85,7 @@ type EGLTFOpenGL=class(Exception);
        procedure FinalizeResources;
        procedure UploadResources;
        procedure UnloadResources;
-       procedure Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aScene:TPasGLTFSizeInt=-1);
+       procedure Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aScene:TPasGLTFSizeInt=-1);
       published
        property Document:TPasGLTF.TDocument read fDocument;
      end;
@@ -838,17 +838,21 @@ begin
  end;
 end;
 
-procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aScene:TPasGLTFSizeInt=-1);
+procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aScene:TPasGLTFSizeInt=-1);
  procedure DrawNode(const aNode:TPasGLTF.TNode;const aMatrix:TMatrix);
  var Index:TPasGLTFSizeInt;
      Matrix:TMatrix;
   procedure DrawMesh(const aMesh:TMesh);
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
-      ModelMatrix:TPasGLTF.TMatrix4x4;
+      ModelMatrix,ModelViewMatrix,ModelViewProjectionMatrix:TPasGLTF.TMatrix4x4;
       Material:TPasGLTF.TMaterial;
   begin
-   ModelMatrix:=MatrixMul(aModelMatrix,Matrix);
+   ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
+   ModelViewMatrix:=MatrixMul(ModelMatrix,aViewMatrix);
+   ModelViewProjectionMatrix:=MatrixMul(ModelViewMatrix,aProjectionMatrix);
+   glUniformMatrix4fv(aPBRShader.uModelViewMatrix,1,false,@ModelViewMatrix);
+   glUniformMatrix4fv(aPBRShader.uModelViewProjectionMatrix,1,false,@ModelViewProjectionMatrix);
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
     if (Primitive^.Material>=0) and (Primitive^.Material<fDocument.Materials.Count) then begin
