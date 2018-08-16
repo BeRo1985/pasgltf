@@ -83,6 +83,179 @@ type EGLTFOpenGL=class(Exception);
 
 implementation
 
+const Epsilon=1e-8;
+
+type TVector2=TPasGLTF.TVector2;
+     PVector2=^TVector2;
+
+     TVector3=TPasGLTF.TVector3;
+     PVector3=^TVector3;
+
+     TVector4=TPasGLTF.TVector4;
+     PVector4=^TVector4;
+
+     TMatrix=TPasGLTF.TMatrix4x4;
+     PMatrix=^TMatrix;
+
+function Vector2Add(const a,b:TVector2):TVector2;
+begin
+ result[0]:=a[0]+b[0];
+ result[1]:=a[1]+b[1];
+end;
+
+function Vector2Sub(const a,b:TVector2):TVector2;
+begin
+ result[0]:=a[0]-b[0];
+ result[1]:=a[1]-b[1];
+end;
+
+function Vector3Add(const a,b:TVector3):TVector3;
+begin
+ result[0]:=a[0]+b[0];
+ result[1]:=a[1]+b[1];
+ result[2]:=a[2]+b[2];
+end;
+
+function Vector3Sub(const a,b:TVector3):TVector3;
+begin
+ result[0]:=a[0]-b[0];
+ result[1]:=a[1]-b[1];
+ result[2]:=a[2]-b[2];
+end;
+
+function Vector3Cross(const a,b:TVector3):TVector3;
+begin
+ result[0]:=(a[1]*b[2])-(a[2]*b[1]);
+ result[1]:=(a[2]*b[0])-(a[0]*b[2]);
+ result[2]:=(a[0]*b[1])-(a[1]*b[0]);
+end;
+
+function Vector3Dot(const a,b:TVector3):TPasGLTFFloat;
+begin
+ result:=(a[0]*b[0])+(a[1]*b[1])+(a[2]*b[2]);
+end;
+
+function Vector3Normalize(const aVector:TVector3):TVector3;
+var l:TPasGLTFFloat;
+begin
+ l:=sqrt(sqr(aVector[0])+sqr(aVector[1])+sqr(aVector[2]));
+ if abs(l)>Epsilon then begin
+  result[0]:=aVector[0]/l;
+  result[1]:=aVector[1]/l;
+  result[2]:=aVector[2]/l;
+ end else begin
+  result[0]:=0.0;
+  result[1]:=0.0;
+  result[2]:=0.0;
+ end;
+end;
+
+function Vector3Neg(const aVector:TVector3):TVector3;
+begin
+ result[0]:=-aVector[0];
+ result[1]:=-aVector[1];
+ result[2]:=-aVector[2];
+end;
+
+function MatrixFromRotation(const aRotation:TVector4):TMatrix;
+var qx2,qy2,qz2,qxqx2,qxqy2,qxqz2,qxqw2,qyqy2,qyqz2,qyqw2,qzqz2,qzqw2,l:TPasGLTFFloat;
+    Rotation:TPasGLTF.TVector4;
+begin
+ l:=sqrt(sqr(aRotation[0])+sqr(aRotation[1])+sqr(aRotation[2])+sqr(aRotation[3]));
+ Rotation[0]:=aRotation[0]/l;
+ Rotation[1]:=aRotation[1]/l;
+ Rotation[2]:=aRotation[2]/l;
+ Rotation[3]:=aRotation[3]/l;
+ qx2:=Rotation[0]+Rotation[0];
+ qy2:=Rotation[1]+Rotation[1];
+ qz2:=Rotation[2]+Rotation[2];
+ qxqx2:=Rotation[0]*qx2;
+ qxqy2:=Rotation[0]*qy2;
+ qxqz2:=Rotation[0]*qz2;
+ qxqw2:=Rotation[3]*qx2;
+ qyqy2:=Rotation[1]*qy2;
+ qyqz2:=Rotation[1]*qz2;
+ qyqw2:=Rotation[3]*qy2;
+ qzqz2:=Rotation[2]*qz2;
+ qzqw2:=Rotation[3]*qz2;
+ result[0]:=1.0-(qyqy2+qzqz2);
+ result[1]:=qxqy2+qzqw2;
+ result[2]:=qxqz2-qyqw2;
+ result[3]:=0.0;
+ result[4]:=qxqy2-qzqw2;
+ result[5]:=1.0-(qxqx2+qzqz2);
+ result[6]:=qyqz2+qxqw2;
+ result[7]:=0.0;
+ result[8]:=qxqz2+qyqw2;
+ result[9]:=qyqz2-qxqw2;
+ result[10]:=1.0-(qxqx2+qyqy2);
+ result[11]:=0.0;
+ result[12]:=0.0;
+ result[13]:=0.0;
+ result[14]:=0.0;
+ result[15]:=1.0;
+end;
+
+function MatrixFromScale(const aScale:TVector3):TMatrix;
+begin
+ result[0]:=aScale[0];
+ result[1]:=0.0;
+ result[2]:=0.0;
+ result[3]:=0.0;
+ result[4]:=0.0;
+ result[5]:=aScale[1];
+ result[6]:=0.0;
+ result[7]:=0.0;
+ result[8]:=0.0;
+ result[9]:=0.0;
+ result[10]:=aScale[2];
+ result[11]:=0.0;
+ result[12]:=0.0;
+ result[13]:=0.0;
+ result[14]:=0.0;
+ result[15]:=1.0;
+end;
+
+function MatrixFromTranslation(const aTranslation:TVector3):TMatrix;
+begin
+ result[0]:=1.0;
+ result[1]:=0.0;
+ result[2]:=0.0;
+ result[3]:=0.0;
+ result[4]:=0.0;
+ result[5]:=1.0;
+ result[6]:=0.0;
+ result[7]:=0.0;
+ result[8]:=0.0;
+ result[9]:=0.0;
+ result[10]:=1.0;
+ result[11]:=0.0;
+ result[12]:=aTranslation[0];
+ result[13]:=aTranslation[1];
+ result[14]:=aTranslation[2];
+ result[15]:=1.0;
+end;
+
+function MatrixMul(const a,b:TMatrix):TMatrix;
+begin
+ result[0]:=(a[0]*b[0])+(a[1]*b[4])+(a[2]*b[8])+(a[3]*b[12]);
+ result[1]:=(a[0]*b[1])+(a[1]*b[5])+(a[2]*b[9])+(a[3]*b[13]);
+ result[2]:=(a[0]*b[2])+(a[1]*b[6])+(a[2]*b[10])+(a[3]*b[14]);
+ result[3]:=(a[0]*b[3])+(a[1]*b[7])+(a[2]*b[11])+(a[3]*b[15]);
+ result[4]:=(a[4]*b[0])+(a[5]*b[4])+(a[6]*b[8])+(a[7]*b[12]);
+ result[5]:=(a[4]*b[1])+(a[5]*b[5])+(a[6]*b[9])+(a[7]*b[13]);
+ result[6]:=(a[4]*b[2])+(a[5]*b[6])+(a[6]*b[10])+(a[7]*b[14]);
+ result[7]:=(a[4]*b[3])+(a[5]*b[7])+(a[6]*b[11])+(a[7]*b[15]);
+ result[8]:=(a[8]*b[0])+(a[9]*b[4])+(a[10]*b[8])+(a[11]*b[12]);
+ result[9]:=(a[8]*b[1])+(a[9]*b[5])+(a[10]*b[9])+(a[11]*b[13]);
+ result[10]:=(a[8]*b[2])+(a[9]*b[6])+(a[10]*b[10])+(a[11]*b[14]);
+ result[11]:=(a[8]*b[3])+(a[9]*b[7])+(a[10]*b[11])+(a[11]*b[15]);
+ result[12]:=(a[12]*b[0])+(a[13]*b[4])+(a[14]*b[8])+(a[15]*b[12]);
+ result[13]:=(a[12]*b[1])+(a[13]*b[5])+(a[14]*b[9])+(a[15]*b[13]);
+ result[14]:=(a[12]*b[2])+(a[13]*b[6])+(a[14]*b[10])+(a[15]*b[14]);
+ result[15]:=(a[12]*b[3])+(a[13]*b[7])+(a[14]*b[11])+(a[15]*b[15]);
+end;
+
 { TGLTFModel }
 
 constructor TGLTFOpenGL.Create(const aDocument:TPasGLTF.TDocument);
@@ -181,13 +354,15 @@ procedure TGLTFOpenGL.InitializeResources;
  var Index,
      PrimitiveIndex,
      AccessorIndex,
-     IndexIndex:TPasGLTFSizeInt;
+     IndexIndex,
+     VertexIndex:TPasGLTFSizeInt;
      SourceMesh:TPasGLTF.TMesh;
      SourceMeshPrimitive:TPasGLTF.TMesh.TPrimitive;
      DestinationMesh:PMesh;
      DestinationMeshPrimitive:TMesh.PPrimitive;
      TemporaryPositions,
-     TemporaryNormals:TPasGLTF.TVector3DynamicArray;
+     TemporaryNormals,
+     TemporaryBitangents:TPasGLTF.TVector3DynamicArray;
      TemporaryTangents,
      TemporaryColor0,
      TemporaryJoints0,
@@ -196,7 +371,12 @@ procedure TGLTFOpenGL.InitializeResources;
      TemporaryWeights1:TPasGLTF.TVector4DynamicArray;
      TemporaryTexCoord0,
      TemporaryTexCoord1:TPasGLTF.TVector2DynamicArray;
-     TemporaryIndices:TPasGLTFUInt32DynamicArray;
+     TemporaryIndices,
+     TemporaryTriangleIndices:TPasGLTFUInt32DynamicArray;
+     Normal,Tangent,Bitangent,p1p0,p2p0:TVector3;
+     p0,p1,p2:PVector3;
+     t1t0,t2t0:TVector2;
+     t0,t1,t2:PVector2;
  begin
 
   SetLength(fMeshes,fDocument.Meshes.Count);
@@ -309,11 +489,104 @@ procedure TGLTFOpenGL.InitializeResources;
        TemporaryIndices[IndexIndex]:=IndexIndex;
       end;
      end;
+     case SourceMeshPrimitive.Mode of
+      TPasGLTF.TMesh.TPrimitive.TMode.Triangles:begin
+       TemporaryTriangleIndices:=TemporaryIndices;
+      end;
+      TPasGLTF.TMesh.TPrimitive.TMode.TriangleStrip:begin
+       TemporaryTriangleIndices:=nil;
+       // TODO
+      end;
+      TPasGLTF.TMesh.TPrimitive.TMode.TriangleFan:begin
+       TemporaryTriangleIndices:=nil;
+       // TODO
+      end;
+      else begin
+       TemporaryTriangleIndices:=nil;
+      end;
+     end;
     end;
 
     begin
      // Generate missing data
-     if length(TemporaryNormals)=0 then begin
+     if length(TemporaryNormals)<>length(TemporaryPositions) then begin
+      SetLength(TemporaryNormals,length(TemporaryPositions));
+      for VertexIndex:=0 to length(TemporaryNormals)-1 do begin
+       TemporaryNormals[VertexIndex]:=TPasGLTF.TDefaults.NullVector3;
+      end;
+      if length(TemporaryTriangleIndices)>0 then begin
+       IndexIndex:=0;
+       while (IndexIndex+2)<length(TemporaryTriangleIndices) do begin
+        p0:=@TemporaryPositions[TemporaryTriangleIndices[IndexIndex+0]];
+        p1:=@TemporaryPositions[TemporaryTriangleIndices[IndexIndex+1]];
+        p2:=@TemporaryPositions[TemporaryTriangleIndices[IndexIndex+2]];
+        Normal:=Vector3Cross(Vector3Sub(p2^,p0^),Vector3Sub(p1^,p0^)); // non-normalized weighted normal
+        TemporaryNormals[TemporaryTriangleIndices[IndexIndex+0]]:=Vector3Add(TemporaryNormals[TemporaryTriangleIndices[IndexIndex+0]],Normal);
+        TemporaryNormals[TemporaryTriangleIndices[IndexIndex+1]]:=Vector3Add(TemporaryNormals[TemporaryTriangleIndices[IndexIndex+1]],Normal);
+        TemporaryNormals[TemporaryTriangleIndices[IndexIndex+2]]:=Vector3Add(TemporaryNormals[TemporaryTriangleIndices[IndexIndex+2]],Normal);
+        inc(IndexIndex,3);
+       end;
+       for VertexIndex:=0 to length(TemporaryNormals)-1 do begin
+        TemporaryNormals[VertexIndex]:=Vector3Normalize(TemporaryNormals[VertexIndex]);
+       end;
+      end;
+     end;
+     if length(TemporaryTexCoord0)<>length(TemporaryPositions) then begin
+      SetLength(TemporaryTexCoord0,length(TemporaryPositions));
+      for VertexIndex:=0 to length(TemporaryNormals)-1 do begin
+       TemporaryTexCoord0[VertexIndex]:=PVector2(@TPasGLTF.TDefaults.NullVector3)^;
+      end;
+     end;
+     if length(TemporaryTangents)<>length(TemporaryPositions) then begin
+      SetLength(TemporaryTangents,length(TemporaryPositions));
+      SetLength(TemporaryBitangents,length(TemporaryPositions));
+      for VertexIndex:=0 to length(TemporaryTangents)-1 do begin
+       PVector3(@TemporaryTangents[VertexIndex])^:=TPasGLTF.TDefaults.NullVector3;
+       TemporaryBitangents[VertexIndex]:=TPasGLTF.TDefaults.NullVector3;
+      end;
+      if length(TemporaryTriangleIndices)>0 then begin
+       IndexIndex:=0;
+       while (IndexIndex+2)<length(TemporaryTriangleIndices) do begin
+        p0:=@TemporaryPositions[TemporaryTriangleIndices[IndexIndex+0]];
+        p1:=@TemporaryPositions[TemporaryTriangleIndices[IndexIndex+1]];
+        p2:=@TemporaryPositions[TemporaryTriangleIndices[IndexIndex+2]];
+        t0:=@TemporaryTexCoord0[TemporaryTriangleIndices[IndexIndex+0]];
+        t1:=@TemporaryTexCoord0[TemporaryTriangleIndices[IndexIndex+1]];
+        t2:=@TemporaryTexCoord0[TemporaryTriangleIndices[IndexIndex+2]];
+        p1p0:=Vector3Sub(p1^,p0^);
+        p2p0:=Vector3Sub(p2^,p0^);
+        t1t0:=Vector2Sub(t1^,t0^);
+        t2t0:=Vector2Sub(t2^,t0^);
+        Normal:=Vector3Cross(p2p0,p1p0);
+        if Vector3Dot(TemporaryNormals[TemporaryTriangleIndices[IndexIndex+0]],Normal)<0.0 then begin
+         Normal:=Vector3Neg(Normal);
+        end;
+        Tangent[0]:=(t1t0[1]*p2p0[0])-(t2t0[1]*p1p0[0]);
+        Tangent[1]:=(t1t0[1]*p2p0[1])-(t2t0[1]*p1p0[1]);
+        Tangent[2]:=(t1t0[1]*p2p0[2])-(t2t0[1]*p1p0[2]);
+        Bitangent[0]:=(t1t0[0]*p2p0[0])-(t2t0[0]*p1p0[0]);
+        Bitangent[1]:=(t1t0[0]*p2p0[1])-(t2t0[0]*p1p0[1]);
+        Bitangent[2]:=(t1t0[0]*p2p0[2])-(t2t0[0]*p1p0[2]);
+        if Vector3Dot(Vector3Cross(Bitangent,Tangent),Normal)<0.0 then begin
+         Tangent:=Vector3Neg(Tangent);
+         Bitangent:=Vector3Neg(Bitangent);
+        end;
+        PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+0]])^:=Vector3Add(PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+0]])^,Tangent);
+        PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+1]])^:=Vector3Add(PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+1]])^,Tangent);
+        PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+2]])^:=Vector3Add(PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+2]])^,Tangent);
+        TemporaryBitangents[TemporaryTriangleIndices[IndexIndex+0]]:=Vector3Add(TemporaryBitangents[TemporaryTriangleIndices[IndexIndex+0]],Bitangent);
+        TemporaryBitangents[TemporaryTriangleIndices[IndexIndex+1]]:=Vector3Add(TemporaryBitangents[TemporaryTriangleIndices[IndexIndex+1]],Bitangent);
+        TemporaryBitangents[TemporaryTriangleIndices[IndexIndex+2]]:=Vector3Add(TemporaryBitangents[TemporaryTriangleIndices[IndexIndex+2]],Bitangent);
+        inc(IndexIndex,3);
+       end;
+       for VertexIndex:=0 to length(TemporaryTangents)-1 do begin
+        PVector3(@TemporaryTangents[VertexIndex])^:=Vector3Normalize(PVector3(@TemporaryTangents[VertexIndex])^);
+        TemporaryBitangents[VertexIndex]:=Vector3Normalize(TemporaryBitangents[VertexIndex]);
+        if Vector3Dot(Vector3Cross(PVector3(@TemporaryTangents[VertexIndex])^,TemporaryNormals[VertexIndex]),
+                       then
+
+       end;
+      end;
      end;
     end;
 
@@ -359,103 +632,6 @@ begin
 end;
 
 procedure TGLTFOpenGL.Draw(const aScene:TPasGLTFSizeInt=-1);
-type TMatrix=TPasGLTF.TMatrix4x4;
-     PMatrix=^TMatrix;
- function MatrixFromRotation(const aRotation:TPasGLTF.TVector4):TMatrix;
- var qx2,qy2,qz2,qxqx2,qxqy2,qxqz2,qxqw2,qyqy2,qyqz2,qyqw2,qzqz2,qzqw2,l:TPasGLTFFloat;
-     Rotation:TPasGLTF.TVector4;
- begin
-  l:=sqrt(sqr(aRotation[0])+sqr(aRotation[1])+sqr(aRotation[2])+sqr(aRotation[3]));
-  Rotation[0]:=aRotation[0]/l;
-  Rotation[1]:=aRotation[1]/l;
-  Rotation[2]:=aRotation[2]/l;
-  Rotation[3]:=aRotation[3]/l;
-  qx2:=Rotation[0]+Rotation[0];
-  qy2:=Rotation[1]+Rotation[1];
-  qz2:=Rotation[2]+Rotation[2];
-  qxqx2:=Rotation[0]*qx2;
-  qxqy2:=Rotation[0]*qy2;
-  qxqz2:=Rotation[0]*qz2;
-  qxqw2:=Rotation[3]*qx2;
-  qyqy2:=Rotation[1]*qy2;
-  qyqz2:=Rotation[1]*qz2;
-  qyqw2:=Rotation[3]*qy2;
-  qzqz2:=Rotation[2]*qz2;
-  qzqw2:=Rotation[3]*qz2;
-  result[0]:=1.0-(qyqy2+qzqz2);
-  result[1]:=qxqy2+qzqw2;
-  result[2]:=qxqz2-qyqw2;
-  result[3]:=0.0;
-  result[4]:=qxqy2-qzqw2;
-  result[5]:=1.0-(qxqx2+qzqz2);
-  result[6]:=qyqz2+qxqw2;
-  result[7]:=0.0;
-  result[8]:=qxqz2+qyqw2;
-  result[9]:=qyqz2-qxqw2;
-  result[10]:=1.0-(qxqx2+qyqy2);
-  result[11]:=0.0;
-  result[12]:=0.0;
-  result[13]:=0.0;
-  result[14]:=0.0;
-  result[15]:=1.0;
- end;
- function MatrixFromScale(const aScale:TPasGLTF.TVector3):TMatrix;
- begin
-  result[0]:=aScale[0];
-  result[1]:=0.0;
-  result[2]:=0.0;
-  result[3]:=0.0;
-  result[4]:=0.0;
-  result[5]:=aScale[1];
-  result[6]:=0.0;
-  result[7]:=0.0;
-  result[8]:=0.0;
-  result[9]:=0.0;
-  result[10]:=aScale[2];
-  result[11]:=0.0;
-  result[12]:=0.0;
-  result[13]:=0.0;
-  result[14]:=0.0;
-  result[15]:=1.0;
- end;
- function MatrixFromTranslation(const aTranslation:TPasGLTF.TVector3):TMatrix;
- begin
-  result[0]:=1.0;
-  result[1]:=0.0;
-  result[2]:=0.0;
-  result[3]:=0.0;
-  result[4]:=0.0;
-  result[5]:=1.0;
-  result[6]:=0.0;
-  result[7]:=0.0;
-  result[8]:=0.0;
-  result[9]:=0.0;
-  result[10]:=1.0;
-  result[11]:=0.0;
-  result[12]:=aTranslation[0];
-  result[13]:=aTranslation[1];
-  result[14]:=aTranslation[2];
-  result[15]:=1.0;
- end;
- function MatrixMul(const a,b:TMatrix):TMatrix;
- begin
-  result[0]:=(a[0]*b[0])+(a[1]*b[4])+(a[2]*b[8])+(a[3]*b[12]);
-  result[1]:=(a[0]*b[1])+(a[1]*b[5])+(a[2]*b[9])+(a[3]*b[13]);
-  result[2]:=(a[0]*b[2])+(a[1]*b[6])+(a[2]*b[10])+(a[3]*b[14]);
-  result[3]:=(a[0]*b[3])+(a[1]*b[7])+(a[2]*b[11])+(a[3]*b[15]);
-  result[4]:=(a[4]*b[0])+(a[5]*b[4])+(a[6]*b[8])+(a[7]*b[12]);
-  result[5]:=(a[4]*b[1])+(a[5]*b[5])+(a[6]*b[9])+(a[7]*b[13]);
-  result[6]:=(a[4]*b[2])+(a[5]*b[6])+(a[6]*b[10])+(a[7]*b[14]);
-  result[7]:=(a[4]*b[3])+(a[5]*b[7])+(a[6]*b[11])+(a[7]*b[15]);
-  result[8]:=(a[8]*b[0])+(a[9]*b[4])+(a[10]*b[8])+(a[11]*b[12]);
-  result[9]:=(a[8]*b[1])+(a[9]*b[5])+(a[10]*b[9])+(a[11]*b[13]);
-  result[10]:=(a[8]*b[2])+(a[9]*b[6])+(a[10]*b[10])+(a[11]*b[14]);
-  result[11]:=(a[8]*b[3])+(a[9]*b[7])+(a[10]*b[11])+(a[11]*b[15]);
-  result[12]:=(a[12]*b[0])+(a[13]*b[4])+(a[14]*b[8])+(a[15]*b[12]);
-  result[13]:=(a[12]*b[1])+(a[13]*b[5])+(a[14]*b[9])+(a[15]*b[13]);
-  result[14]:=(a[12]*b[2])+(a[13]*b[6])+(a[14]*b[10])+(a[15]*b[14]);
-  result[15]:=(a[12]*b[3])+(a[13]*b[7])+(a[14]*b[11])+(a[15]*b[15]);
- end;
  procedure DrawNode(const aNode:TPasGLTF.TNode;const aMatrix:TMatrix);
  var Index:TPasGLTFSizeInt;
      Matrix:TMatrix;
