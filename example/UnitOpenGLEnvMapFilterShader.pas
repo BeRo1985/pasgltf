@@ -161,9 +161,14 @@ begin
     '  vec3 tangentY = cross(tangentZ, tangentX);'+#13#10+
     '  return (tangentX * h.x) + (tangentY * h.y) + (tangentZ * h.z);'+#13#10+
     '}'+#13#10+
+    'vec3 convertSRGBToLinearRGB(vec3 c){'+#13#10+
+    '  return mix(pow((c + vec3(5.5e-2)) / vec3(1.055), vec3(2.4)),'+#13#10+
+    '             c / vec3(12.92),'+#13#10+
+    '             lessThan(c, vec3(4.045e-2)));'+#13#10+
+    '}'+#13#10+
     'void main(){'+#13#10+
     '  if(uMipMapLevel == 0){'+#13#10+
-    '    oOutput = pow(textureLod(uTexture, vTexCoord, 0.0), vec4(2.2));'+#13#10+
+    '    oOutput = vec4(convertSRGBToLinearRGB(textureLod(uTexture, vTexCoord, 0.0).xyz), 1.0);'+#13#10+
     '	}else{'+#13#10+
     '	  float roughness = clamp(exp2((1 - ((8 - 1) - uMipMapLevel)) / 1.2), 0.0, 1.0);'+#13#10+
     '	  const int numSamples = 64; //clamp(64 * uMipMapLevel, 1, 256);'+#13#10+

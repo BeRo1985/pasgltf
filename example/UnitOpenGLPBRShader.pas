@@ -239,9 +239,19 @@ begin
     '	 float vDotH = clamp(dot(viewDirection, halfVector), 0.0, 1.0);'+#13#10+
     '  vec3 diffuse = diffuseFunction(diffuseColor, materialRoughness, nDotV, nDotL, vDotH) * (1.0 - materialTransparency);'+#13#10+
     '	 vec3 specular = specularF(specularColor, max(vDotH, refractiveAngle)) *'+#13#10+
-    '                   specularD(materialRoughness, nDotH) *'+#13#10+
-    '                   specularG(materialRoughness, nDotV, nDotL);'+#13#10+
+    '                  specularD(materialRoughness, nDotH) *'+#13#10+
+    '                  specularG(materialRoughness, nDotV, nDotL);'+#13#10+
     '	 return (diffuse + specular) * ((materialCavity * nDotL * lightColor) * lightLit);'+#13#10+
+    '}'+#13#10+
+    'vec3 convertLinearRGBToSRGB(vec3 c){'+#13#10+
+    '  return mix((pow(c, vec3(1.0 / 2.4)) * vec3(1.055)) - vec3(5.5e-2),'+#13#10+
+    '             c * vec3(12.92),'+#13#10+
+    '             lessThan(c, vec3(3.1308e-3)));'+#13#10+
+    '}'+#13#10+
+    'vec3 convertSRGBToLinearRGB(vec3 c){'+#13#10+
+    '  return mix(pow((c + vec3(5.5e-2)) / vec3(1.055), vec3(2.4)),'+#13#10+
+    '             c / vec3(12.92),'+#13#10+
+    '             lessThan(c, vec3(4.045e-2)));'+#13#10+
     '}'+#13#10+
     'vec4 getEnvMap(sampler2D texEnvMap, float texLOD, vec3 rayDirection){'+#13#10+
     '  rayDirection = normalize(rayDirection);'+#13#10+
@@ -249,11 +259,11 @@ begin
     '}'+#13#10+
     'vec3 ACESFilm(vec3 x){'+#13#10+
     '  const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14f;'+#13#10+
-    '  return pow(clamp((x * ((a * x) + vec3(b))) / (x * ((c * x) + vec3(d)) + vec3(e)), vec3(0.0), vec3(1.0)), vec3(1.0 / 2.2));'+#13#10+
+    '  return clamp((x * ((a * x) + vec3(b))) / (x * ((c * x) + vec3(d)) + vec3(e)), vec3(0.0), vec3(1.0));'+#13#10+
     '}'+#13#10+
     'vec3 toneMappingAndToLDR(vec3 x){'+#13#10+
     '  float exposure = 1.0;'+#13#10+
-    '  return ACESFilm(x * exposure);'+#13#10+
+    '  return convertLinearRGBToSRGB(ACESFilm(x * exposure));'+#13#10+
     '}'+#13#10+
     'void main(){'+#13#10+
     '  vec4 baseColorTexture, metallicRoughnessTexture, normalTexture, occlusionTexture, emissiveTexture;'+#13#10+
@@ -283,19 +293,21 @@ begin
     '    emissiveTexture = vec4(0.0);'+#13#10+
     '  }'+#13#10+
     '  mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
-    '  vec4 materialAlbedo = vec4(pow(baseColorTexture.xyz, vec3(2.2)), baseColorTexture.w) * uBaseColorFactor,'+#13#10+
+    '  vec4 materialAlbedo = vec4(convertSRGBToLinearRGB(baseColorTexture.xyz), baseColorTexture.w) * uBaseColorFactor,'+#13#10+
     '       materialNormal = vec4(normalize(tangentSpace * normalTexture.xyz), normalTexture.w * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.z);'+#13#10+
     '  float materialRoughness = clamp(metallicRoughnessTexture.y * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.y, 1e-3, 1.0),'+#13#10+
-    '        materialCavity = clamp(occlusionTexture.x * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.w, 0.0, 1.0),'+#13#10+
+    '        materialCavity = clamp(mix(1.0, occlusionTexture.x, uMetallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
     '        materialMetallic = clamp(metallicRoughnessTexture.z * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.x, 0.0, 1.0),'+#13#10+
     '        materialTransparency = 0.0,'+#13#10+
     '        refractiveAngle = 0.0,'+#13#10+
     '        ambientOcclusion = 1.0,'+#13#10+
     '        shadow = 1.0;'+#13#10+
-    '  vec3 viewDirection = normalize(vViewSpacePosition),'+#13#10+
-    '       diffuseColor = materialAlbedo.xyz * (1.0 - materialMetallic) * PI,'+#13#10+
-    '       specularColor = mix(vec3(0.04), materialAlbedo.xyz, materialMetallic) * PI;'+#13#10+
-{   '  vec3 color = (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
+    '  vec3 f0 = vec3(0.04),'+#13#10+
+    '       viewDirection = normalize(vViewSpacePosition),'+#13#10+
+    '       diffuseColor = materialAlbedo.xyz * (vec3(1.0) - f0) * (1.0 - materialMetallic) * PI,'+#13#10+
+    '       specularColor = mix(f0, materialAlbedo.xyz, materialMetallic) * PI;'+#13#10+
+    '  vec3 color = vec3(0.0);'+#13#10+
+{   '  color += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
     '                              pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
     '                              -uLightDirection,'+#13#10+
     '                              materialNormal.xyz,'+#13#10+
@@ -315,8 +327,7 @@ begin
     '                   ) * ambientOcclusion) +'+#13#10+
     '                  // Bounce light'+#13#10+
     '                  (clamp(-materialNormal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
-    '                 ) * diffuseLambert(diffuseColor) * materialCavity));'+#13#10+}
-    '  vec3 color = vec3(0.0);'+#13#10+
+    '                 ) * diffuseLambert(diffuseColor) * materialCavity));'+#13#10+  {}
     '  color += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
     '                         pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
     '                         -uLightDirection,'+#13#10+
@@ -328,18 +339,18 @@ begin
     '                         materialTransparency,'+#13#10+
     '                         materialRoughness,'+#13#10+
     '                         materialCavity,'+#13#10+
-    '                         materialMetallic)*1.0;'+#13#10+
+    '                         materialMetallic);'+#13#10+
     '  {'+#13#10+
-    '    float NoV = abs(dot(materialNormal.xyz, viewDirection)) + 1e-3,'+#13#10+
+    '    float NoV = clamp(abs(dot(materialNormal.xyz, viewDirection)), 1e-3, 1.0),'+#13#10+
     '          ao = materialCavity * ambientOcclusion,'+#13#10+
     '          specularOcclusion = clamp((((NoV + ao) * (NoV + ao)) - 1.0) + ao, 0.0, 1.0);'+#13#10+
     '  	 vec2 brdf = textureLod(uBRDFLUTTexture, vec2(materialRoughness, NoV), 0.0).xy;'+#13#10+
-		'    vec3 rayDirection = normalize(reflect(viewDirection, materialNormal.xyz));'+#13#10+
-    '    color += getEnvMap(uEnvMapTexture, clamp(materialRoughness * float(uEnvMapMaxLevel), 0.0, float(uEnvMapMaxLevel)), rayDirection).xyz * ((specularColor * brdf.x) + brdf.yyy) * specularOcclusion;'+#13#10+
-//  '    color += getEnvMap(uEnvMapTexture, clamp((8.0 - 1.0) - (1.0 - (1.2 * log2(materialRoughness))), 0.0, 8.0), rayDirection).xyz * ((specularColor * brdf.x) + brdf.yyy) * specularOcclusion;'+#13#10+
+		'    vec3 rayDirection = -normalize(reflect(viewDirection, materialNormal.xyz));'+#13#10+
+    '    color += getEnvMap(uEnvMapTexture, clamp((8.0 - 1.0) - (1.0 - (1.2 * log2(materialRoughness))), 0.0, min(8.0, float(uEnvMapMaxLevel))), rayDirection).xyz * ((specularColor * brdf.x) + brdf.yyy) * specularOcclusion;'+#13#10+
+//  '    color += getEnvMap(uEnvMapTexture, clamp(materialRoughness * float(uEnvMapMaxLevel), 0.0, float(uEnvMapMaxLevel)), rayDirection).xyz * ((specularColor * brdf.x) + brdf.yyy) * specularOcclusion;'+#13#10+
     '    color += getEnvMap(uEnvMapTexture, float(uEnvMapMaxLevel), rayDirection).xyz * diffuseColor * ao;'+#13#10+
     '  }'+#13#10+
-    '  oOutput = vec4(toneMappingAndToLDR((color + emissiveTexture.xyz) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10+
+    '  oOutput = vec4(toneMappingAndToLDR((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10+
    '}'+#13#10;
  inherited Create(f,v);
 end;
@@ -369,7 +380,7 @@ begin
  inherited BindVariables;
  uBaseColorFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBaseColorFactor')));
  uBaseColorTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBaseColorTexture')));
- uMetallicRoughnessTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('PBRMetallicRoughnessMetallicRoughnessTexture')));
+ uMetallicRoughnessTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMetallicRoughnessTexture')));
  uNormalTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uNormalTexture')));
  uOcclusionTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uOcclusionTexture')));
  uEmissiveTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveTexture')));

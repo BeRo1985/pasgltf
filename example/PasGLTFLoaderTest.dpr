@@ -84,7 +84,7 @@ var Event:TSDL_Event;
   t:=Time;
   ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*4.0,sin(t*0.25)*4.0,cos(t)*4.0),Vector3Origin,Vector3YAxis);
   ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,0.1,128.0);
-  LightDirection:=Vector3Norm(Vector3(0.25,-0.5,-1.0));
+  LightDirection:=Vector3Norm(Vector3(0.5,-1.0,0.0));
   InverseViewProjectionMatrix:=Matrix4x4TermInverse(Matrix4x4TermMul(ViewMatrix,ProjectionMatrix));
   begin
    glDisable(GL_DEPTH_TEST);
@@ -115,7 +115,7 @@ var Event:TSDL_Event;
    glUniform3fv(PBRShader.uLightDirection,1,@LightDirection);
    glUniform1i(PBRShader.uBRDFLUTTexture,5);
    glUniform1i(PBRShader.uEnvMapTexture,6);
-   glUniform1i(PBRShader.uEnvMapMaxLevel,EnvMapFBO.WorkMaxLevel);
+   glUniform1i(PBRShader.uEnvMapMaxLevel,Min(EnvMapFBO.WorkMaxLevel,16));
    GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
                    TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
                    TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
