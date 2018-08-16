@@ -70,6 +70,7 @@ type EGLTFOpenGL=class(Exception);
       private
        fDocument:TPasGLTF.TDocument;
        fReady:boolean;
+       fUploaded:boolean;
        fAccessors:TAccessors;
        fBufferViews:TBufferViews;
        fMeshes:TMeshes;
@@ -78,6 +79,8 @@ type EGLTFOpenGL=class(Exception);
        destructor Destroy; override;
        procedure InitializeResources;
        procedure FinalizeResources;
+       procedure UploadResources;
+       procedure UnloadResources;
        procedure Draw(const aScene:TPasGLTFSizeInt=-1);
       published
        property Document:TPasGLTF.TDocument read fDocument;
@@ -272,6 +275,7 @@ begin
  inherited Create;
  fDocument:=aDocument;
  fReady:=false;
+ fUploaded:=false;
  fAccessors:=nil;
  fBufferViews:=nil;
  fMeshes:=nil;
@@ -279,6 +283,7 @@ end;
 
 destructor TGLTFOpenGL.Destroy;
 begin
+ UnloadResources;
  FinalizeResources;
  inherited Destroy;
 end;
@@ -649,6 +654,20 @@ begin
  if fReady then begin
   fReady:=false;
   FinalizeMeshes;
+ end;
+end;
+
+procedure TGLTFOpenGL.UploadResources;
+begin
+ if not fUploaded then begin
+  fUploaded:=true;
+ end;
+end;
+
+procedure TGLTFOpenGL.UnloadResources;
+begin
+ if fUploaded then begin
+  fUploaded:=false;
  end;
 end;
 
