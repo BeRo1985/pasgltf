@@ -163,7 +163,7 @@ begin
     '}'+#13#10+
     'void main(){'+#13#10+
     '  if(uMipMapLevel == 0){'+#13#10+
-    '    oOutput = textureLod(uTexture, vTexCoord, 0.0);'+#13#10+
+    '    oOutput = pow(textureLod(uTexture, vTexCoord, 0.0), vec4(2.2));'+#13#10+
     '	}else{'+#13#10+
     '	  float roughness = clamp(exp2((1 - ((8 - 1) - uMipMapLevel)) / 1.2), 0.0, 1.0);'+#13#10+
     '	  const int numSamples = 64; //clamp(64 * uMipMapLevel, 1, 256);'+#13#10+

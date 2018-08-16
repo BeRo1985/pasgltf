@@ -104,6 +104,8 @@ var Event:TSDL_Event;
    glBindTexture(GL_TEXTURE_2D,BRDFLUTFBO.TextureHandles[0]);
    glActiveTexture(GL_TEXTURE6);
    glBindTexture(GL_TEXTURE_2D,EnvMapFBO.TextureHandles[0]);
+   glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+   glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
    glActiveTexture(GL_TEXTURE0);
    glEnable(GL_DEPTH_TEST);
    glEnable(GL_CULL_FACE);
@@ -113,6 +115,7 @@ var Event:TSDL_Event;
    glUniform3fv(PBRShader.uLightDirection,1,@LightDirection);
    glUniform1i(PBRShader.uBRDFLUTTexture,5);
    glUniform1i(PBRShader.uEnvMapTexture,6);
+   glUniform1i(PBRShader.uEnvMapMaxLevel,EnvMapFBO.WorkMaxLevel);
    GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
                    TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
                    TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
