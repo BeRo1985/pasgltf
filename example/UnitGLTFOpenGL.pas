@@ -61,7 +61,8 @@ type EGLTFOpenGL=class(Exception);
                     Indices:TPasGLTFUInt32DynamicArray;
                     StartBufferVertexOffset:TPasGLTFSizeUInt;
                     StartBufferIndexOffset:TPasGLTFSizeUInt;
-                    Count:TPasGLTFSizeUInt;
+                    CountVertices:TPasGLTFSizeUInt;
+                    CountIndices:TPasGLTFSizeUInt;
                    end;
                    PPrimitive=^TPrimitive;
                    TPrimitives=array of TPrimitive;
@@ -661,9 +662,45 @@ begin
 end;
 
 procedure TGLTFOpenGL.UploadResources;
+type TAllVertices=TPasGLTFDynamicArray<TVertex>;
+     TAllIndices=TPasGLTFDynamicArray<TPasGLTFUInt32>;
+var AllVertices:TAllVertices;
+    AllIndices:TAllIndices;
+ procedure CollectVerticesAndIndicesFromMeshes;
+ var Index,
+     PrimitiveIndex,
+     VertexIndex,
+     IndexIndex:TPasGLTFSizeInt;
+     Mesh:PMesh;
+     Primitive:TMesh.PPrimitive;
+ begin
+  for Index:=0 to length(fMeshes)-1 do begin
+   Mesh:=@fMeshes[Index];
+   for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
+    Primitive:=@Mesh.Primitives[PrimitiveIndex];
+    Primitive^.StartBufferVertexOffset:=AllVertices.Count;
+    Primitive^.StartBufferIndexOffset:=AllIndices.Count;
+    Primitive^.CountVertices:=length(Primitive^.Vertices);
+    Primitive^.CountIndices:=length(Primitive^.Indices);
+    AllVertices.Add(Primitive^.Vertices);
+    AllIndices.Add(Primitive^.Indices);
+   end;
+  end;
+ end;
 begin
  if not fUploaded then begin
   fUploaded:=true;
+  AllVertices:=TAllVertices.Create;
+  try
+   AllIndices:=TAllIndices.Create;
+   try
+    CollectVerticesAndIndicesFromMeshes;
+   finally
+    FreeAndNil(AllIndices);
+   end;
+  finally
+   FreeAndNil(AllVertices);
+  end;
  end;
 end;
 

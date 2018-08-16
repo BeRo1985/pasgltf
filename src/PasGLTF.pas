@@ -475,7 +475,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
        constructor Create;
        destructor Destroy; override;
        procedure Clear;
-       function Add(const pItem:T):TPasGLTFSizeInt;
+       function Add(const pItem:T):TPasGLTFSizeInt; overload;
+       function Add(const pItems:array of T):TPasGLTFSizeInt; overload;
        procedure Insert(const pIndex:TPasGLTFSizeInt;const pItem:T);
        procedure Delete(const pIndex:TPasGLTFSizeInt);
        procedure Exchange(const pIndex,pWithIndex:TPasGLTFSizeInt); inline;
@@ -1467,6 +1468,22 @@ begin
   SetLength(fItems,fAllocated);
  end;
  fItems[result]:=pItem;
+end;
+
+function TPasGLTFDynamicArray<T>.Add(const pItems:array of T):TPasGLTFSizeInt;
+var Index:TPasGLTFSizeInt;
+begin
+ result:=fCount;
+ if length(pItems)>0 then begin
+  inc(fCount,length(pItems));
+  if fAllocated<fCount then begin
+   fAllocated:=fCount+fCount;
+   SetLength(fItems,fAllocated);
+  end;
+  for Index:=0 to length(pItems)-1 do begin
+   fItems[result+Index]:=pItems[Index];
+  end;
+ end;
 end;
 
 procedure TPasGLTFDynamicArray<T>.Insert(const pIndex:TPasGLTFSizeInt;const pItem:T);
