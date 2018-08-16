@@ -157,6 +157,13 @@ begin
  result[2]:=-aVector[2];
 end;
 
+function Vector3Scale(const aVector:TVector3;const aFactor:TPasGLTFFloat):TVector3;
+begin
+ result[0]:=aVector[0]*aFactor;
+ result[1]:=aVector[1]*aFactor;
+ result[2]:=aVector[2]*aFactor;
+end;
+
 function MatrixFromRotation(const aRotation:TVector4):TMatrix;
 var qx2,qy2,qz2,qxqx2,qxqy2,qxqz2,qxqw2,qyqy2,qyqz2,qyqw2,qzqz2,qzqw2,l:TPasGLTFFloat;
     Rotation:TPasGLTF.TVector4;
@@ -520,7 +527,7 @@ procedure TGLTFOpenGL.InitializeResources;
         p0:=@TemporaryPositions[TemporaryTriangleIndices[IndexIndex+0]];
         p1:=@TemporaryPositions[TemporaryTriangleIndices[IndexIndex+1]];
         p2:=@TemporaryPositions[TemporaryTriangleIndices[IndexIndex+2]];
-        Normal:=Vector3Cross(Vector3Sub(p2^,p0^),Vector3Sub(p1^,p0^)); // non-normalized weighted normal
+        Normal:=Vector3Cross(Vector3Sub(p1^,p0^),Vector3Sub(p2^,p0^)); // non-normalized weighted normal
         TemporaryNormals[TemporaryTriangleIndices[IndexIndex+0]]:=Vector3Add(TemporaryNormals[TemporaryTriangleIndices[IndexIndex+0]],Normal);
         TemporaryNormals[TemporaryTriangleIndices[IndexIndex+1]]:=Vector3Add(TemporaryNormals[TemporaryTriangleIndices[IndexIndex+1]],Normal);
         TemporaryNormals[TemporaryTriangleIndices[IndexIndex+2]]:=Vector3Add(TemporaryNormals[TemporaryTriangleIndices[IndexIndex+2]],Normal);
@@ -580,11 +587,13 @@ procedure TGLTFOpenGL.InitializeResources;
         inc(IndexIndex,3);
        end;
        for VertexIndex:=0 to length(TemporaryTangents)-1 do begin
-        PVector3(@TemporaryTangents[VertexIndex])^:=Vector3Normalize(PVector3(@TemporaryTangents[VertexIndex])^);
-        TemporaryBitangents[VertexIndex]:=Vector3Normalize(TemporaryBitangents[VertexIndex]);
-        if Vector3Dot(Vector3Cross(TemporaryNormals[VertexIndex],
-                                   PVector3(@TemporaryTangents[VertexIndex])^),
-                      TemporaryBitangents[VertexIndex])<0.0 then begin
+        Normal:=TemporaryNormals[VertexIndex];
+        Tangent:=Vector3Normalize(PVector3(@TemporaryTangents[VertexIndex])^);
+        Tangent:=Vector3Normalize(Vector3Sub(Tangent,Vector3Scale(Normal,Vector3Dot(Tangent,Normal))));
+        Bitangent:=Vector3Normalize(TemporaryBitangents[VertexIndex]);
+        Bitangent:=Vector3Normalize(Vector3Sub(Bitangent,Vector3Scale(Normal,Vector3Dot(Bitangent,Normal))));
+        PVector3(@TemporaryTangents[VertexIndex])^:=Tangent;
+        if Vector3Dot(Vector3Cross(TemporaryNormals[VertexIndex],Tangent),Bitangent)<0.0 then begin
          TemporaryTangents[VertexIndex,3]:=-1.0;
         end else begin
          TemporaryTangents[VertexIndex,3]:=1.0;
