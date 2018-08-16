@@ -840,19 +840,11 @@ end;
 
 procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aScene:TPasGLTFSizeInt=-1);
  procedure DrawNode(const aNode:TPasGLTF.TNode;const aMatrix:TMatrix);
- var Index:TPasGLTFSizeInt;
-     Matrix:TMatrix;
   procedure DrawMesh(const aMesh:TMesh);
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
-      ModelMatrix,ModelViewMatrix,ModelViewProjectionMatrix:TPasGLTF.TMatrix4x4;
       Material:TPasGLTF.TMaterial;
   begin
-   ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
-   ModelViewMatrix:=MatrixMul(ModelMatrix,aViewMatrix);
-   ModelViewProjectionMatrix:=MatrixMul(ModelViewMatrix,aProjectionMatrix);
-   glUniformMatrix4fv(aPBRShader.uModelViewMatrix,1,false,@ModelViewMatrix);
-   glUniformMatrix4fv(aPBRShader.uModelViewProjectionMatrix,1,false,@ModelViewProjectionMatrix);
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
     if (Primitive^.Material>=0) and (Primitive^.Material<fDocument.Materials.Count) then begin
@@ -881,6 +873,8 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
     end;
    end;
   end;
+ var Index:TPasGLTFSizeInt;
+     Matrix,ModelMatrix,ModelViewMatrix,ModelViewProjectionMatrix:TPasGLTF.TMatrix4x4;
  begin
   Matrix:=MatrixMul(
            aMatrix,
@@ -892,6 +886,11 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
               MatrixFromRotation(aNode.Rotation),
               MatrixFromTranslation(aNode.Translation)))));
   if (aNode.Mesh>=0) and (aNode.Mesh<length(fMeshes)) then begin
+   ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
+   ModelViewMatrix:=MatrixMul(ModelMatrix,aViewMatrix);
+   ModelViewProjectionMatrix:=MatrixMul(ModelViewMatrix,aProjectionMatrix);
+   glUniformMatrix4fv(aPBRShader.uModelViewMatrix,1,false,@ModelViewMatrix);
+   glUniformMatrix4fv(aPBRShader.uModelViewProjectionMatrix,1,false,@ModelViewProjectionMatrix);
    DrawMesh(fMeshes[aNode.Mesh]);
   end;
   for Index:=0 to aNode.Children.Count-1 do begin
