@@ -24,7 +24,8 @@ uses
   UnitOpenGLShader in 'UnitOpenGLShader.pas',
   UnitOpenGLPBRShader in 'UnitOpenGLPBRShader.pas',
   UnitOpenGLFrameBufferObject in 'UnitOpenGLFrameBufferObject.pas',
-  UnitOpenGLBRDFLUTShader in 'UnitOpenGLBRDFLUTShader.pas';
+  UnitOpenGLBRDFLUTShader in 'UnitOpenGLBRDFLUTShader.pas',
+  UnitOpenGLEnvMapFilterShader in 'UnitOpenGLEnvMapFilterShader.pas';
 
 var InputFileName:ansistring;
 
@@ -41,6 +42,8 @@ var fs:TFileStream;
     BRDFLUTLitShader:TBRDFLUTShader;
 
     BRDFLUTFBO:TFBO;
+
+    EnvMapFilterShader:TEnvMapFilterShader;
 
     EmptyVertexArrayObjectHandle:glUInt;
 
@@ -260,6 +263,13 @@ begin
 
   finally
    FreeAndNil(BRDFLUTLitShader);
+  end;
+
+  EnvMapFilterShader:=TEnvMapFilterShader.Create;
+  try
+
+  finally
+   FreeAndNil(EnvMapFilterShader);
   end;
 
   GLTFOpenGL:=TGLTFOpenGL.Create(GLTFDocument);
