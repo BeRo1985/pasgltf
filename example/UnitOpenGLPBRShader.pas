@@ -182,6 +182,7 @@ begin
     'uniform sampler2D uOcclusionTexture;'+#13#10+
     'uniform sampler2D uEmissiveTexture;'+#13#10+
     'uniform uint uTextureFlags;'+#13#10+
+    'uniform vec3 uLightDirection;'+#13#10+
     'void main(){'+#13#10+
       'vec4 baseColorTexture, metallicRoughnessTexture, normalTexture, occlusionTexture, emissiveTexture;'+#13#10+
       'if((uTextureFlags & 1u) != 0){'+#13#10+
@@ -211,7 +212,7 @@ begin
       '}'+#13#10+
       'mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
       'vec3 normal = normalize(tangentSpace * normalTexture.xyz);'+#13#10+
-      'oOutput = baseColorTexture * vColor * max(0.0, dot(normal, vec3(0.0, 0.0, 1.0)));'+#13#10+
+      'oOutput = baseColorTexture * vColor * max(0.0, -dot(normal, uLightDirection));'+#13#10+
     '}'+#13#10;
  inherited Create(f,v);
 end;

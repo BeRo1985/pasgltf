@@ -53,6 +53,7 @@ var Event:TSDL_Event;
     SDLRunning,OldShowCursor:boolean;
  procedure Draw;
  var ModelMatrix,ViewMatrix,ProjectionMatrix:UnitMath3D.TMatrix4x4;
+     LightDirection:UnitMath3D.TVector3;
  begin
   glViewport(0,0,ViewPortWidth,ViewPortHeight);
   glClearColor(0.0,0.0,0.0,0.0);
@@ -62,9 +63,11 @@ var Event:TSDL_Event;
   glDepthFunc(GL_LEQUAL);
   glCullFace(GL_NONE);
   ModelMatrix:=Matrix4x4Identity;
-  ViewMatrix:=Matrix4x4LookAt(Vector3(0.0,0.0,-4.0),Vector3Origin,Vector3YAxis);
+  ViewMatrix:=Matrix4x4LookAt(Vector3(0.0,0.0,4.0),Vector3Origin,Vector3YAxis);
   ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,0.1,128.0);
+  LightDirection:=Vector3Norm(Vector3(0.0,-1.0,-1.0));
   PBRShader.Bind;
+  glUniform3fv(PBRShader.uLightDirection,1,@LightDirection);
   GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
                   TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
                   TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
