@@ -86,6 +86,7 @@ var Event:TSDL_Event;
   ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,0.1,128.0);
   LightDirection:=Vector3Norm(Vector3(0.5,-1.0,0.0));
   InverseViewProjectionMatrix:=Matrix4x4TermInverse(Matrix4x4TermMul(ViewMatrix,ProjectionMatrix));
+  glEnable(GL_MULTISAMPLE);
   begin
    glDisable(GL_DEPTH_TEST);
    glDisable(GL_CULL_FACE);
@@ -122,6 +123,7 @@ var Event:TSDL_Event;
                    PBRShader);
    PBRShader.Unbind;
   end;
+  glDisable(GL_MULTISAMPLE);
  end;
  procedure Resize(NewWidth,NewHeight:longint);
  var Factor:int64;
@@ -215,7 +217,7 @@ begin
   ScreenWidth:=1280;
   ScreenHeight:=720;
  end;
- for k:={4}0 downto 0 do begin
+ for k:=2 downto 0 do begin
   if k=0 then begin
    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,0);
    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,0);
