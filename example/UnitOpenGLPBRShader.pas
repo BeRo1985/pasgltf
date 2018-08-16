@@ -113,13 +113,15 @@ uses dglOpenGL,UnitOpenGLShader;
 
 type TPBRShader=class(TShader)
       public
-       uColor:glInt;
+       uBaseColorFactor:glInt;
        uBaseColorTexture:glInt;
        uMetallicRoughnessTexture:glInt;
        uNormalTexture:glInt;
        uOcclusionTexture:glInt;
        uEmissiveTexture:glInt;
        uTextureFlags:glInt;
+       uMetallicRoughnessNormalScaleOcclusionStrengthFactor:glInt;
+       uEmissiveFactor:glInt;
        uModelViewMatrix:glInt;
        uModelViewProjectionMatrix:glInt;
        uLightDirection:glInt;
@@ -182,6 +184,9 @@ begin
     'uniform sampler2D uOcclusionTexture;'+#13#10+
     'uniform sampler2D uEmissiveTexture;'+#13#10+
     'uniform uint uTextureFlags;'+#13#10+
+    'uniform vec4 uBaseColorFactor;'+#13#10+
+    'uniform vec3 uEmissiveFactor;'+#13#10+
+    'uniform vec4 uMetallicRoughnessNormalScaleOcclusionStrengthFactor;'+#13#10+
     'uniform vec3 uLightDirection;'+#13#10+
     'void main(){'+#13#10+
       'vec4 baseColorTexture, metallicRoughnessTexture, normalTexture, occlusionTexture, emissiveTexture;'+#13#10+
@@ -212,7 +217,8 @@ begin
       '}'+#13#10+
       'mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
       'vec3 normal = normalize(tangentSpace * normalTexture.xyz);'+#13#10+
-      'oOutput = baseColorTexture * vColor * max(0.0, -dot(normal, uLightDirection));'+#13#10+
+      'vec4 baseColor = baseColorTexture * uBaseColorFactor * vColor;'+#13#10+
+      'oOutput = baseColor * max(0.0, -dot(normal, uLightDirection));'+#13#10+
     '}'+#13#10;
  inherited Create(f,v);
 end;
@@ -240,12 +246,14 @@ end;
 procedure TPBRShader.BindVariables;
 begin
  inherited BindVariables;
- uColor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uColor')));
+ uBaseColorFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBaseColorFactor')));
  uBaseColorTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBaseColorTexture')));
  uMetallicRoughnessTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('PBRMetallicRoughnessMetallicRoughnessTexture')));
  uNormalTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uNormalTexture')));
  uOcclusionTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uOcclusionTexture')));
  uEmissiveTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveTexture')));
+ uEmissiveFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveFactor')));
+ uMetallicRoughnessNormalScaleOcclusionStrengthFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMetallicRoughnessNormalScaleOcclusionStrengthFactor')));
  uTextureFlags:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uTextureFlags')));
  uModelViewMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewMatrix')));
  uModelViewProjectionMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewProjectionMatrix')));

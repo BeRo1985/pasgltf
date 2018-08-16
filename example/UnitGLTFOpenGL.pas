@@ -899,6 +899,17 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
       TextureFlags:=TextureFlags or (256 or (512*ord(Material.EmissiveTexture.TexCoord=1)));
      end;
      glUniform1ui(aPBRShader.uTextureFlags,TextureFlags);
+     glUniform4f(aPBRShader.uBaseColorFactor,
+                 Material.PBRMetallicRoughness.BaseColorFactor[0],
+                 Material.PBRMetallicRoughness.BaseColorFactor[1],
+                 Material.PBRMetallicRoughness.BaseColorFactor[2],
+                 Material.PBRMetallicRoughness.BaseColorFactor[3]);
+     glUniform4f(aPBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,
+                 Material.PBRMetallicRoughness.MetallicFactor,
+                 Material.PBRMetallicRoughness.RoughnessFactor,
+                 Material.NormalTexture.Scale,
+                 Material.OcclusionTexture.Strength);
+     glUniform1f(aPBRShader.uEmissiveFactor,Material.EmissiveFactor);
      glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
     end;
    end;
