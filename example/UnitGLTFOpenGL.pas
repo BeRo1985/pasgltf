@@ -78,7 +78,7 @@ type EGLTFOpenGL=class(Exception);
        procedure FinalizeResources;
        procedure UploadResources;
        procedure UnloadResources;
-       procedure Draw(const aScene:TPasGLTFSizeInt=-1);
+       procedure Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aScene:TPasGLTFSizeInt=-1);
       published
        property Document:TPasGLTF.TDocument read fDocument;
      end;
@@ -778,14 +778,16 @@ begin
  end;
 end;
 
-procedure TGLTFOpenGL.Draw(const aScene:TPasGLTFSizeInt=-1);
+procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aScene:TPasGLTFSizeInt=-1);
  procedure DrawNode(const aNode:TPasGLTF.TNode;const aMatrix:TMatrix);
  var Index:TPasGLTFSizeInt;
      Matrix:TMatrix;
   procedure DrawMesh(const aMesh:TMesh);
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
+      ModelMatrix:TPasGLTF.TMatrix4x4;
   begin
+   ModelMatrix:=MatrixMul(aModelMatrix,Matrix);
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
     glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
