@@ -18,7 +18,20 @@ type EGLTFOpenGL=class(Exception);
 
      TGLTFOpenGL=class
       private
-       type TAccessor=record
+       type TVertexAttributeBindingLocations=class
+             public
+              const Position=0;
+                    Normal=1;
+                    Tangent=2;
+                    TexCoord0=2;
+                    TexCoord1=3;
+                    Color0=4;
+                    Joints0=5;
+                    Joints1=6;
+                    Weights0=7;
+                    Weights1=8;
+            end;
+            TAccessor=record
              public
               type TWorkBuffer=record
                     Active:boolean;
@@ -78,6 +91,9 @@ type EGLTFOpenGL=class(Exception);
        fAccessors:TAccessors;
        fBufferViews:TBufferViews;
        fMeshes:TMeshes;
+       fVertexBufferObjectHandle:glInt;
+       fIndexBufferObjectHandle:glInt;
+       fVertexArrayHandle:glInt;
       public
        constructor Create(const aDocument:TPasGLTF.TDocument); reintroduce;
        destructor Destroy; override;
@@ -690,6 +706,68 @@ var AllVertices:TAllVertices;
    end;
   end;
  end;
+ procedure CreateOpenGLObjects;
+ begin
+
+  glGenBuffers(1,@fVertexBufferObjectHandle);
+  glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
+  glBufferData(GL_ARRAY_BUFFER,AllVertices.Count*SizeOf(TVertex),AllVertices.Memory,GL_STATIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER,0);
+
+  glGenBuffers(1,@fIndexBufferObjectHandle);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fIndexBufferObjectHandle);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER,AllIndices.Count*SizeOf(TPasGLTFUInt32),AllIndices.Memory,GL_STATIC_DRAW);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+
+  glGenVertexArrays(1,@fVertexArrayHandle);
+  glBindVertexArray(fVertexArrayHandle);
+  glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fIndexBufferObjectHandle);
+  begin
+   begin
+    glVertexAttribPointer(TVertexAttributeBindingLocations.Position,3,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Position);
+    glEnableVertexAttribArray(TVertexAttributeBindingLocations.Position);
+   end;
+   begin
+    glVertexAttribPointer(TVertexAttributeBindingLocations.Normal,3,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Normal);
+    glEnableVertexAttribArray(TVertexAttributeBindingLocations.Normal);
+   end;
+   begin
+    glVertexAttribPointer(TVertexAttributeBindingLocations.Tangent,4,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Tangent);
+    glEnableVertexAttribArray(TVertexAttributeBindingLocations.Tangent);
+   end;
+   begin
+    glVertexAttribPointer(TVertexAttributeBindingLocations.TexCoord0,2,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.TexCoord0);
+    glEnableVertexAttribArray(TVertexAttributeBindingLocations.TexCoord0);
+   end;
+   begin
+    glVertexAttribPointer(TVertexAttributeBindingLocations.TexCoord1,2,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.TexCoord1);
+    glEnableVertexAttribArray(TVertexAttributeBindingLocations.TexCoord1);
+   end;
+   begin
+    glVertexAttribPointer(TVertexAttributeBindingLocations.Color0,4,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Color0);
+    glEnableVertexAttribArray(TVertexAttributeBindingLocations.Color0);
+   end;
+   begin
+    glVertexAttribPointer(TVertexAttributeBindingLocations.Joints0,4,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Joints0);
+    glEnableVertexAttribArray(TVertexAttributeBindingLocations.Joints0);
+   end;
+   begin
+    glVertexAttribPointer(TVertexAttributeBindingLocations.Joints1,4,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Joints1);
+    glEnableVertexAttribArray(TVertexAttributeBindingLocations.Joints1);
+   end;
+   begin
+    glVertexAttribPointer(TVertexAttributeBindingLocations.Weights0,4,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Weights0);
+    glEnableVertexAttribArray(TVertexAttributeBindingLocations.Weights0);
+   end;
+   begin
+    glVertexAttribPointer(TVertexAttributeBindingLocations.Weights1,4,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Weights1);
+    glEnableVertexAttribArray(TVertexAttributeBindingLocations.Weights1);
+   end;
+  end;
+  glBindVertexArray(0);
+
+ end;
 begin
  if not fUploaded then begin
   fUploaded:=true;
@@ -698,6 +776,7 @@ begin
    AllIndices:=TAllIndices.Create;
    try
     CollectVerticesAndIndicesFromMeshes;
+    CreateOpenGLObjects;
    finally
     FreeAndNil(AllIndices);
    end;
@@ -708,9 +787,19 @@ begin
 end;
 
 procedure TGLTFOpenGL.UnloadResources;
+ procedure DeleteOpenGLObjects;
+ begin
+  glBindBuffer(GL_ARRAY_BUFFER,0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+  glBindVertexArray(0);
+  glDeleteVertexArrays(1,@fVertexArrayHandle);
+  glDeleteBuffers(1,@fVertexBufferObjectHandle);
+  glDeleteBuffers(1,@fIndexBufferObjectHandle);
+ end;
 begin
  if fUploaded then begin
   fUploaded:=false;
+  DeleteOpenGLObjects;
  end;
 end;
 
