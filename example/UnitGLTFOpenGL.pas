@@ -582,9 +582,13 @@ procedure TGLTFOpenGL.InitializeResources;
        for VertexIndex:=0 to length(TemporaryTangents)-1 do begin
         PVector3(@TemporaryTangents[VertexIndex])^:=Vector3Normalize(PVector3(@TemporaryTangents[VertexIndex])^);
         TemporaryBitangents[VertexIndex]:=Vector3Normalize(TemporaryBitangents[VertexIndex]);
-        if Vector3Dot(Vector3Cross(PVector3(@TemporaryTangents[VertexIndex])^,TemporaryNormals[VertexIndex]),
-                       then
-
+        if Vector3Dot(Vector3Cross(TemporaryNormals[VertexIndex],
+                                   PVector3(@TemporaryTangents[VertexIndex])^),
+                      TemporaryBitangents[VertexIndex])<0.0 then begin
+         TemporaryTangents[VertexIndex,3]:=-1.0;
+        end else begin
+         TemporaryTangents[VertexIndex,3]:=1.0;
+        end;
        end;
       end;
      end;
