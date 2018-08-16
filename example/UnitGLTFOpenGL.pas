@@ -57,6 +57,7 @@ type EGLTFOpenGL=class(Exception);
              public
               type TPrimitive=record
                     Vertices:TVertices;
+                    Indices:TPasGLTFUInt32DynamicArray;
                    end;
                    PPrimitive=^TPrimitive;
                    TPrimitives=array of TPrimitive;
@@ -656,6 +657,11 @@ procedure TGLTFOpenGL.InitializeResources;
        Vertex^.Weights1:=TemporaryWeights1[VertexIndex];
       end;
      end;
+    end;
+
+    begin
+     // Generate vertex index array buffer
+     DestinationMeshPrimitive^.Indices:=copy(TemporaryIndices);
     end;
 
    end;
