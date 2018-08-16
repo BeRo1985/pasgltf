@@ -22,7 +22,9 @@ uses
   UnitOpenGLImagePNG in 'UnitOpenGLImagePNG.pas',
   UnitMath3D in 'UnitMath3D.pas',
   UnitOpenGLShader in 'UnitOpenGLShader.pas',
-  UnitOpenGLPBRShader in 'UnitOpenGLPBRShader.pas';
+  UnitOpenGLPBRShader in 'UnitOpenGLPBRShader.pas',
+  UnitOpenGLFrameBufferObject in 'UnitOpenGLFrameBufferObject.pas',
+  UnitOpenGLBRDFLUTShader in 'UnitOpenGLBRDFLUTShader.pas';
 
 var InputFileName:ansistring;
 
@@ -35,6 +37,12 @@ var fs:TFileStream;
     GLTFOpenGL:TGLTFOpenGL;
 
     PBRShader:TPBRShader;
+
+    BRDFLUTLitShader:TBRDFLUTShader;
+
+    BRDFLUTFBO:TFBO;
+
+    EmptyVertexArrayObjectHandle:glUInt;
 
 procedure Main;
 const Title='PasGLTF loader test';
@@ -151,8 +159,8 @@ begin
  Resize(ScreenWidth,ScreenHeight);
 
  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,3);
- SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,2);
- SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_COMPATIBILITY);
+ SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,3);
+ SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_CORE);
  SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS,0);
  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,0);
  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,0);
@@ -215,115 +223,160 @@ begin
 
  StartPerformanceCounter:=SDL_GetPerformanceCounter;
 
- GLTFOpenGL:=TGLTFOpenGL.Create(GLTFDocument);
+ glGenVertexArrays(1,@EmptyVertexArrayObjectHandle);
  try
 
-  GLTFOpenGL.InitializeResources;
+  BRDFLUTLitShader:=TBRDFLUTShader.Create;
   try
 
-   GLTFOpenGL.UploadResources;
+   FillChar(BRDFLUTFBO,SizeOf(TFBO),#0);
+   BRDFLUTFBO.Width:=512;
+   BRDFLUTFBO.Height:=512;
+   BRDFLUTFBO.Depth:=0;
+   BRDFLUTFBO.Textures:=1;
+   BRDFLUTFBO.TextureFormats[0]:=GL_TEXTURE_RGBA16F;
+   BRDFLUTFBO.Format:=GL_TEXTURE_RGBA16F;
+   BRDFLUTFBO.SWrapMode:=wmGL_CLAMP_TO_EDGE;
+   BRDFLUTFBO.TWrapMode:=wmGL_CLAMP_TO_EDGE;
+   BRDFLUTFBO.RWrapMode:=wmGL_CLAMP_TO_EDGE;
+   BRDFLUTFBO.MinFilterMode:=fmGL_LINEAR;
+   BRDFLUTFBO.MagFilterMode:=fmGL_LINEAR;
+   BRDFLUTFBO.Flags:=0;
+   CreateFrameBuffer(BRDFLUTFBO);
+   glBindFrameBuffer(GL_FRAMEBUFFER,BRDFLUTFBO.FBOs[0]);
+   glDrawBuffer(GL_COLOR_ATTACHMENT0);
+   glViewport(0,0,BRDFLUTFBO.Width,BRDFLUTFBO.Height);
+   glClearColor(0.0,0.0,0.0,0.0);
+   glClearDepth(1.0);
+   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+   glDisable(GL_DEPTH_TEST);
+   glCullFace(GL_NONE);
+   glBindVertexArray(EmptyVertexArrayObjectHandle);
+   BRDFLUTLitShader.Bind;
+   glDrawArrays(GL_TRIANGLES,0,3);
+   BRDFLUTLitShader.Unbind;
+   glBindVertexArray(0);
+   glBindFrameBuffer(GL_FRAMEBUFFER,0);
+
+  finally
+   FreeAndNil(BRDFLUTLitShader);
+  end;
+
+  GLTFOpenGL:=TGLTFOpenGL.Create(GLTFDocument);
+  try
+
+   GLTFOpenGL.InitializeResources;
    try
 
-    PBRShader:=TPBRShader.Create;
+    GLTFOpenGL.UploadResources;
     try
 
-     FullScreen:=false;
-     SDLRunning:=true;
-     while SDLRunning do begin
+     PBRShader:=TPBRShader.Create;
+     try
 
-      while SDL_PollEvent(@Event)<>0 do begin
-       case Event.type_ of
-        SDL_QUITEV,SDL_APP_TERMINATING:begin
-         SDLRunning:=false;
-         break;
-        end;
-        SDL_APP_WILLENTERBACKGROUND:begin
-         //SDL_PauseAudio(1);
-        end;
-        SDL_APP_DIDENTERFOREGROUND:begin
-         //SDL_PauseAudio(0);
-        end;
-        SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
-        end;
-        SDL_KEYDOWN:begin
-         case Event.key.keysym.sym of
-          SDLK_ESCAPE:begin
-    //     BackKey;
-           SDLRunning:=false;
-           break;
-          end;
-          SDLK_RETURN:begin
-           if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
-            FullScreen:=not FullScreen;
-            if FullScreen then begin
-             SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
-            end else begin
-             SDL_SetWindowFullscreen(SurfaceWindow,0);
-            end;
-           end;
-          end;
-          SDLK_F4:begin
-           if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+      FullScreen:=false;
+      SDLRunning:=true;
+      while SDLRunning do begin
+
+       while SDL_PollEvent(@Event)<>0 do begin
+        case Event.type_ of
+         SDL_QUITEV,SDL_APP_TERMINATING:begin
+          SDLRunning:=false;
+          break;
+         end;
+         SDL_APP_WILLENTERBACKGROUND:begin
+          //SDL_PauseAudio(1);
+         end;
+         SDL_APP_DIDENTERFOREGROUND:begin
+          //SDL_PauseAudio(0);
+         end;
+         SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
+         end;
+         SDL_KEYDOWN:begin
+          case Event.key.keysym.sym of
+           SDLK_ESCAPE:begin
+     //     BackKey;
             SDLRunning:=false;
             break;
            end;
+           SDLK_RETURN:begin
+            if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+             FullScreen:=not FullScreen;
+             if FullScreen then begin
+              SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
+             end else begin
+              SDL_SetWindowFullscreen(SurfaceWindow,0);
+             end;
+            end;
+           end;
+           SDLK_F4:begin
+            if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+             SDLRunning:=false;
+             break;
+            end;
+           end;
           end;
          end;
-        end;
-        SDL_KEYUP:begin
-        end;
-        SDL_WINDOWEVENT:begin
-         case event.window.event of
-          SDL_WINDOWEVENT_RESIZED:begin
-           ScreenWidth:=event.window.Data1;
-           ScreenHeight:=event.window.Data2;
-           Resize(ScreenWidth,ScreenHeight);
+         SDL_KEYUP:begin
+         end;
+         SDL_WINDOWEVENT:begin
+          case event.window.event of
+           SDL_WINDOWEVENT_RESIZED:begin
+            ScreenWidth:=event.window.Data1;
+            ScreenHeight:=event.window.Data2;
+            Resize(ScreenWidth,ScreenHeight);
+           end;
           end;
          end;
-        end;
-        SDL_MOUSEMOTION:begin
-         if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
-         end;
-        end;
-        SDL_MOUSEBUTTONDOWN:begin
-         case event.button.button of
-          SDL_BUTTON_LEFT:begin
-          end;
-          SDL_BUTTON_RIGHT:begin
+         SDL_MOUSEMOTION:begin
+          if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
           end;
          end;
-        end;
-        SDL_MOUSEBUTTONUP:begin
-         case event.button.button of
-          SDL_BUTTON_LEFT:begin
+         SDL_MOUSEBUTTONDOWN:begin
+          case event.button.button of
+           SDL_BUTTON_LEFT:begin
+           end;
+           SDL_BUTTON_RIGHT:begin
+           end;
           end;
-          SDL_BUTTON_RIGHT:begin
+         end;
+         SDL_MOUSEBUTTONUP:begin
+          case event.button.button of
+           SDL_BUTTON_LEFT:begin
+           end;
+           SDL_BUTTON_RIGHT:begin
+           end;
           end;
          end;
         end;
        end;
+       Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
+       Draw;
+       SDL_GL_SwapWindow(SurfaceWindow);
       end;
-      Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
-      Draw;
-      SDL_GL_SwapWindow(SurfaceWindow);
+
+     finally
+
+      PBRShader.Free;
+
      end;
 
+     DestroyFrameBuffer(BRDFLUTFBO);
+
     finally
-
-     PBRShader.Free;
-
+     GLTFOpenGL.UnloadResources;
     end;
 
    finally
-    GLTFOpenGL.UnloadResources;
+    GLTFOpenGL.FinalizeResources;
    end;
 
   finally
-   GLTFOpenGL.FinalizeResources;
+   GLTFOpenGL.Free;
   end;
 
  finally
-  GLTFOpenGL.Free;
+  glDeleteVertexArrays(1,@EmptyVertexArrayObjectHandle);
  end;
 
  if assigned(SurfaceContext) then begin

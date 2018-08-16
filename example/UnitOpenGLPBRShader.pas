@@ -132,8 +132,6 @@ type TPBRShader=class(TShader)
        procedure BindVariables; override;
       end;
 
-var PBRLitShader:TPBRShader;
-
 implementation
 
 constructor TPBRShader.Create;
@@ -286,7 +284,7 @@ begin
     '  vec3 viewDirection = normalize(vViewSpacePosition),'+#13#10+
     '       diffuseColor = materialAlbedo.xyz * (1.0 - materialMetallic) * PI,'+#13#10+
     '       specularColor = mix(vec3(0.04), materialAlbedo.xyz, materialMetallic) * PI;'+#13#10+
-    '  vec3 color = (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
+{   '  vec3 color = (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
     '                              pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
     '                              -uLightDirection,'+#13#10+
     '                              materialNormal.xyz,'+#13#10+
@@ -306,7 +304,58 @@ begin
     '                   ) * ambientOcclusion) +'+#13#10+
     '                  // Bounce light'+#13#10+
     '                  (clamp(-materialNormal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
-    '                 ) * diffuseLambert(diffuseColor) * materialCavity));'+#13#10+
+    '                 ) * diffuseLambert(diffuseColor) * materialCavity));'+#13#10+}
+    '  vec3 color = vec3(0.0);'+#13#10+
+    '  color += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
+    '                         pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
+    '                         -uLightDirection,'+#13#10+
+    '                         materialNormal.xyz,'+#13#10+
+    '                         diffuseColor,'+#13#10+
+    '                         specularColor,'+#13#10+
+    '                         viewDirection,'+#13#10+
+    '                         refractiveAngle,'+#13#10+
+    '                         materialTransparency,'+#13#10+
+    '                         materialRoughness,'+#13#10+
+    '                         materialCavity,'+#13#10+
+    '                         materialMetallic)*1.0;'+#13#10+
+    '  color += doSingleLight(vec3(0.20, 0.25, 0.25),'+#13#10+ // Fake-GI sky back light
+    '                         vec3(ambientOcclusion),'+#13#10+
+    '                         normalize(vec3(uLightDirection.xz, 0.0).xzy),'+#13#10+
+    '                         materialNormal.xyz,'+#13#10+
+    '                         diffuseColor,'+#13#10+
+    '                         specularColor,'+#13#10+
+    '                         viewDirection,'+#13#10+
+    '                         refractiveAngle,'+#13#10+
+    '                         materialTransparency,'+#13#10+
+    '                         materialRoughness,'+#13#10+
+    '                         materialCavity,'+#13#10+
+    '                         materialMetallic)*1.0;'+#13#10+
+    '  color += doSingleLight(vec3(0.18, 0.24, 0.24),'+#13#10+ // Fake-GI sky bounce light
+    '                         vec3(mix(0.5, 1.0, ambientOcclusion)),'+#13#10+
+    '                         vec3(0.0, -1.0, 0.0),'+#13#10+
+    '                         materialNormal.xyz,'+#13#10+
+    '                         diffuseColor,'+#13#10+
+    '                         specularColor,'+#13#10+
+    '                         viewDirection,'+#13#10+
+    '                         refractiveAngle,'+#13#10+
+    '                         materialTransparency,'+#13#10+
+    '                         materialRoughness,'+#13#10+
+    '                         materialCavity,'+#13#10+
+    '                         materialMetallic)*1.0;'+#13#10+
+    '  color += doSingleLight(vec3(0.05, 0.20, 0.45),'+#13#10+ // Fake-GI sky light
+    '                         vec3(ambientOcclusion),'+#13#10+
+    '                         normalize(vec3(materialNormal.x, 1.0, materialNormal.z)),'+#13#10+
+    '                         materialNormal.xyz,'+#13#10+
+    '                         diffuseColor,'+#13#10+
+    '                         specularColor,'+#13#10+
+    '                         viewDirection,'+#13#10+
+    '                         refractiveAngle,'+#13#10+
+    '                         materialTransparency,'+#13#10+
+    '                         materialRoughness,'+#13#10+
+    '                         materialCavity,'+#13#10+
+    '                         materialMetallic)*1.0;'+#13#10+
+//    '  color = (max(0.0, 0.6 + (0.4 * materialNormal.y)) * vec3(0.05, 0.20, 0.45)) * diffuseColor * materialCavity;'+#13#10+
+//   ' color = clamp(-materialNormal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * diffuseColor * materialCavity;'+#13#10+
     '  oOutput = vec4(toneMappingAndToLDR((color + emissiveTexture.xyz) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10+
    '}'+#13#10;
  inherited Create(f,v);

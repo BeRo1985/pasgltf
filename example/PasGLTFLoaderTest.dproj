@@ -214,7 +214,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
-        <Debugger_RunParams>DamagedHelmetEmbedded.gltf</Debugger_RunParams>
+        <Debugger_RunParams>DamagedHelmet.glb</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
@@ -233,6 +233,8 @@
         <DCCReference Include="UnitMath3D.pas"/>
         <DCCReference Include="UnitOpenGLShader.pas"/>
         <DCCReference Include="UnitOpenGLPBRShader.pas"/>
+        <DCCReference Include="UnitOpenGLFrameBufferObject.pas"/>
+        <DCCReference Include="UnitOpenGLBRDFLUTShader.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
