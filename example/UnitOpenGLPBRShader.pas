@@ -188,6 +188,7 @@ begin
     'uniform vec3 uEmissiveFactor;'+#13#10+
     'uniform vec4 uMetallicRoughnessNormalScaleOcclusionStrengthFactor;'+#13#10+
     'uniform vec3 uLightDirection;'+#13#10+
+    'const float PI = 3.14159265358979323846;'+#13#10+
     'vec3 diffuseLambert(vec3 diffuseColor){'+#13#10+
     '  return diffuseColor * (1.0 / 3.14159265358979323846);'+#13#10+
     '}'+#13#10+
@@ -263,14 +264,41 @@ begin
     '    emissiveTexture = vec4(0.0);'+#13#10+
     '  }'+#13#10+
     '  mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
-    '  vec4 materialAlbedo = baseColorTexture * uBaseColorFactor * vColor,'+#13#10+
+    '  vec4 materialAlbedo = baseColorTexture * uBaseColorFactor,'+#13#10+
     '       materialNormal = vec4(normalize(tangentSpace * normalTexture.xyz), normalTexture.w);'+#13#10+
     '  float materialRoughness = max(1e-3, metallicRoughnessTexture.y * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.y),'+#13#10+
     '        materialCavity = occlusionTexture.y * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.w,'+#13#10+
     '        materialMetallic = metallicRoughnessTexture.x * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.x,'+#13#10+
-    '        materialTransparency = 0.0;'+#13#10+
-    '  oOutput = materialAlbedo * max(0.0, -dot(materialNormal.xyz, uLightDirection));'+#13#10+
-    '}'+#13#10;
+    '        materialTransparency = 0.0,'+#13#10+
+    '        refractiveAngle = 0.0,'+#13#10+
+    '        ambientOcclusion = 1.0,'+#13#10+
+    '        shadow = 1.0;'+#13#10+
+    '  vec3 viewDirection = normalize(vViewSpacePosition),'+#13#10+
+    '       diffuseColor = materialAlbedo.xyz * (1.0 - materialMetallic) * PI,'+#13#10+
+    '       specularColor = mix(vec3(0.04), materialAlbedo.xyz, materialMetallic) * PI;'+#13#10+
+    '  vec3 color = (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
+    '                              pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
+    '                              -uLightDirection,'+#13#10+
+    '                              materialNormal.xyz,'+#13#10+
+    '                              diffuseColor,'+#13#10+
+    '                              specularColor,'+#13#10+
+    '                              viewDirection,'+#13#10+
+    '                              refractiveAngle,'+#13#10+
+    '                              materialTransparency,'+#13#10+
+    '                              materialRoughness,'+#13#10+
+    '                              materialCavity,'+#13#10+
+    '                              materialMetallic) +'+#13#10+
+    '                (((('+#13#10+
+    '                    // Sky light'+#13#10+
+    '                    (max(0.0, 0.6 + (0.4 * materialNormal.y)) * vec3(0.05, 0.20, 0.45)) +'+#13#10+
+    '                    // Backlight'+#13#10+
+    '                    (max(0.0, 0.2 + (0.8 * dot(materialNormal.xyz, normalize(vec3(uLightDirection.xz, 0.0).xzy)))) * vec3(0.20, 0.25, 0.25))'+#13#10+
+    '                   ) * ambientOcclusion) +'+#13#10+
+    '                  // Bounce light'+#13#10+
+    '                  (clamp(-materialNormal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
+    '                 ) * diffuseLambert(diffuseColor) * materialCavity)) * smoothstep(0.15, 0.1, uLightDirection.y);'+#13#10+
+    '  oOutput = vec4(color * vColor.xyz, materialAlbedo.w * vColor.w);'+#13#10+
+   '}'+#13#10;
  inherited Create(f,v);
 end;
 

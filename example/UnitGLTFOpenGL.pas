@@ -909,7 +909,10 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
                  Material.PBRMetallicRoughness.RoughnessFactor,
                  Material.NormalTexture.Scale,
                  Material.OcclusionTexture.Strength);
-     glUniform1f(aPBRShader.uEmissiveFactor,Material.EmissiveFactor);
+     glUniform3f(aPBRShader.uEmissiveFactor,
+                 Material.EmissiveFactor[0],
+                 Material.EmissiveFactor[1],
+                 Material.EmissiveFactor[2]);
      glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
     end;
    end;
