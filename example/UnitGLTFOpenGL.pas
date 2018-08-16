@@ -898,6 +898,7 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
       glBindTexture(GL_TEXTURE_2D,fTextures[Material.EmissiveTexture.Index].Handle);
       TextureFlags:=TextureFlags or (256 or (512*ord(Material.EmissiveTexture.TexCoord=1)));
      end;
+     glUniform1ui(aPBRShader.uTextureFlags,TextureFlags);
      glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
     end;
    end;
@@ -937,8 +938,8 @@ begin
  glBindVertexArray(fVertexArrayHandle);
  glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fIndexBufferObjectHandle);
- glUniform1i(aPBRShader.uPBRMetallicRoughnessBaseColorTexture,0);
- glUniform1i(aPBRShader.uPBRMetallicRoughnessMetallicRoughnessTexture,1);
+ glUniform1i(aPBRShader.uBaseColorTexture,0);
+ glUniform1i(aPBRShader.uMetallicRoughnessTexture,1);
  glUniform1i(aPBRShader.uNormalTexture,2);
  glUniform1i(aPBRShader.uOcclusionTexture,3);
  glUniform1i(aPBRShader.uEmissiveTexture,4);

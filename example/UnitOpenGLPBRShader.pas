@@ -114,11 +114,12 @@ uses dglOpenGL,UnitOpenGLShader;
 type TPBRShader=class(TShader)
       public
        uColor:glInt;
-       uPBRMetallicRoughnessBaseColorTexture:glInt;
-       uPBRMetallicRoughnessMetallicRoughnessTexture:glInt;
+       uBaseColorTexture:glInt;
+       uMetallicRoughnessTexture:glInt;
        uNormalTexture:glInt;
        uOcclusionTexture:glInt;
        uEmissiveTexture:glInt;
+       uTextureFlags:glInt;
        uModelViewMatrix:glInt;
        uModelViewProjectionMatrix:glInt;
        uLightDirection:glInt;
@@ -165,7 +166,7 @@ begin
       'vViewSpacePosition = (uModelViewMatrix * vec4(aPosition,1.0)).xyz;'+#13#10+
       'gl_Position = uModelViewProjectionMatrix * vec4(aPosition,1.0);'+#13#10+
     '}'+#13#10;
- f:='#version 430'+#13#10+
+ f:='#version 330'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
     'in vec3 vViewSpacePosition;'+#13#10+
     'in vec2 vTexCoord0;'+#13#10+
@@ -174,13 +175,14 @@ begin
     'in vec3 vTangent;'+#13#10+
     'in vec3 vBitangent;'+#13#10+
     'in vec4 vColor;'+#13#10+
-    'uniform sampler2D uPBRMetallicRoughnessBaseColorTexture;'+#13#10+
-    'uniform sampler2D uPBRMetallicRoughnessMetallicRoughnessTexture;'+#13#10+
+    'uniform sampler2D uBaseColorTexture;'+#13#10+
+    'uniform sampler2D uMetallicRoughnessTexture;'+#13#10+
     'uniform sampler2D uNormalTexture;'+#13#10+
     'uniform sampler2D uOcclusionTexture;'+#13#10+
     'uniform sampler2D uEmissiveTexture;'+#13#10+
+    'uniform uint uTextureFlags;'+#13#10+
     'void main(){'+#13#10+
-      'oOutput = texture(uPBRMetallicRoughnessBaseColorTexture, vTexCoord0) * vColor;'+#13#10+
+      'oOutput = texture(uBaseColorTexture, vTexCoord0) * vColor;'+#13#10+
     '}'+#13#10;
  inherited Create(f,v);
 end;
@@ -209,11 +211,12 @@ procedure TPBRShader.BindVariables;
 begin
  inherited BindVariables;
  uColor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uColor')));
- uPBRMetallicRoughnessBaseColorTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uPBRMetallicRoughnessBaseColorTexture')));
- uPBRMetallicRoughnessMetallicRoughnessTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('PBRMetallicRoughnessMetallicRoughnessTexture')));
+ uBaseColorTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBaseColorTexture')));
+ uMetallicRoughnessTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('PBRMetallicRoughnessMetallicRoughnessTexture')));
  uNormalTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uNormalTexture')));
  uOcclusionTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uOcclusionTexture')));
  uEmissiveTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveTexture')));
+ uTextureFlags:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uTextureFlags')));
  uModelViewMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewMatrix')));
  uModelViewProjectionMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewProjectionMatrix')));
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
