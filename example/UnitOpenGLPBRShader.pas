@@ -157,9 +157,10 @@ begin
     'out vec3 vBitangent;'+#13#10+
     'out vec4 vColor;'+#13#10+
     'void main(){'+#13#10+
-      'vNormal = aNormal;'+#13#10+
-      'vTangent = aTangent.xyz;'+#13#10+
-      'vBitangent = cross(vNormal,vTangent)*aTangent.w;'+#13#10+
+      'mat3 baseMatrix = transpose(inverse(mat3(uModelViewMatrix)));'+#13#10+
+      'vNormal = baseMatrix * aNormal;'+#13#10+
+      'vTangent = baseMatrix * aTangent.xyz;'+#13#10+
+      'vBitangent = cross(vNormal, vTangent) * aTangent.w;'+#13#10+
       'vTexCoord0 = aTexCoord0;'+#13#10+
       'vTexCoord1 = aTexCoord1;'+#13#10+
       'vColor = aColor0;'+#13#10+
@@ -194,9 +195,9 @@ begin
         'metallicRoughnessTexture = vec4(1.0);'+#13#10+
       '}'+#13#10+
       'if((uTextureFlags & 16u) != 0){'+#13#10+
-        'normalTexture = texture(uNormalTexture, ((uTextureFlags & 32u) != 0) ? vTexCoord1 : vTexCoord0);'+#13#10+
+        'normalTexture = normalize(texture(uNormalTexture, ((uTextureFlags & 32u) != 0) ? vTexCoord1 : vTexCoord0) - vec4(0.5));'+#13#10+
       '}else{'+#13#10+
-        'normalTexture = vec4(1.0);'+#13#10+
+        'normalTexture = vec2(0.0, 1.0).xxyx;'+#13#10+
       '}'+#13#10+
       'if((uTextureFlags & 64u) != 0){'+#13#10+
         'occlusionTexture = texture(uOcclusionTexture, ((uTextureFlags & 128u) != 0) ? vTexCoord1 : vTexCoord0);'+#13#10+
@@ -208,7 +209,9 @@ begin
       '}else{'+#13#10+
         'emissiveTexture = vec4(0.0);'+#13#10+
       '}'+#13#10+
-      'oOutput = baseColorTexture * vColor;'+#13#10+
+      'mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
+      'vec3 normal = normalize(tangentSpace * normalTexture.xyz);'+#13#10+
+      'oOutput = baseColorTexture * vColor * max(0.0, dot(normal, vec3(0.0, 0.0, 1.0)));'+#13#10+
     '}'+#13#10;
  inherited Create(f,v);
 end;
