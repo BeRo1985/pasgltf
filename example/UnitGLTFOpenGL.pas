@@ -930,12 +930,14 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
       Material:TPasGLTF.TMaterial;
+      ExtraMaterial:PMaterial;
       TextureFlags:TPasGLTFUInt32;
   begin
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
     if (Primitive^.Material>=0) and (Primitive^.Material<fDocument.Materials.Count) then begin
      Material:=fDocument.Materials[Primitive^.Material];
+     ExtraMaterial:=@fMaterials[Primitive^.Material];
      case Material.AlphaMode of
       TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
        glDisable(GL_BLEND);
@@ -957,15 +959,29 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
       glCullFace(GL_BACK);
      end;
      TextureFlags:=0;
-     if (Material.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
-      glActiveTexture(GL_TEXTURE0);
-      glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
-      TextureFlags:=TextureFlags or (1 or (2*ord(Material.PBRMetallicRoughness.BaseColorTexture.TexCoord=1)));
-     end;
-     if (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
-      glActiveTexture(GL_TEXTURE1);
-      glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index].Handle);
-      TextureFlags:=TextureFlags or (4 or (8*ord(Material.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord=1)));
+     if ExtraMaterial^.PBRSpecularGlossiness.Used then begin
+      TextureFlags:=TextureFlags or $40000000;
+      if (ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fTextures)) then begin
+       glActiveTexture(GL_TEXTURE0);
+       glBindTexture(GL_TEXTURE_2D,fTextures[ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index].Handle);
+       TextureFlags:=TextureFlags or (1 or (2*ord(ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord=1)));
+      end;
+      if (ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fTextures)) then begin
+       glActiveTexture(GL_TEXTURE1);
+       glBindTexture(GL_TEXTURE_2D,fTextures[ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index].Handle);
+       TextureFlags:=TextureFlags or (4 or (8*ord(ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord=1)));
+      end;
+     end else begin
+      if (Material.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
+       glActiveTexture(GL_TEXTURE0);
+       glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
+       TextureFlags:=TextureFlags or (1 or (2*ord(Material.PBRMetallicRoughness.BaseColorTexture.TexCoord=1)));
+      end;
+      if (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
+       glActiveTexture(GL_TEXTURE1);
+       glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index].Handle);
+       TextureFlags:=TextureFlags or (4 or (8*ord(Material.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord=1)));
+      end;
      end;
      if (Material.NormalTexture.Index>=0) and (Material.NormalTexture.Index<length(fTextures)) then begin
       glActiveTexture(GL_TEXTURE2);
