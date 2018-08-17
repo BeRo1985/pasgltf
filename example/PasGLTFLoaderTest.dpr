@@ -82,8 +82,8 @@ var Event:TSDL_Event;
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
   ModelMatrix:=Matrix4x4Identity;
   t:=Time;
-  ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*40.0,sin(t*0.25)*4.0,cos(t)*40.0),Vector3Origin,Vector3YAxis);
-  ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,0.1,128.0);
+  ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*400.0,sin(t*0.25)*4.0,cos(t)*400.0),Vector3Origin,Vector3YAxis);
+  ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,0.1,2048.0);
   LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
   InverseViewProjectionMatrix:=Matrix4x4TermInverse(Matrix4x4TermMul(ViewMatrix,ProjectionMatrix));
   glEnable(GL_MULTISAMPLE);
@@ -209,6 +209,8 @@ begin
  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,0);
  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,0);
  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
+ SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,32);
+ SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,0);
  SDL_GL_SetSwapInterval(1);
  VideoFlags:=0;
  if paramstr(1)='f' then begin
