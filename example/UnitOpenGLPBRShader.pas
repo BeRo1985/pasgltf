@@ -120,7 +120,7 @@ type TPBRShader=class(TShader)
        uNormalTexture:glInt;
        uOcclusionTexture:glInt;
        uEmissiveTexture:glInt;
-       uTextureFlags:glInt;
+       uFlags:glInt;
        uMetallicRoughnessNormalScaleOcclusionStrengthFactor:glInt;
        uEmissiveFactor:glInt;
        uModelMatrix:glInt;
@@ -191,7 +191,7 @@ begin
     'uniform sampler2D uBRDFLUTTexture;'+#13#10+
     'uniform sampler2D uEnvMapTexture;'+#13#10+
     'uniform int uEnvMapMaxLevel;'+#13#10+
-    'uniform uint uTextureFlags;'+#13#10+
+    'uniform uint uFlags;'+#13#10+
     'uniform vec4 uBaseColorFactor;'+#13#10+
     'uniform vec3 uSpecularFactor;'+#13#10+
     'uniform vec3 uEmissiveFactor;'+#13#10+
@@ -281,40 +281,43 @@ begin
     'void main(){'+#13#10+
     '  vec4 baseColorTexture, metallicRoughnessTexture, normalTexture, occlusionTexture, emissiveTexture;'+#13#10+
     '  float oneMinusSpecularStrength = 0.0;'+#13#10+
-    '  if((uTextureFlags & 1u) != 0u){'+#13#10+
-    '    baseColorTexture = texture(uBaseColorTexture, ((uTextureFlags & 2u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '  if((uFlags & 1u) != 0u){'+#13#10+
+    '    baseColorTexture = texture(uBaseColorTexture, ((uFlags & 2u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
     '    baseColorTexture = vec4(1.0);'+#13#10+
     '  }'+#13#10+
-    '  if((uTextureFlags & 4u) != 0u){'+#13#10+
-    '    metallicRoughnessTexture = texture(uMetallicRoughnessTexture, ((uTextureFlags & 8u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '  if((uFlags & 4u) != 0u){'+#13#10+
+    '    metallicRoughnessTexture = texture(uMetallicRoughnessTexture, ((uFlags & 8u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
     '    metallicRoughnessTexture = vec4(1.0);'+#13#10+
     '  }'+#13#10+
-    '  if((uTextureFlags & 16u) != 0u){'+#13#10+
-    '    normalTexture = texture(uNormalTexture, ((uTextureFlags & 32u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '  if((uFlags & 16u) != 0u){'+#13#10+
+    '    normalTexture = texture(uNormalTexture, ((uFlags & 32u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '    normalTexture.xyz = normalize(normalTexture.xyz - vec3(0.5));'+#13#10+
     '  }else{'+#13#10+
     '    normalTexture = vec2(0.0, 1.0).xxyx;'+#13#10+
     '  }'+#13#10+
-    '  if((uTextureFlags & 64u) != 0u){'+#13#10+
-    '    occlusionTexture = texture(uOcclusionTexture, ((uTextureFlags & 128u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '  if((uFlags & 64u) != 0u){'+#13#10+
+    '    occlusionTexture = texture(uOcclusionTexture, ((uFlags & 128u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
     '    occlusionTexture = vec4(1.0);'+#13#10+
     '  }'+#13#10+
-    '  if((uTextureFlags & 256u) != 0u){'+#13#10+
-    '    emissiveTexture = texture(uEmissiveTexture, ((uTextureFlags & 512u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '  if((uFlags & 256u) != 0u){'+#13#10+
+    '    emissiveTexture = texture(uEmissiveTexture, ((uFlags & 512u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
     '    emissiveTexture = vec4(0.0);'+#13#10+
     '  }'+#13#10+
     '  mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
     '  vec4 materialAlbedo,'+#13#10+
     '       materialNormal = vec4(normalize(tangentSpace * normalTexture.xyz), normalTexture.w * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.z);'+#13#10+
+    '  if(((uFlags & 0x20000000u) != 0u) && !gl_FrontFacing){'+#13#10+
+    '    materialNormal = -materialNormal;'+#13#10+
+    '  }'+#13#10+
     '  float materialRoughness,'+#13#10+
     '        materialCavity = clamp(mix(1.0, occlusionTexture.x, uMetallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
     '        materialMetallic,'+#13#10+
     '        materialTransparency = 0.0;'+#13#10+
-    '  if((uTextureFlags & 0x40000000u) != 0u){'+#13#10+
+    '  if((uFlags & 0x40000000u) != 0u){'+#13#10+
     '    vec3 diffuse = baseColorTexture.xyz * uBaseColorFactor.xyz,'+#13#10+
     '         specular = metallicRoughnessTexture.xyz * uSpecularFactor.xyz;'+#13#10+
     '    oneMinusSpecularStrength = 1.0 - max(max(specular.x, specular.y), specular.z);'+#13#10+
@@ -417,7 +420,7 @@ begin
  uEmissiveTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveTexture')));
  uEmissiveFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveFactor')));
  uMetallicRoughnessNormalScaleOcclusionStrengthFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMetallicRoughnessNormalScaleOcclusionStrengthFactor')));
- uTextureFlags:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uTextureFlags')));
+ uFlags:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uFlags')));
  uModelMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelMatrix')));
  uModelViewMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewMatrix')));
  uModelViewProjectionMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewProjectionMatrix')));

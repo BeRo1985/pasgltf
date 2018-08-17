@@ -931,11 +931,12 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
       Primitive:TMesh.PPrimitive;
       Material:TPasGLTF.TMaterial;
       ExtraMaterial:PMaterial;
-      TextureFlags:TPasGLTFUInt32;
+      Flags:TPasGLTFUInt32;
   begin
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
     if (Primitive^.Material>=0) and (Primitive^.Material<fDocument.Materials.Count) then begin
+     Flags:=0;
      Material:=fDocument.Materials[Primitive^.Material];
      ExtraMaterial:=@fMaterials[Primitive^.Material];
      case Material.AlphaMode of
@@ -953,52 +954,52 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
       end;
      end;
      if Material.DoubleSided then begin
+      Flags:=Flags or $20000000;
       glDisable(GL_CULL_FACE);
      end else begin
       glEnable(GL_CULL_FACE);
       glCullFace(GL_BACK);
      end;
-     TextureFlags:=0;
      if ExtraMaterial^.PBRSpecularGlossiness.Used then begin
-      TextureFlags:=TextureFlags or $40000000;
+      Flags:=Flags or $40000000;
       if (ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fTextures)) then begin
        glActiveTexture(GL_TEXTURE0);
        glBindTexture(GL_TEXTURE_2D,fTextures[ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index].Handle);
-       TextureFlags:=TextureFlags or (1 or (2*ord(ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord=1)));
+       Flags:=Flags or (1 or (2*ord(ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord=1)));
       end;
       if (ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fTextures)) then begin
        glActiveTexture(GL_TEXTURE1);
        glBindTexture(GL_TEXTURE_2D,fTextures[ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index].Handle);
-       TextureFlags:=TextureFlags or (4 or (8*ord(ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord=1)));
+       Flags:=Flags or (4 or (8*ord(ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord=1)));
       end;
      end else begin
       if (Material.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
        glActiveTexture(GL_TEXTURE0);
        glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
-       TextureFlags:=TextureFlags or (1 or (2*ord(Material.PBRMetallicRoughness.BaseColorTexture.TexCoord=1)));
+       Flags:=Flags or (1 or (2*ord(Material.PBRMetallicRoughness.BaseColorTexture.TexCoord=1)));
       end;
       if (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
        glActiveTexture(GL_TEXTURE1);
        glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index].Handle);
-       TextureFlags:=TextureFlags or (4 or (8*ord(Material.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord=1)));
+       Flags:=Flags or (4 or (8*ord(Material.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord=1)));
       end;
      end;
      if (Material.NormalTexture.Index>=0) and (Material.NormalTexture.Index<length(fTextures)) then begin
       glActiveTexture(GL_TEXTURE2);
       glBindTexture(GL_TEXTURE_2D,fTextures[Material.NormalTexture.Index].Handle);
-      TextureFlags:=TextureFlags or (16 or (32*ord(Material.NormalTexture.TexCoord=1)));
+      Flags:=Flags or (16 or (32*ord(Material.NormalTexture.TexCoord=1)));
      end;
      if (Material.OcclusionTexture.Index>=0) and (Material.OcclusionTexture.Index<length(fTextures)) then begin
       glActiveTexture(GL_TEXTURE3);
       glBindTexture(GL_TEXTURE_2D,fTextures[Material.OcclusionTexture.Index].Handle);
-      TextureFlags:=TextureFlags or (64 or (128*ord(Material.OcclusionTexture.TexCoord=1)));
+      Flags:=Flags or (64 or (128*ord(Material.OcclusionTexture.TexCoord=1)));
      end;
      if (Material.EmissiveTexture.Index>=0) and (Material.EmissiveTexture.Index<length(fTextures)) then begin
       glActiveTexture(GL_TEXTURE4);
       glBindTexture(GL_TEXTURE_2D,fTextures[Material.EmissiveTexture.Index].Handle);
-      TextureFlags:=TextureFlags or (256 or (512*ord(Material.EmissiveTexture.TexCoord=1)));
+      Flags:=Flags or (256 or (512*ord(Material.EmissiveTexture.TexCoord=1)));
      end;
-     glUniform1ui(aPBRShader.uTextureFlags,TextureFlags);
+     glUniform1ui(aPBRShader.uFlags,Flags);
      if ExtraMaterial^.PBRSpecularGlossiness.Used then begin
       glUniform4f(aPBRShader.uBaseColorFactor,
                   ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[0],
