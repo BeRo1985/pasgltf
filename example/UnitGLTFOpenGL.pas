@@ -1038,14 +1038,14 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
      Matrix,ModelMatrix,ModelViewMatrix,ModelViewProjectionMatrix:TPasGLTF.TMatrix4x4;
  begin
   Matrix:=MatrixMul(
-           aMatrix,
            MatrixMul(
-            aNode.Matrix,
             MatrixMul(
              MatrixFromScale(aNode.Scale),
              MatrixMul(
               MatrixFromRotation(aNode.Rotation),
-              MatrixFromTranslation(aNode.Translation)))));
+              MatrixFromTranslation(aNode.Translation))),
+            aNode.Matrix),
+           aMatrix);
   if (aNode.Mesh>=0) and (aNode.Mesh<length(fMeshes)) then begin
    ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
    ModelViewMatrix:=MatrixMul(ModelMatrix,aViewMatrix);
