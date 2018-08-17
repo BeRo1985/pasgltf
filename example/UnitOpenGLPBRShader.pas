@@ -267,28 +267,28 @@ begin
     '}'+#13#10+
     'void main(){'+#13#10+
     '  vec4 baseColorTexture, metallicRoughnessTexture, normalTexture, occlusionTexture, emissiveTexture;'+#13#10+
-    '  if((uTextureFlags & 1u) != 0){'+#13#10+
-    '    baseColorTexture = texture(uBaseColorTexture, ((uTextureFlags & 2u) != 0) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '  if((uTextureFlags & 1u) != 0u){'+#13#10+
+    '    baseColorTexture = texture(uBaseColorTexture, ((uTextureFlags & 2u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
     '    baseColorTexture = vec4(1.0);'+#13#10+
     '  }'+#13#10+
-    '  if((uTextureFlags & 4u) != 0){'+#13#10+
-    '    metallicRoughnessTexture = texture(uMetallicRoughnessTexture, ((uTextureFlags & 8u) != 0) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '  if((uTextureFlags & 4u) != 0u){'+#13#10+
+    '    metallicRoughnessTexture = texture(uMetallicRoughnessTexture, ((uTextureFlags & 8u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
     '    metallicRoughnessTexture = vec4(1.0);'+#13#10+
     '  }'+#13#10+
-    '  if((uTextureFlags & 16u) != 0){'+#13#10+
-    '    normalTexture = normalize(texture(uNormalTexture, ((uTextureFlags & 32u) != 0) ? vTexCoord1 : vTexCoord0) - vec4(0.5));'+#13#10+
+    '  if((uTextureFlags & 16u) != 0u){'+#13#10+
+    '    normalTexture = normalize(texture(uNormalTexture, ((uTextureFlags & 32u) != 0u) ? vTexCoord1 : vTexCoord0) - vec4(0.5));'+#13#10+
     '  }else{'+#13#10+
     '    normalTexture = vec2(0.0, 1.0).xxyx;'+#13#10+
     '  }'+#13#10+
-    '  if((uTextureFlags & 64u) != 0){'+#13#10+
-    '    occlusionTexture = texture(uOcclusionTexture, ((uTextureFlags & 128u) != 0) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '  if((uTextureFlags & 64u) != 0u){'+#13#10+
+    '    occlusionTexture = texture(uOcclusionTexture, ((uTextureFlags & 128u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
     '    occlusionTexture = vec4(1.0);'+#13#10+
     '  }'+#13#10+
-    '  if((uTextureFlags & 256u) != 0){'+#13#10+
-    '    emissiveTexture = texture(uEmissiveTexture, ((uTextureFlags & 512u) != 0) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '  if((uTextureFlags & 256u) != 0u){'+#13#10+
+    '    emissiveTexture = texture(uEmissiveTexture, ((uTextureFlags & 512u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
     '    emissiveTexture = vec4(0.0);'+#13#10+
     '  }'+#13#10+
