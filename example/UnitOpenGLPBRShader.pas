@@ -262,7 +262,7 @@ begin
     '  return clamp((x * ((a * x) + vec3(b))) / (x * ((c * x) + vec3(d)) + vec3(e)), vec3(0.0), vec3(1.0));'+#13#10+
     '}'+#13#10+
     'vec3 toneMappingAndToLDR(vec3 x){'+#13#10+
-    '  float exposure = 0.5;'+#13#10+
+    '  float exposure = 1.0;'+#13#10+
     '  return convertLinearRGBToSRGB(ACESFilm(x * exposure));'+#13#10+
     '}'+#13#10+
     'void main(){'+#13#10+
@@ -278,7 +278,8 @@ begin
     '    metallicRoughnessTexture = vec4(1.0);'+#13#10+
     '  }'+#13#10+
     '  if((uTextureFlags & 16u) != 0u){'+#13#10+
-    '    normalTexture = normalize(texture(uNormalTexture, ((uTextureFlags & 32u) != 0u) ? vTexCoord1 : vTexCoord0) - vec4(0.5));'+#13#10+
+    '    normalTexture = texture(uNormalTexture, ((uTextureFlags & 32u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '    normalTexture.xyz = normalize(normalTexture.xyz - vec3(0.5));'+#13#10+
     '  }else{'+#13#10+
     '    normalTexture = vec2(0.0, 1.0).xxyx;'+#13#10+
     '  }'+#13#10+
@@ -307,7 +308,7 @@ begin
     '       diffuseColor = materialAlbedo.xyz * (vec3(1.0) - f0) * (1.0 - materialMetallic) * PI,'+#13#10+
     '       specularColor = mix(f0, materialAlbedo.xyz, materialMetallic) * PI;'+#13#10+
     '  vec3 color = vec3(0.0);'+#13#10+
-{}  '  color += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
+{   '  color += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
     '                              pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
     '                              -uLightDirection,'+#13#10+
     '                              materialNormal.xyz,'+#13#10+
