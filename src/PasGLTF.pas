@@ -736,7 +736,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
              public
               constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
-             protected
+             published
               property Extensions:TPasJSONItemObject read fExtensions;
               property Extras:TPasJSONItemObject read fExtras;
             end;

@@ -54,11 +54,11 @@ type EGLTFOpenGL=class(Exception);
                    PTexture=^TTexture;
                    TPBRSpecularGlossiness=record
                     Used:boolean;
-                    DiffuseColor:TPasGLTF.TVector4;
+                    DiffuseFactor:TPasGLTF.TVector4;
                     DiffuseTexture:TTexture;
                     GlossinessFactor:TPasGLTFFloat;
-                    SpecularColor:TPasGLTF.TVector3;
-                    SpeciarTexture:TTexture;
+                    SpecularFactor:TPasGLTF.TVector3;
+                    SpecularGlossinessTexture:TTexture;
                    end;
                    PPBRSpecularGlossiness=^TPBRSpecularGlossiness;
              public
@@ -319,6 +319,7 @@ procedure TGLTFOpenGL.InitializeResources;
      SourceMaterial:TPasGLTF.TMaterial;
      DestinationMaterial:PMaterial;
      JSONItem:TPasJSONItem;
+     JSONObject:TPasJSONItemObject;
  begin
 
   SetLength(fMaterials,fDocument.Materials.Count);
@@ -331,12 +332,44 @@ procedure TGLTFOpenGL.InitializeResources;
 
    JSONItem:=SourceMaterial.Extensions.Properties['KHR_materials_pbrSpecularGlossiness'];
    if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
+    JSONObject:=TPasJSONItemObject(JSONItem);
     DestinationMaterial.PBRSpecularGlossiness.Used:=true;
-
+    DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor:=TPasGLTF.TDefaults.IdentityVector4;
+    DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.Index:=-1;
+    DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.TexCoord:=0;
+    DestinationMaterial.PBRSpecularGlossiness.GlossinessFactor:=TPasGLTF.TDefaults.IdentityScalar;
+    DestinationMaterial.PBRSpecularGlossiness.SpecularFactor:=TPasGLTF.TDefaults.IdentityVector3;
+    DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.Index:=-1;
+    DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord:=0;
+    begin
+     JSONItem:=JSONObject.Properties['diffuseFactor'];
+     if assigned(JSONItem) and (JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=4) then begin
+      DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[0]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[0]);
+      DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[1]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[1]);
+      DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[2]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[2]);
+      DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[3]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[3]);
+     end;
+     JSONItem:=JSONObject.Properties['diffuseTexture'];
+     if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
+      DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.Index);
+      DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.TexCoord);
+     end;
+     DestinationMaterial.PBRSpecularGlossiness.GlossinessFactor:=TPasJSON.GetNumber(JSONObject.Properties['glossinessFactor'],DestinationMaterial.PBRSpecularGlossiness.GlossinessFactor);
+     JSONItem:=JSONObject.Properties['specularFactor'];
+     if assigned(JSONItem) and (JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=3) then begin
+      DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[0]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[0]);
+      DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[1]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[1]);
+      DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[2]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[2]);
+     end;
+     JSONItem:=JSONObject.Properties['specularGlossinessTexture'];
+     if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
+      DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.Index);
+      DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord);
+     end;
+    end;
    end else begin
     DestinationMaterial.PBRSpecularGlossiness.Used:=false;
    end;
-
 
   end;
 
