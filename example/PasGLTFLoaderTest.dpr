@@ -82,7 +82,7 @@ var Event:TSDL_Event;
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
   ModelMatrix:=Matrix4x4Identity;
   t:=Time;
-  ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*4.0,sin(t*0.25)*4.0,cos(t)*4.0),Vector3Origin,Vector3YAxis);
+  ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*40.0,sin(t*0.25)*4.0,cos(t)*40.0),Vector3Origin,Vector3YAxis);
   ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,0.1,128.0);
   LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
   InverseViewProjectionMatrix:=Matrix4x4TermInverse(Matrix4x4TermMul(ViewMatrix,ProjectionMatrix));

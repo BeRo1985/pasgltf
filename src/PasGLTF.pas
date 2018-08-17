@@ -3365,8 +3365,16 @@ begin
 end;
 
 function TPasGLTF.TDocument.DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
+var FileName:String;
 begin
- result:=TFileStream.Create(IncludeTrailingPathDelimiter(fRootPath)+aURI,fmOpenRead or fmShareDenyWrite);
+ FileName:=IncludeTrailingPathDelimiter(fRootPath)+aURI;
+{$ifdef Windows}
+ FileName:=StringReplace(FileName,'/','\',[rfReplaceAll]);
+{$else}
+ FileName:=StringReplace(FileName,'\','/',[rfReplaceAll]);
+{$endif}
+ FileName:=ExpandFileName(FileName);
+ result:=TFileStream.Create(FileName,fmOpenRead or fmShareDenyWrite);
 end;
 
 procedure TPasGLTF.TDocument.LoadURISource(const aURI:TPasGLTFUTF8String;const aStream:TStream);

@@ -12,7 +12,7 @@ unit UnitGLTFOpenGL;
 
 interface
 
-uses SysUtils,Classes,Math,PasGLTF,dglOpenGL,UnitOpenGLImage,UnitOpenGLPBRShader;
+uses SysUtils,Classes,Math,PasJSON,PasGLTF,dglOpenGL,UnitOpenGLImage,UnitOpenGLPBRShader;
 
 type EGLTFOpenGL=class(Exception);
 
@@ -45,6 +45,27 @@ type EGLTFOpenGL=class(Exception);
             end;
             PVertex=^TVertex;
             TVertices=array of TVertex;
+            TMaterial=record
+             public
+              type TTexture=record
+                    Index:TPasGLTFSizeInt;
+                    TexCoord:TPasGLTFSizeInt;
+                   end;
+                   PTexture=^TTexture;
+                   TPBRSpecularGlossiness=record
+                    Used:boolean;
+                    DiffuseColor:TPasGLTF.TVector4;
+                    DiffuseTexture:TTexture;
+                    GlossinessFactor:TPasGLTFFloat;
+                    SpecularColor:TPasGLTF.TVector3;
+                    SpeciarTexture:TTexture;
+                   end;
+                   PPBRSpecularGlossiness=^TPBRSpecularGlossiness;
+             public
+              PBRSpecularGlossiness:TPBRSpecularGlossiness;
+            end;
+            PMaterial=^TMaterial;
+            TMaterials=array of TMaterial;
             TMesh=record
              public
               type TPrimitive=record
@@ -73,6 +94,7 @@ type EGLTFOpenGL=class(Exception);
        fDocument:TPasGLTF.TDocument;
        fReady:boolean;
        fUploaded:boolean;
+       fMaterials:TMaterials;
        fMeshes:TMeshes;
        fTextures:TTextures;
        fVertexBufferObjectHandle:glInt;
@@ -280,6 +302,7 @@ begin
  fDocument:=aDocument;
  fReady:=false;
  fUploaded:=false;
+ fMaterials:=nil;
  fMeshes:=nil;
 end;
 
@@ -291,6 +314,33 @@ begin
 end;
 
 procedure TGLTFOpenGL.InitializeResources;
+ procedure InitializeMaterials;
+ var Index:TPasGLTFSizeInt;
+     SourceMaterial:TPasGLTF.TMaterial;
+     DestinationMaterial:PMaterial;
+     JSONItem:TPasJSONItem;
+ begin
+
+  SetLength(fMaterials,fDocument.Materials.Count);
+
+  for Index:=0 to fDocument.Materials.Count-1 do begin
+
+   SourceMaterial:=fDocument.Materials.Items[Index];
+
+   DestinationMaterial:=@fMaterials[Index];
+
+   JSONItem:=SourceMaterial.Extensions.Properties['KHR_materials_pbrSpecularGlossiness'];
+   if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
+    DestinationMaterial.PBRSpecularGlossiness.Used:=true;
+
+   end else begin
+    DestinationMaterial.PBRSpecularGlossiness.Used:=false;
+   end;
+
+
+  end;
+
+ end;
  procedure InitializeMeshes;
  var Index,
      PrimitiveIndex,
@@ -642,6 +692,7 @@ procedure TGLTFOpenGL.InitializeResources;
  end;
 begin
  if not fReady then begin
+  InitializeMaterials;
   InitializeMeshes;
   InitializeTextures;
   fReady:=true;
