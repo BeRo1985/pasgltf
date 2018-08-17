@@ -169,9 +169,9 @@ begin
       'vTexCoord0 = aTexCoord0;'+#13#10+
       'vTexCoord1 = aTexCoord1;'+#13#10+
       'vColor = aColor0;'+#13#10+
-      'vec4 viewSpacePosition = uModelViewMatrix * vec4(aPosition,1.0);'+#13#10+
+      'vec4 viewSpacePosition = uModelViewMatrix * vec4(aPosition, 1.0);'+#13#10+
       'vViewSpacePosition = viewSpacePosition.xyz / viewSpacePosition.w;'+#13#10+
-      'gl_Position = uModelViewProjectionMatrix * vec4(aPosition,1.0);'+#13#10+
+      'gl_Position = uModelViewProjectionMatrix * vec4(aPosition, 1.0);'+#13#10+
     '}'+#13#10;
  f:='#version 330'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
