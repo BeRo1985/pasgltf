@@ -315,14 +315,14 @@ begin
     '        materialMetallic,'+#13#10+
     '        materialTransparency = 0.0;'+#13#10+
     '  if((uTextureFlags & 0x40000000u) != 0u){'+#13#10+
-    '    vec3 diffuse = convertSRGBToLinearRGB(baseColorTexture.xyz) * uBaseColorFactor.xyz,'+#13#10+
-    '         specular = clamp(metallicRoughnessTexture.xyz * uSpecularFactor.xyz, vec3(0.0), vec3(1.0));'+#13#10+
+    '    vec3 diffuse = baseColorTexture.xyz * uBaseColorFactor.xyz,'+#13#10+
+    '         specular = metallicRoughnessTexture.xyz * uSpecularFactor.xyz;'+#13#10+
     '    oneMinusSpecularStrength = 1.0 - max(max(specular.x, specular.y), specular.z);'+#13#10+
-    '    float metallic = solveMetallic(dot(diffuse, vec3(1.0 / 3.0)), dot(specular, vec3(1.0 / 3.0)), oneMinusSpecularStrength);'+#13#10+
+    '    float metallic = solveMetallic(dot(diffuse * diffuse, vec3(0.299, 0.587, 0.114)), dot(specular * specular, vec3(0.299, 0.587, 0.114)), oneMinusSpecularStrength);'+#13#10+
     '    vec3 baseColorFromDiffuse = diffuse * ((oneMinusSpecularStrength / (1.0 - dielectricSpecular.x)) / max(1.0 - metallic, 1e-6)),'+#13#10+
     '         baseColorFromSpecular = (specular - (dielectricSpecular * (1.0 - metallic))) / max(1.0 - metallic, 1e-6),'+#13#10+
     '         baseColor = mix(baseColorFromDiffuse, baseColorFromSpecular, metallic * metallic);'+#13#10+
-    '    materialAlbedo = vec4(baseColor, baseColorTexture.w * uBaseColorFactor.w);'+#13#10+
+    '    materialAlbedo = vec4(convertSRGBToLinearRGB(baseColor), baseColorTexture.w * uBaseColorFactor.w);'+#13#10+
     '    materialRoughness = clamp(1.0 - (metallicRoughnessTexture.w * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.y), 1e-3, 1.0);'+#13#10+
     '    materialMetallic = clamp(metallic, 0.0, 1.0);'+#13#10+
     '  }else{'+#13#10+
