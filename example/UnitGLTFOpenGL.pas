@@ -999,16 +999,33 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
       TextureFlags:=TextureFlags or (256 or (512*ord(Material.EmissiveTexture.TexCoord=1)));
      end;
      glUniform1ui(aPBRShader.uTextureFlags,TextureFlags);
-     glUniform4f(aPBRShader.uBaseColorFactor,
-                 Material.PBRMetallicRoughness.BaseColorFactor[0],
-                 Material.PBRMetallicRoughness.BaseColorFactor[1],
-                 Material.PBRMetallicRoughness.BaseColorFactor[2],
-                 Material.PBRMetallicRoughness.BaseColorFactor[3]);
-     glUniform4f(aPBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,
-                 Material.PBRMetallicRoughness.MetallicFactor,
-                 Material.PBRMetallicRoughness.RoughnessFactor,
-                 Material.NormalTexture.Scale,
-                 Material.OcclusionTexture.Strength);
+     if ExtraMaterial^.PBRSpecularGlossiness.Used then begin
+      glUniform4f(aPBRShader.uBaseColorFactor,
+                  ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[0],
+                  ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[1],
+                  ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[2],
+                  ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[3]);
+      glUniform4f(aPBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,
+                  1.0,
+                  ExtraMaterial^.PBRSpecularGlossiness.GlossinessFactor,
+                  Material.NormalTexture.Scale,
+                  Material.OcclusionTexture.Strength);
+      glUniform3f(aPBRShader.uSpecularFactor,
+                  ExtraMaterial^.PBRSpecularGlossiness.SpecularFactor[0],
+                  ExtraMaterial^.PBRSpecularGlossiness.SpecularFactor[1],
+                  ExtraMaterial^.PBRSpecularGlossiness.SpecularFactor[2]);
+     end else begin
+      glUniform4f(aPBRShader.uBaseColorFactor,
+                  Material.PBRMetallicRoughness.BaseColorFactor[0],
+                  Material.PBRMetallicRoughness.BaseColorFactor[1],
+                  Material.PBRMetallicRoughness.BaseColorFactor[2],
+                  Material.PBRMetallicRoughness.BaseColorFactor[3]);
+      glUniform4f(aPBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,
+                  Material.PBRMetallicRoughness.MetallicFactor,
+                  Material.PBRMetallicRoughness.RoughnessFactor,
+                  Material.NormalTexture.Scale,
+                  Material.OcclusionTexture.Strength);
+     end;
      glUniform3f(aPBRShader.uEmissiveFactor,
                  Material.EmissiveFactor[0],
                  Material.EmissiveFactor[1],
