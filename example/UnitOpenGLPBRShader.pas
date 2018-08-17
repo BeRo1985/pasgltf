@@ -265,8 +265,20 @@ begin
     '  float exposure = 0.5;'+#13#10+
     '  return convertLinearRGBToSRGB(ACESFilm(x * exposure));'+#13#10+
     '}'+#13#10+
+    'const vec3 dielectricSpecular = vec3(0.04, 0.04, 0.04);'+#13#10+
+    'float solveMetallic(float diffuse, float specular, float oneMinusSpecularStrength){'+#13#10+
+    '  if(specular < dielectricSpecular.r){'+#13#10+
+    '    return 0.0;'+#13#10+
+    '  }'+#13#10+
+    '  float a = dielectricSpecular.x,'+#13#10+
+    '        b = (diffuse * oneMinusSpecularStrength / (1.0 - dielectricSpecular.x)) + specular - (2.0 * dielectricSpecular.x),'+#13#10+
+    '        c = dielectricSpecular.x - specular,'+#13#10+
+    '        D = max(0.0, (b * b) - (4 * a * c));'+#13#10+
+    '  return clamp((-b + sqrt(D)) / (2.0 * a), 0.0, 1.0);'+#13#10+
+    '}'+#13#10+
     'void main(){'+#13#10+
     '  vec4 baseColorTexture, metallicRoughnessTexture, normalTexture, occlusionTexture, emissiveTexture;'+#13#10+
+    '  float oneMinusSpecularStrength = 0.0;'+#13#10+
     '  if((uTextureFlags & 1u) != 0u){'+#13#10+
     '    baseColorTexture = texture(uBaseColorTexture, ((uTextureFlags & 2u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
@@ -294,13 +306,29 @@ begin
     '    emissiveTexture = vec4(0.0);'+#13#10+
     '  }'+#13#10+
     '  mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
-    '  vec4 materialAlbedo = vec4(convertSRGBToLinearRGB(baseColorTexture.xyz), baseColorTexture.w) * uBaseColorFactor,'+#13#10+
+    '  vec4 materialAlbedo,'+#13#10+
     '       materialNormal = vec4(normalize(tangentSpace * normalTexture.xyz), normalTexture.w * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.z);'+#13#10+
-    '  float materialRoughness = clamp(metallicRoughnessTexture.y * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.y, 1e-3, 1.0),'+#13#10+
+    '  float materialRoughness,'+#13#10+
     '        materialCavity = clamp(mix(1.0, occlusionTexture.x, uMetallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
-    '        materialMetallic = clamp(metallicRoughnessTexture.z * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.x, 0.0, 1.0),'+#13#10+
-    '        materialTransparency = 0.0,'+#13#10+
-    '        refractiveAngle = 0.0,'+#13#10+
+    '        materialMetallic,'+#13#10+
+    '        materialTransparency = 0.0;'+#13#10+
+    '  if((uTextureFlags & 0x40000000u) != 0u){'+#13#10+
+    '    vec3 diffuse = convertSRGBToLinearRGB(baseColorTexture.xyz) * uBaseColorFactor.xyz,'+#13#10+
+    '         specular = clamp(metallicRoughnessTexture.xyz * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.x, vec3(0.0), vec3(1.0));'+#13#10+
+    '    oneMinusSpecularStrength = 1.0 - max(max(specular.x, specular.y), specular.z);'+#13#10+
+    '    float metallic = solveMetallic(dot(diffuse, vec3(1.0 / 3.0)), dot(specular, vec3(1.0 / 3.0)), oneMinusSpecularStrength);'+#13#10+
+    '    vec3 baseColorFromDiffuse = diffuse * ((oneMinusSpecularStrength / (1.0 - dielectricSpecular.x)) / max(1.0 - metallic, 1e-6)),'+#13#10+
+    '         baseColorFromSpecular = (specular - (dielectricSpecular * (1.0 - metallic))) / max(1.0 - metallic, 1e-6),'+#13#10+
+    '         baseColor = mix(baseColorFromDiffuse, baseColorFromSpecular, metallic * metallic);'+#13#10+
+    '    materialAlbedo = vec4(baseColor, baseColorTexture.w * uBaseColorFactor.w);'+#13#10+
+    '    materialRoughness = clamp(1.0 - (metallicRoughnessTexture.y * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.y), 1e-3, 1.0);'+#13#10+
+    '    materialMetallic = clamp(metallic, 0.0, 1.0);'+#13#10+
+    '  }else{'+#13#10+
+    '    materialAlbedo = vec4(convertSRGBToLinearRGB(baseColorTexture.xyz), baseColorTexture.w) * uBaseColorFactor;'+#13#10+
+    '    materialRoughness = clamp(metallicRoughnessTexture.y * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.y, 1e-3, 1.0);'+#13#10+
+    '    materialMetallic = clamp(metallicRoughnessTexture.z * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.x, 0.0, 1.0);'+#13#10+
+    '  }'+#13#10+
+    '  float refractiveAngle = 0.0,'+#13#10+
     '        ambientOcclusion = 1.0,'+#13#10+
     '        shadow = 1.0;'+#13#10+
     '  vec3 f0 = vec3(0.04),'+#13#10+
