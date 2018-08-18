@@ -10,6 +10,8 @@ unit UnitGLTFOpenGL;
 {$endif}
 {$m+}
 
+{$scopedenums on}
+
 interface
 
 uses SysUtils,Classes,Math,PasJSON,PasGLTF,dglOpenGL,UnitOpenGLImage,UnitOpenGLPBRShader;
@@ -18,7 +20,35 @@ type EGLTFOpenGL=class(Exception);
 
      TGLTFOpenGL=class
       private
-       type TVertexAttributeBindingLocations=class
+       type TAnimation=record
+             public
+              type TChannel=record
+                    public
+                     type TTarget=
+                           (
+                            Translation,
+                            Rotation,
+                            Scale
+                           );
+                          TInterpolation=
+                           (
+                            Linear,
+                            Step,
+                            CubicSpline
+                           );
+                    public
+                     Node:TPasGLTFSizeInt;
+                     Target:TTarget;
+                     Interpolation:TInterpolation;
+                     Vector3Array:TPasGLTF.TVector3DynamicArray;
+                     Vector4Array:TPasGLTF.TVector4DynamicArray;
+                   end;
+                   PChannel=^TChannel;
+                   TChannels=array of TChannel;
+             public
+              fChannels:TChannel;
+            end;
+            TVertexAttributeBindingLocations=class
              public
               const Position=0;
                     Normal=1;
