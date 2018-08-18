@@ -1120,6 +1120,13 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
   end;
  end;
  procedure ProcessAnimation(const aAnimationIndex:TPasGLTFSizeInt);
+  function CubicSplineInterpolate(const t,y0,y1,y2,y3:TPasGLTFFloat):TPasGLTFFloat;
+  var t2,n:TPasGLTFFloat;
+  begin
+   t2:=t*t;
+   n:=((y3-y2)-y0)+y1;
+   result:=(n*t*t2)+(((y0-y1)-n)*t2)+((y2-y0)*t)+y1;
+  end;
  var ChannelIndex,InputTimeArrayIndex:TPasGLTFSizeInt;
      Animation:PAnimation;
      AnimationChannel:TAnimation.PChannel;
@@ -1183,14 +1190,13 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
          Vector3:=AnimationChannel^.OutputVector3Array[TimeIndices[0]];
         end;
         TAnimation.TChannel.TInterpolation.CubicSpline:begin
-         // TODO
          Vector3s[-1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[-1]];
          Vector3s[0]:=@AnimationChannel^.OutputVector3Array[TimeIndices[0]];
          Vector3s[1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[1]];
          Vector3s[2]:=@AnimationChannel^.OutputVector3Array[TimeIndices[2]];
-         Vector3[0]:=(Vector3s[0]^[0]*(1.0-Factor))+(Vector3s[1]^[0]*Factor);
-         Vector3[1]:=(Vector3s[0]^[1]*(1.0-Factor))+(Vector3s[1]^[1]*Factor);
-         Vector3[2]:=(Vector3s[0]^[2]*(1.0-Factor))+(Vector3s[1]^[2]*Factor);
+         Vector3[0]:=CubicSplineInterpolate(Factor,Vector3s[-1]^[0],Vector3s[0]^[0],Vector3s[1]^[0],Vector3s[2]^[0]);
+         Vector3[1]:=CubicSplineInterpolate(Factor,Vector3s[-1]^[1],Vector3s[0]^[1],Vector3s[1]^[1],Vector3s[2]^[1]);
+         Vector3[2]:=CubicSplineInterpolate(Factor,Vector3s[-1]^[2],Vector3s[0]^[2],Vector3s[1]^[2],Vector3s[2]^[2]);
         end;
         else begin
          Assert(false);
