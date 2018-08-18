@@ -271,7 +271,7 @@ function QuaternionSlerp(const q1,q2:TVector4;const t:TPasGLTFFloat):TVector4;
 const EPSILON=1e-12;
 var Omega,co,so,s0,s1,s2:TPasGLTFFloat;
 begin
- co:=(q1[0]*q2[0])+(q1[1]*q2[1])+(q1[2]*q2[2])+(q1[3]*q2[0]);
+ co:=(q1[0]*q2[0])+(q1[1]*q2[1])+(q1[2]*q2[2])+(q1[3]*q2[3]);
  if co<0.0 then begin
   co:=-co;
   s2:=-1.0;
@@ -1142,7 +1142,8 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
     TimeIndices[0]:=length(AnimationChannel^.InputTimeArray)-1;
     TimeIndices[1]:=length(AnimationChannel^.InputTimeArray)-1;
 
-    Time:=aTime-(floor(aTime/AnimationChannel^.InputTimeArray[TimeIndices[1]])*AnimationChannel^.InputTimeArray[TimeIndices[1]]);
+    Time:=AnimationChannel^.InputTimeArray[TimeIndices[1]];
+    Time:=aTime-(floor(aTime/Time)*Time);
 
     for InputTimeArrayIndex:=1 to length(AnimationChannel^.InputTimeArray)-1 do begin
      if AnimationChannel^.InputTimeArray[InputTimeArrayIndex]>=Time then begin
