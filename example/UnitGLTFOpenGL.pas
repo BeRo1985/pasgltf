@@ -48,8 +48,10 @@ type EGLTFOpenGL=class(Exception);
                    PChannel=^TChannel;
                    TChannels=array of TChannel;
              public
-              fChannels:TChannel;
+              Channels:TChannels;
             end;
+            PAnimation=^TAnimation;
+            TAnimations=array of TAnimation;
             TVertexAttributeBindingLocations=class
              public
               const Position=0;
@@ -144,6 +146,7 @@ type EGLTFOpenGL=class(Exception);
        fDocument:TPasGLTF.TDocument;
        fReady:boolean;
        fUploaded:boolean;
+       fAnimations:TAnimations;
        fMaterials:TMaterials;
        fMeshes:TMeshes;
        fNodes:TNodes;
@@ -365,6 +368,51 @@ begin
 end;
 
 procedure TGLTFOpenGL.InitializeResources;
+ procedure InitializeAnimations;
+ var Index,ChannelIndex:TPasGLTFSizeInt;
+     SourceAnimation:TPasGLTF.TAnimation;
+     DestinationAnimation:PAnimation;
+     SourceAnimationChannel:TPasGLTF.TAnimation.TChannel;
+     DestinationAnimationChannel:TAnimation.PChannel;
+ begin
+
+  SetLength(fAnimations,fDocument.Animations.Count);
+
+  for Index:=0 to fDocument.Animations.Count-1 do begin
+
+   SourceAnimation:=fDocument.Animations.Items[Index];
+
+   DestinationAnimation:=@fAnimations[Index];
+
+   SetLength(DestinationAnimation^.Channels,SourceAnimation.Channels.Count);
+
+   for ChannelIndex:=0 to SourceAnimation.Channels.Count-1 do begin
+
+    SourceAnimationChannel:=SourceAnimation.Channels[ChannelIndex];
+
+    DestinationAnimationChannel:=@DestinationAnimation^.Channels[ChannelIndex];
+
+    DestinationAnimationChannel^.Node:=SourceAnimationChannel.Target.Node;
+
+    if SourceAnimationChannel.Target.Path='translation' then begin
+     DestinationAnimationChannel^.Target:=TAnimation.TChannel.TTarget.Translation;
+    end else if SourceAnimationChannel.Target.Path='rotation' then begin
+     DestinationAnimationChannel^.Target:=TAnimation.TChannel.TTarget.Rotation;
+    end else if SourceAnimationChannel.Target.Path='scale' then begin
+     DestinationAnimationChannel^.Target:=TAnimation.TChannel.TTarget.Scale;
+    end else if SourceAnimationChannel.Target.Path='weights' then begin
+     DestinationAnimationChannel^.Target:=TAnimation.TChannel.TTarget.Weights;
+    end else begin
+     raise EGLTFOpenGL.Create('Non-supported animation channel target path "'+String(SourceAnimationChannel.Target.Path)+'"');
+    end;
+
+
+   end;
+
+
+  end;
+
+ end;
  procedure InitializeMaterials;
  var Index:TPasGLTFSizeInt;
      SourceMaterial:TPasGLTF.TMaterial;
@@ -780,6 +828,7 @@ procedure TGLTFOpenGL.InitializeResources;
  end;
 begin
  if not fReady then begin
+  InitializeAnimations;
   InitializeMaterials;
   InitializeMeshes;
   InitializeNodes;
