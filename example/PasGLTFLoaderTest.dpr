@@ -120,7 +120,8 @@ var Event:TSDL_Event;
    GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
                    TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
                    TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
-                   PBRShader);
+                   PBRShader,
+                   Time);
    PBRShader.Unbind;
   end;
   glDisable(GL_MULTISAMPLE);

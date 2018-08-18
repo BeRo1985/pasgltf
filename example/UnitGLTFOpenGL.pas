@@ -162,7 +162,7 @@ type EGLTFOpenGL=class(Exception);
        procedure FinalizeResources;
        procedure UploadResources;
        procedure UnloadResources;
-       procedure Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aScene:TPasGLTFSizeInt=-1);
+       procedure Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
       published
        property Document:TPasGLTF.TDocument read fDocument;
      end;
@@ -1062,7 +1062,7 @@ begin
  end;
 end;
 
-procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aScene:TPasGLTFSizeInt=-1);
+procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
  procedure ResetNode(const aNodeIndex:TPasGLTFSizeInt);
  var Index:TPasGLTFSizeInt;
      Node:TPasGLTF.TNode;
@@ -1074,9 +1074,15 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
   end;
  end;
  procedure ProcessAnimation(const aAnimationIndex:TPasGLTFSizeInt);
- var ChannelIndex:TPasGLTFSizeInt;
+ var ChannelIndex,InputTimeArrayIndex:TPasGLTFSizeInt;
+     TimeIndices:array[0..1] of TPasGLTFSizeInt;
      Animation:PAnimation;
      AnimationChannel:TAnimation.PChannel;
+     Factor,Scalar:TPasGLTFFloat;
+     Vector3:TPasGLTF.TVector3;
+     Vector4:TPasGLTF.TVector4;
+     Vector3s:array[0..1] of TPasGLTF.PVector3;
+     Vector4s:array[0..1] of TPasGLTF.PVector4;
  begin
 
   Animation:=@fAnimations[aAnimationIndex];
@@ -1087,10 +1093,76 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
 
    if AnimationChannel^.Node>=0 then begin
 
+    TimeIndices[0]:=length(AnimationChannel^.InputTimeArray)-1;
+    TimeIndices[1]:=length(AnimationChannel^.InputTimeArray)-1;
+
+    for InputTimeArrayIndex:=1 to length(AnimationChannel^.InputTimeArray)-1 do begin
+     if AnimationChannel^.InputTimeArray[InputTimeArrayIndex]>=aTime then begin
+      TimeIndices[0]:=inputTimeArrayIndex-1;
+      TimeIndices[1]:=InputTimeArrayIndex;
+      break;
+     end;
+    end;
+
+    if (TimeIndices[0]>=0) and (TimeIndices[1]>=0) then begin
+
+     if SameValue(TimeIndices[0],TimeIndices[1]) then begin
+      Factor:=0.0;
+     end else begin
+      Factor:=(aTime-AnimationChannel^.InputTimeArray[TimeIndices[0]])/(AnimationChannel^.InputTimeArray[TimeIndices[1]]-AnimationChannel^.InputTimeArray[TimeIndices[0]]);
+     end;
+
+     case AnimationChannel^.Target of
+      TAnimation.TChannel.TTarget.Translation,
+      TAnimation.TChannel.TTarget.Scale:begin
+       case AnimationChannel^.Interpolation of
+        TAnimation.TChannel.TInterpolation.Linear:begin
+         Vector3s[0]:=@AnimationChannel^.OutputVector3Array[TimeIndices[0]];
+         Vector3s[1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[1]];
+         Vector3[0]:=(Vector3s[0]^[0]*(1.0-Factor))+(Vector3s[1]^[0]*Factor);
+         Vector3[1]:=(Vector3s[0]^[1]*(1.0-Factor))+(Vector3s[1]^[1]*Factor);
+         Vector3[2]:=(Vector3s[0]^[2]*(1.0-Factor))+(Vector3s[1]^[2]*Factor);
+        end;
+        TAnimation.TChannel.TInterpolation.Step:begin
+         Vector3:=AnimationChannel^.OutputVector3Array[TimeIndices[0]];
+        end;
+        TAnimation.TChannel.TInterpolation.CubicSpline:begin
+         // TODO
+         Vector3s[0]:=@AnimationChannel^.OutputVector3Array[TimeIndices[0]];
+         Vector3s[1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[1]];
+         Vector3[0]:=(Vector3s[0]^[0]*(1.0-Factor))+(Vector3s[1]^[0]*Factor);
+         Vector3[1]:=(Vector3s[0]^[1]*(1.0-Factor))+(Vector3s[1]^[1]*Factor);
+         Vector3[2]:=(Vector3s[0]^[2]*(1.0-Factor))+(Vector3s[1]^[2]*Factor);
+        end;
+        else begin
+         Assert(false);
+        end;
+       end;
+       case AnimationChannel^.Target of
+        TAnimation.TChannel.TTarget.Translation:begin
+         Include(fNodes[AnimationChannel^.Node].OverwriteFlags,TNode.TOverwriteFlag.Translation);
+         fNodes[AnimationChannel^.Node].Translation:=Vector3;
+        end;
+        TAnimation.TChannel.TTarget.Scale:begin
+         Include(fNodes[AnimationChannel^.Node].OverwriteFlags,TNode.TOverwriteFlag.Scale);
+         fNodes[AnimationChannel^.Node].Scale:=Vector3;
+        end;
+       end;
+      end;
+      TAnimation.TChannel.TTarget.Rotation:begin
+
+      end;
+      TAnimation.TChannel.TTarget.Weights:begin
+
+      end;
+     end;
+
+
+    end;
+
    end;
 
   end;
-
 
  end;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
