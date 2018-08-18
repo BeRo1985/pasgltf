@@ -41,9 +41,10 @@ type EGLTFOpenGL=class(Exception);
                      Node:TPasGLTFSizeInt;
                      Target:TTarget;
                      Interpolation:TInterpolation;
-                     ScalarArray:TPasGLTFFloatDynamicArray;
-                     Vector3Array:TPasGLTF.TVector3DynamicArray;
-                     Vector4Array:TPasGLTF.TVector4DynamicArray;
+                     InputTimeArray:TPasGLTFFloatDynamicArray;
+                     OutputScalarArray:TPasGLTFFloatDynamicArray;
+                     OutputVector3Array:TPasGLTF.TVector3DynamicArray;
+                     OutputVector4Array:TPasGLTF.TVector4DynamicArray;
                    end;
                    PChannel=^TChannel;
                    TChannels=array of TChannel;
@@ -421,6 +422,19 @@ procedure TGLTFOpenGL.InitializeResources;
       end;
       else begin
        raise EGLTFOpenGL.Create('Non-supported animation sampler interpolation method type');
+      end;
+     end;
+     DestinationAnimationChannel^.InputTimeArray:=fDocument.Accessors[SourceAnimationSampler.Input].DecodeAsFloatArray(false);
+     case DestinationAnimationChannel^.Target of
+      TAnimation.TChannel.TTarget.Translation,
+      TAnimation.TChannel.TTarget.Scale:begin
+       DestinationAnimationChannel^.OutputVector3Array:=fDocument.Accessors[SourceAnimationSampler.Output].DecodeAsVector3Array(false);
+      end;
+      TAnimation.TChannel.TTarget.Rotation:begin
+       DestinationAnimationChannel^.OutputVector4Array:=fDocument.Accessors[SourceAnimationSampler.Output].DecodeAsVector4Array(false);
+      end;
+      TAnimation.TChannel.TTarget.Weights:begin
+       DestinationAnimationChannel^.OutputScalarArray:=fDocument.Accessors[SourceAnimationSampler.Output].DecodeAsFloatArray(false);
       end;
      end;
     end else begin
