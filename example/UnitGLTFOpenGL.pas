@@ -85,6 +85,11 @@ type EGLTFOpenGL=class(Exception);
             end;
             PMesh=^TMesh;
             TMeshes=array of TMesh;
+            TNode=record
+             Matrix:TPasGLTF.TMatrix4x4;
+            end;
+            PNode=^TNode;
+            TNodes=array of TNode;
             TTexture=record
              Handle:glUInt;
             end;
@@ -96,6 +101,7 @@ type EGLTFOpenGL=class(Exception);
        fUploaded:boolean;
        fMaterials:TMaterials;
        fMeshes:TMeshes;
+       fNodes:TNodes;
        fTextures:TTextures;
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
@@ -719,6 +725,10 @@ procedure TGLTFOpenGL.InitializeResources;
   end;
 
  end;
+ procedure InitializeNodes;
+ begin
+  SetLength(fNodes,fDocument.Nodes.Count);
+ end;
  procedure InitializeTextures;
  begin
   SetLength(fTextures,fDocument.Textures.Count);
@@ -727,6 +737,7 @@ begin
  if not fReady then begin
   InitializeMaterials;
   InitializeMeshes;
+  InitializeNodes;
   InitializeTextures;
   fReady:=true;
  end;
@@ -925,24 +936,27 @@ begin
 end;
 
 procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aScene:TPasGLTFSizeInt=-1);
- procedure ProcessNode(const aNode:TPasGLTF.TNode;const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
+ procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
  var Index:TPasGLTFSizeInt;
      Matrix:TPasGLTF.TMatrix4x4;
+     Node:TPasGLTF.TNode;
  begin
+  Node:=fDocument.Nodes[aNodeIndex];
   Matrix:=MatrixMul(
            MatrixMul(
             MatrixMul(
-             MatrixFromScale(aNode.Scale),
+             MatrixFromScale(Node.Scale),
              MatrixMul(
-              MatrixFromRotation(aNode.Rotation),
-              MatrixFromTranslation(aNode.Translation))),
-            aNode.Matrix),
+              MatrixFromRotation(Node.Rotation),
+              MatrixFromTranslation(Node.Translation))),
+            Node.Matrix),
            aMatrix);
-  for Index:=0 to aNode.Children.Count-1 do begin
-   ProcessNode(fDocument.Nodes[aNode.Children.Items[Index]],aNode.Children.Items[Index],Matrix);
+  fNodes[aNodeIndex].Matrix:=Matrix;
+  for Index:=0 to Node.Children.Count-1 do begin
+   ProcessNode(Node.Children.Items[Index],Matrix);
   end;
  end;
- procedure DrawNode(const aNode:TPasGLTF.TNode;const aMatrix:TMatrix;const aAlphaMode:TPasGLTF.TMaterial.TAlphaMode);
+ procedure DrawNode(const aNodeIndex:TPasGLTFSizeInt;const aAlphaMode:TPasGLTF.TMaterial.TAlphaMode);
   procedure DrawMesh(const aMesh:TMesh);
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
@@ -1056,27 +1070,21 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
   end;
  var Index:TPasGLTFSizeInt;
      Matrix,ModelMatrix,ModelViewMatrix,ModelViewProjectionMatrix:TPasGLTF.TMatrix4x4;
+     Node:TPasGLTF.TNode;
  begin
-  Matrix:=MatrixMul(
-           MatrixMul(
-            MatrixMul(
-             MatrixFromScale(aNode.Scale),
-             MatrixMul(
-              MatrixFromRotation(aNode.Rotation),
-              MatrixFromTranslation(aNode.Translation))),
-            aNode.Matrix),
-           aMatrix);
-  if (aNode.Mesh>=0) and (aNode.Mesh<length(fMeshes)) then begin
+  Node:=fDocument.Nodes[aNodeIndex];
+  Matrix:=fNodes[aNodeIndex].Matrix;
+  if (Node.Mesh>=0) and (Node.Mesh<length(fMeshes)) then begin
    ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
    ModelViewMatrix:=MatrixMul(ModelMatrix,aViewMatrix);
    ModelViewProjectionMatrix:=MatrixMul(ModelViewMatrix,aProjectionMatrix);
    glUniformMatrix4fv(aPBRShader.uModelMatrix,1,false,@ModelMatrix);
    glUniformMatrix4fv(aPBRShader.uModelViewMatrix,1,false,@ModelViewMatrix);
    glUniformMatrix4fv(aPBRShader.uModelViewProjectionMatrix,1,false,@ModelViewProjectionMatrix);
-   DrawMesh(fMeshes[aNode.Mesh]);
+   DrawMesh(fMeshes[Node.Mesh]);
   end;
-  for Index:=0 to aNode.Children.Count-1 do begin
-   DrawNode(fDocument.Nodes[aNode.Children.Items[Index]],Matrix,aAlphaMode);
+  for Index:=0 to Node.Children.Count-1 do begin
+   DrawNode(Node.Children.Items[Index],aAlphaMode);
   end;
  end;
 var Index:TPasGLTFSizeInt;
@@ -1097,11 +1105,11 @@ begin
  glUniform1i(aPBRShader.uOcclusionTexture,3);
  glUniform1i(aPBRShader.uEmissiveTexture,4);
  for Index:=0 to Scene.Nodes.Count-1 do begin
-  ProcessNode(fDocument.Nodes[Scene.Nodes.Items[Index]],Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix);
+  ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix);
  end;
  for AlphaMode:=TPasGLTF.TMaterial.TAlphaMode.Opaque to TPasGLTF.TMaterial.TAlphaMode.Blend do begin
   for Index:=0 to Scene.Nodes.Count-1 do begin
-   DrawNode(fDocument.Nodes[Scene.Nodes.Items[Index]],TPasGLTF.TDefaults.IdentityMatrix,AlphaMode);
+   DrawNode(Scene.Nodes.Items[Index],AlphaMode);
   end;
  end;
  glBindVertexArray(0);
