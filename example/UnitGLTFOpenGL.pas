@@ -86,7 +86,20 @@ type EGLTFOpenGL=class(Exception);
             PMesh=^TMesh;
             TMeshes=array of TMesh;
             TNode=record
-             Matrix:TPasGLTF.TMatrix4x4;
+             public
+              type TOverwriteFlag=
+                    (
+                     Translation,
+                     Rotation,
+                     Scale
+                    );
+                   TOverwriteFlags=set of TOverwriteFlag;
+             public
+              Matrix:TPasGLTF.TMatrix4x4;
+              OverwriteFlags:TOverwriteFlags;
+              Translation:TPasGLTF.TVector3;
+              Rotation:TPasGLTF.TVector4;
+              Scale:TPasGLTF.TVector3;
             end;
             PNode=^TNode;
             TNodes=array of TNode;
@@ -936,19 +949,52 @@ begin
 end;
 
 procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aScene:TPasGLTFSizeInt=-1);
+ procedure ResetNode(const aNodeIndex:TPasGLTFSizeInt);
+ var Index:TPasGLTFSizeInt;
+     Node:TPasGLTF.TNode;
+ begin
+  Node:=fDocument.Nodes[aNodeIndex];
+  fNodes[aNodeIndex].OverwriteFlags:=[];
+  for Index:=0 to Node.Children.Count-1 do begin
+   ResetNode(Node.Children.Items[Index]);
+  end;
+ end;
+ procedure ProcessAnimation(const aAnimationIndex:TPasGLTFSizeInt);
+ begin
+  // TODO
+ end;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
  var Index:TPasGLTFSizeInt;
      Matrix:TPasGLTF.TMatrix4x4;
      Node:TPasGLTF.TNode;
+     ExtraNode:PNode;
+     Translation,Scale:TVector3;
+     Rotation:TVector4;
  begin
   Node:=fDocument.Nodes[aNodeIndex];
+  ExtraNode:=@fNodes[aNodeIndex];
+  if TNode.TOverwriteFlag.Translation in ExtraNode^.OverwriteFlags then begin
+   Translation:=ExtraNode^.Translation;
+  end else begin
+   Translation:=Node.Translation;
+  end;
+  if TNode.TOverwriteFlag.Scale in ExtraNode^.OverwriteFlags then begin
+   Scale:=ExtraNode^.Scale;
+  end else begin
+   Scale:=Node.Scale;
+  end;
+  if TNode.TOverwriteFlag.Rotation in ExtraNode^.OverwriteFlags then begin
+   Rotation:=ExtraNode^.Rotation;
+  end else begin
+   Rotation:=Node.Rotation;
+  end;
   Matrix:=MatrixMul(
            MatrixMul(
             MatrixMul(
-             MatrixFromScale(Node.Scale),
+             MatrixFromScale(Scale),
              MatrixMul(
-              MatrixFromRotation(Node.Rotation),
-              MatrixFromTranslation(Node.Translation))),
+              MatrixFromRotation(Rotation),
+              MatrixFromTranslation(Translation))),
             Node.Matrix),
            aMatrix);
   fNodes[aNodeIndex].Matrix:=Matrix;
@@ -1104,6 +1150,12 @@ begin
  glUniform1i(aPBRShader.uNormalTexture,2);
  glUniform1i(aPBRShader.uOcclusionTexture,3);
  glUniform1i(aPBRShader.uEmissiveTexture,4);
+ for Index:=0 to Scene.Nodes.Count-1 do begin
+  ResetNode(Scene.Nodes.Items[Index]);
+ end;
+ for Index:=0 to fDocument.Animations.Count-1 do begin
+  ProcessAnimation(Index);
+ end;
  for Index:=0 to Scene.Nodes.Count-1 do begin
   ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix);
  end;
