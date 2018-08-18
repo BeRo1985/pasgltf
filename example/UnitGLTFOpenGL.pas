@@ -250,6 +250,19 @@ begin
  result[2]:=aVector[2]*aFactor;
 end;
 
+function Vector4Dot(const a,b:TVector4):TPasGLTFFloat;
+begin
+ result:=(a[0]*b[0])+(a[1]*b[1])+(a[2]*b[2])+(a[3]*b[3]);
+end;
+
+function Vector4Neg(const aVector:TVector4):TVector4;
+begin
+ result[0]:=-aVector[0];
+ result[1]:=-aVector[1];
+ result[2]:=-aVector[2];
+ result[3]:=-aVector[3];
+end;
+
 function Vector4Normalize(const aVector:TVector4):TVector4;
 var l:TPasGLTFFloat;
 begin
@@ -265,6 +278,58 @@ begin
   result[2]:=0.0;
   result[3]:=0.0;
  end;
+end;
+
+function QuaternionMul(const q1,q2:TVector4):TVector4;
+begin
+ result[0]:=((q1[3]*q2[0])+(q1[0]*q2[3])+(q1[1]*q2[2]))-(q1[2]*q2[1]);
+ result[1]:=((q1[3]*q2[1])+(q1[1]*q2[3])+(q1[2]*q2[0]))-(q1[0]*q2[2]);
+ result[2]:=((q1[3]*q2[2])+(q1[2]*q2[3])+(q1[0]*q2[1]))-(q1[1]*q2[0]);
+ result[3]:=(q1[3]*q2[3])-((q1[0]*q2[0])+(q1[1]*q2[1])+(q1[2]*q2[2]));
+end;
+
+function QuaternionConjugate(const AQuaternion:TVector4):TVector4;
+begin
+ result[0]:=-AQuaternion[0];
+ result[1]:=-AQuaternion[1];
+ result[2]:=-AQuaternion[2];
+ result[3]:=AQuaternion[3];
+end;
+
+function QuaternionInverse(const AQuaternion:TVector4):TVector4;var Normal:TPasGLTFFloat;
+begin
+ Normal:=sqrt(sqr(AQuaternion[0])+sqr(AQuaternion[1])+sqr(AQuaternion[2])+sqr(AQuaternion[3]));
+ if abs(Normal)>1e-18 then begin
+  Normal:=1.0/Normal;
+ end;
+ result[0]:=-(AQuaternion[0]*Normal);
+ result[1]:=-(AQuaternion[1]*Normal);
+ result[2]:=-(AQuaternion[2]*Normal);
+ result[3]:=(AQuaternion[3]*Normal);
+end;
+
+function QuaternionAdd(const q1,q2:TVector4):TVector4;
+begin
+ result[0]:=q1[0]+q2[0];
+ result[1]:=q1[1]+q2[1];
+ result[2]:=q1[2]+q2[2];
+ result[3]:=q1[3]+q2[3];
+end;
+
+function QuaternionSub(const q1,q2:TVector4):TVector4;
+begin
+ result[0]:=q1[0]-q2[0];
+ result[1]:=q1[1]-q2[1];
+ result[2]:=q1[2]-q2[2];
+ result[3]:=q1[3]-q2[3];
+end;
+
+function QuaternionScalarMul(const q:TVector4;const s:TPasGLTFFloat):TVector4;
+begin
+ result[0]:=q[0]*s;
+ result[1]:=q[1]*s;
+ result[2]:=q[2]*s;
+ result[3]:=q[3]*s;
 end;
 
 function QuaternionSlerp(const q1,q2:TVector4;const t:TPasGLTFFloat):TVector4;
@@ -291,6 +356,91 @@ begin
  result[1]:=(s0*q1[1])+(s1*(s2*q2[1]));
  result[2]:=(s0*q1[2])+(s1*(s2*q2[2]));
  result[3]:=(s0*q1[3])+(s1*(s2*q2[3]));
+end;
+
+function QuaternionUnflippedSlerp(const q1,q2:TVector4;const t:TPasGLTFFloat):TVector4; {$ifdef caninline}inline;{$endif}
+var Omega,co,so,s0,s1:TPasGLTFFloat;
+begin
+ co:=(q1[0]*q2[0])+(q1[1]*q2[1])+(q1[2]*q2[2])+(q1[3]*q2[3]);
+ if (1.0-co)>1e-8 then begin
+  Omega:=ArcCos(co);
+  so:=sin(Omega);
+  s0:=sin((1.0-t)*Omega)/so;
+  s1:=sin(t*Omega)/so;
+ end else begin
+  s0:=1.0-t;
+  s1:=t;
+ end;
+ result[0]:=(s0*q1[0])+(s1*q2[0]);
+ result[1]:=(s0*q1[1])+(s1*q2[1]);
+ result[2]:=(s0*q1[2])+(s1*q2[2]);
+ result[3]:=(s0*q1[3])+(s1*q2[3]);
+end;
+
+function QuaternionLog(const AQuaternion:TVector4):TVector4;
+var Theta,SinTheta,Coefficent:TPasGLTFFloat;
+begin
+ result[0]:=AQuaternion[0];
+ result[1]:=AQuaternion[1];
+ result[2]:=AQuaternion[2];
+ result[3]:=0.0;
+ if abs(AQuaternion[3])<1.0 then begin
+  Theta:=ArcCos(AQuaternion[3]);
+  SinTheta:=sin(Theta);
+  if abs(SinTheta)>1e-6 then begin
+   Coefficent:=Theta/SinTheta;
+   result[0]:=result[0]*Coefficent;
+   result[1]:=result[1]*Coefficent;
+   result[2]:=result[2]*Coefficent;
+  end;
+ end;
+end;
+
+function QuaternionExp(const AQuaternion:TVector4):TVector4;
+var Angle,Sinus,Coefficent:TPasGLTFFloat;
+begin
+ Angle:=sqrt(sqr(AQuaternion[0])+sqr(AQuaternion[1])+sqr(AQuaternion[2]));
+ Sinus:=sin(Angle);
+ result[3]:=cos(Angle);
+ if abs(Sinus)>1e-6 then begin
+  Coefficent:=Sinus/Angle;
+  result[0]:=AQuaternion[0]*Coefficent;
+  result[1]:=AQuaternion[1]*Coefficent;
+  result[2]:=AQuaternion[2]*Coefficent;
+ end else begin
+  result[0]:=AQuaternion[0];
+  result[1]:=AQuaternion[1];
+  result[2]:=AQuaternion[2];
+ end;
+end;
+
+function QuaternionKochanekBartelsSplineInterpolate(const t,t0,t1,t2,t3:TPasGLTFFloat;q0,q1,q2,q3:TVector4;const Tension1,Continuity1,Bias1,Tension2,Continuity2,Bias2:TPasGLTFFloat):TVector4;
+var qLog10,qLog21,qLog32,qTOut,qTIn:TVector4;
+    AdjustMulOneMinusTensionMulHalf:TPasGLTFFloat;
+begin
+ if Vector4Dot(q0,q1)<0.0 then begin
+  q1:=Vector4Neg(q1);
+ end;
+ if Vector4Dot(q1,q2)<0.0 then begin
+  q2:=Vector4Neg(q2);
+ end;
+ if Vector4Dot(q2,q3)<0.0 then begin
+  q3:=Vector4Neg(q3);
+ end;
+ qLog10:=QuaternionLog(QuaternionMul(QuaternionConjugate(q0),q1));
+ qLog21:=QuaternionLog(QuaternionMul(QuaternionConjugate(q1),q2));
+ qLog32:=QuaternionLog(QuaternionMul(QuaternionConjugate(q2),q3));
+ AdjustMulOneMinusTensionMulHalf:=((((t2-t1)/(t2-t0)){*2.0})*(1.0-Tension1)){*0.5};
+ qTOut:=QuaternionAdd(QuaternionScalarMul(qLog10,AdjustMulOneMinusTensionMulHalf*(1.0+Continuity1)*(1.0+Bias1)),
+                      QuaternionScalarMul(qLog21,AdjustMulOneMinusTensionMulHalf*(1.0-Continuity1)*(1.0-Bias1)));
+ AdjustMulOneMinusTensionMulHalf:=((((t2-t1)/(t3-t1)){*2.0})*(1.0-Tension2)){*0.5};
+ qTIn:=QuaternionAdd(QuaternionScalarMul(qLog21,AdjustMulOneMinusTensionMulHalf*(1.0-Continuity2)*(1.0+Bias2)),
+                     QuaternionScalarMul(qLog32,AdjustMulOneMinusTensionMulHalf*(1.0+Continuity2)*(1.0-Bias2)));
+ result:=QuaternionUnflippedSlerp(QuaternionUnflippedSlerp(q1,q2,t),
+                                  QuaternionUnflippedSlerp(QuaternionMul(q1,QuaternionExp(QuaternionScalarMul(QuaternionSub(qTOut,qLog21),0.5))),
+                                                           QuaternionMul(q2,QuaternionExp(QuaternionScalarMul(QuaternionSub(qLog21,qTIn),0.5))),
+                                                           t),
+                                  2.0*(t*(1.0-t)));
 end;
 
 function MatrixFromRotation(const aRotation:TVector4):TMatrix;
@@ -1224,15 +1374,18 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
          Vector4:=AnimationChannel^.OutputVector4Array[TimeIndices[0]];
         end;
         TAnimation.TChannel.TInterpolation.CubicSpline:begin
-         // TODO
-         Vector4s[-1]:=@AnimationChannel^.OutputVector4Array[TimeIndices[-1]];
-         Vector4s[0]:=@AnimationChannel^.OutputVector4Array[TimeIndices[0]];
-         Vector4s[1]:=@AnimationChannel^.OutputVector4Array[TimeIndices[1]];
-         Vector4s[2]:=@AnimationChannel^.OutputVector4Array[TimeIndices[2]];
-         Vector4[0]:=(Vector4s[0]^[0]*(1.0-Factor))+(Vector4s[1]^[0]*Factor);
-         Vector4[1]:=(Vector4s[0]^[1]*(1.0-Factor))+(Vector4s[1]^[1]*Factor);
-         Vector4[2]:=(Vector4s[0]^[2]*(1.0-Factor))+(Vector4s[1]^[2]*Factor);
-         Vector4[3]:=(Vector4s[0]^[3]*(1.0-Factor))+(Vector4s[1]^[3]*Factor);
+         // Kochanek–Bartels spline with cubic-spline-mode constant parameter values
+         Vector4:=QuaternionKochanekBartelsSplineInterpolate(Factor,
+                                                             -1.0,
+                                                             0,
+                                                             1.0,
+                                                             2.0,
+                                                             AnimationChannel^.OutputVector4Array[TimeIndices[-1]],
+                                                             AnimationChannel^.OutputVector4Array[TimeIndices[0]],
+                                                             AnimationChannel^.OutputVector4Array[TimeIndices[1]],
+                                                             AnimationChannel^.OutputVector4Array[TimeIndices[2]],
+                                                             0.0,0.0,0.0,
+                                                             0.0,0.0,0.0);
         end;
         else begin
          Assert(false);
