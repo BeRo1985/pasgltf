@@ -1074,8 +1074,24 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
   end;
  end;
  procedure ProcessAnimation(const aAnimationIndex:TPasGLTFSizeInt);
+ var ChannelIndex:TPasGLTFSizeInt;
+     Animation:PAnimation;
+     AnimationChannel:TAnimation.PChannel;
  begin
-  // TODO
+
+  Animation:=@fAnimations[aAnimationIndex];
+
+  for ChannelIndex:=0 to length(Animation^.Channels)-1 do begin
+
+   AnimationChannel:=@Animation^.Channels[ChannelIndex];
+
+   if AnimationChannel^.Node>=0 then begin
+
+   end;
+
+  end;
+
+
  end;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
  var Index:TPasGLTFSizeInt;
