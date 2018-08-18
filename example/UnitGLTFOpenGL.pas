@@ -443,7 +443,6 @@ procedure TGLTFOpenGL.InitializeResources;
 
    end;
 
-
   end;
 
  end;
