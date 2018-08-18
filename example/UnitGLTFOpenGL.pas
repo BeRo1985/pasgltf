@@ -1078,7 +1078,7 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
      TimeIndices:array[0..1] of TPasGLTFSizeInt;
      Animation:PAnimation;
      AnimationChannel:TAnimation.PChannel;
-     Factor,Scalar:TPasGLTFFloat;
+     Time,Factor,Scalar:TPasGLTFFloat;
      Vector3:TPasGLTF.TVector3;
      Vector4:TPasGLTF.TVector4;
      Vector3s:array[0..1] of TPasGLTF.PVector3;
@@ -1091,13 +1091,15 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
 
    AnimationChannel:=@Animation^.Channels[ChannelIndex];
 
-   if AnimationChannel^.Node>=0 then begin
+   if (AnimationChannel^.Node>=0) and (length(AnimationChannel^.InputTimeArray)>0) then begin
 
     TimeIndices[0]:=length(AnimationChannel^.InputTimeArray)-1;
     TimeIndices[1]:=length(AnimationChannel^.InputTimeArray)-1;
 
+    Time:=aTime-(floor(aTime/AnimationChannel^.InputTimeArray[TimeIndices[1]])*AnimationChannel^.InputTimeArray[TimeIndices[1]]);
+
     for InputTimeArrayIndex:=1 to length(AnimationChannel^.InputTimeArray)-1 do begin
-     if AnimationChannel^.InputTimeArray[InputTimeArrayIndex]>=aTime then begin
+     if AnimationChannel^.InputTimeArray[InputTimeArrayIndex]>=Time then begin
       TimeIndices[0]:=inputTimeArrayIndex-1;
       TimeIndices[1]:=InputTimeArrayIndex;
       break;
@@ -1109,7 +1111,12 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
      if SameValue(TimeIndices[0],TimeIndices[1]) then begin
       Factor:=0.0;
      end else begin
-      Factor:=(aTime-AnimationChannel^.InputTimeArray[TimeIndices[0]])/(AnimationChannel^.InputTimeArray[TimeIndices[1]]-AnimationChannel^.InputTimeArray[TimeIndices[0]]);
+      Factor:=(Time-AnimationChannel^.InputTimeArray[TimeIndices[0]])/(AnimationChannel^.InputTimeArray[TimeIndices[1]]-AnimationChannel^.InputTimeArray[TimeIndices[0]]);
+      if Factor<0.0 then begin
+       Factor:=0.0;
+      end else begin
+       Factor:=1.0;
+      end;
      end;
 
      case AnimationChannel^.Target of
