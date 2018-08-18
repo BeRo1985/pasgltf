@@ -1121,14 +1121,14 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
  end;
  procedure ProcessAnimation(const aAnimationIndex:TPasGLTFSizeInt);
  var ChannelIndex,InputTimeArrayIndex:TPasGLTFSizeInt;
-     TimeIndices:array[0..1] of TPasGLTFSizeInt;
      Animation:PAnimation;
      AnimationChannel:TAnimation.PChannel;
      Time,Factor,Scalar:TPasGLTFFloat;
      Vector3:TPasGLTF.TVector3;
      Vector4:TPasGLTF.TVector4;
-     Vector3s:array[0..1] of TPasGLTF.PVector3;
-     Vector4s:array[0..1] of TPasGLTF.PVector4;
+     Vector3s:array[-1..2] of TPasGLTF.PVector3;
+     Vector4s:array[-1..2] of TPasGLTF.PVector4;
+     TimeIndices:array[-1..2] of TPasGLTFSizeInt;
  begin
 
   Animation:=@fAnimations[aAnimationIndex];
@@ -1139,7 +1139,6 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
 
    if (AnimationChannel^.Node>=0) and (length(AnimationChannel^.InputTimeArray)>0) then begin
 
-    TimeIndices[0]:=length(AnimationChannel^.InputTimeArray)-1;
     TimeIndices[1]:=length(AnimationChannel^.InputTimeArray)-1;
 
     Time:=AnimationChannel^.InputTimeArray[TimeIndices[1]];
@@ -1147,13 +1146,16 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
 
     for InputTimeArrayIndex:=1 to length(AnimationChannel^.InputTimeArray)-1 do begin
      if AnimationChannel^.InputTimeArray[InputTimeArrayIndex]>=Time then begin
-      TimeIndices[0]:=inputTimeArrayIndex-1;
       TimeIndices[1]:=InputTimeArrayIndex;
       break;
      end;
     end;
 
-    if (TimeIndices[0]>=0) and (TimeIndices[1]>=0) then begin
+    if TimeIndices[1]>=0 then begin
+
+     TimeIndices[0]:=Max(0,TimeIndices[1]-1);
+     TimeIndices[-1]:=Max(0,TimeIndices[0]-1);
+     TimeIndices[2]:=Min(Max(TimeIndices[1]+1,0),length(AnimationChannel^.InputTimeArray)-1);
 
      if SameValue(TimeIndices[0],TimeIndices[1]) then begin
       Factor:=0.0;
@@ -1182,8 +1184,10 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
         end;
         TAnimation.TChannel.TInterpolation.CubicSpline:begin
          // TODO
+         Vector3s[-1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[-1]];
          Vector3s[0]:=@AnimationChannel^.OutputVector3Array[TimeIndices[0]];
          Vector3s[1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[1]];
+         Vector3s[2]:=@AnimationChannel^.OutputVector3Array[TimeIndices[2]];
          Vector3[0]:=(Vector3s[0]^[0]*(1.0-Factor))+(Vector3s[1]^[0]*Factor);
          Vector3[1]:=(Vector3s[0]^[1]*(1.0-Factor))+(Vector3s[1]^[1]*Factor);
          Vector3[2]:=(Vector3s[0]^[2]*(1.0-Factor))+(Vector3s[1]^[2]*Factor);
@@ -1215,8 +1219,10 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
         end;
         TAnimation.TChannel.TInterpolation.CubicSpline:begin
          // TODO
+         Vector4s[-1]:=@AnimationChannel^.OutputVector4Array[TimeIndices[-1]];
          Vector4s[0]:=@AnimationChannel^.OutputVector4Array[TimeIndices[0]];
          Vector4s[1]:=@AnimationChannel^.OutputVector4Array[TimeIndices[1]];
+         Vector4s[2]:=@AnimationChannel^.OutputVector4Array[TimeIndices[2]];
          Vector4[0]:=(Vector4s[0]^[0]*(1.0-Factor))+(Vector4s[1]^[0]*Factor);
          Vector4[1]:=(Vector4s[0]^[1]*(1.0-Factor))+(Vector4s[1]^[1]*Factor);
          Vector4[2]:=(Vector4s[0]^[2]*(1.0-Factor))+(Vector4s[1]^[2]*Factor);
