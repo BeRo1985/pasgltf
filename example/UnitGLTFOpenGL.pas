@@ -28,7 +28,8 @@ type EGLTFOpenGL=class(Exception);
                            (
                             Translation,
                             Rotation,
-                            Scale
+                            Scale,
+                            Weights
                            );
                           TInterpolation=
                            (
@@ -40,6 +41,7 @@ type EGLTFOpenGL=class(Exception);
                      Node:TPasGLTFSizeInt;
                      Target:TTarget;
                      Interpolation:TInterpolation;
+                     ScalarArray:TPasGLTFFloatDynamicArray;
                      Vector3Array:TPasGLTF.TVector3DynamicArray;
                      Vector4Array:TPasGLTF.TVector4DynamicArray;
                    end;
