@@ -250,6 +250,49 @@ begin
  result[2]:=aVector[2]*aFactor;
 end;
 
+function Vector4Normalize(const aVector:TVector4):TVector4;
+var l:TPasGLTFFloat;
+begin
+ l:=sqrt(sqr(aVector[0])+sqr(aVector[1])+sqr(aVector[2])+sqr(aVector[3]));
+ if abs(l)>Epsilon then begin
+  result[0]:=aVector[0]/l;
+  result[1]:=aVector[1]/l;
+  result[2]:=aVector[2]/l;
+  result[3]:=aVector[3]/l;
+ end else begin
+  result[0]:=0.0;
+  result[1]:=0.0;
+  result[2]:=0.0;
+  result[3]:=0.0;
+ end;
+end;
+
+function QuaternionSlerp(const q1,q2:TVector4;const t:TPasGLTFFloat):TVector4;
+const EPSILON=1e-12;
+var Omega,co,so,s0,s1,s2:TPasGLTFFloat;
+begin
+ co:=(q1[0]*q2[0])+(q1[1]*q2[1])+(q1[2]*q2[2])+(q1[3]*q2[0]);
+ if co<0.0 then begin
+  co:=-co;
+  s2:=-1.0;
+ end else begin
+  s2:=1.0;
+ end;
+ if (1.0-co)>EPSILON then begin
+  Omega:=ArcCos(co);
+  so:=sin(Omega);
+  s0:=sin((1.0-t)*Omega)/so;
+  s1:=sin(t*Omega)/so;
+ end else begin
+  s0:=1.0-t;
+  s1:=t;
+ end;
+ result[0]:=(s0*q1[0])+(s1*(s2*q2[0]));
+ result[1]:=(s0*q1[1])+(s1*(s2*q2[1]));
+ result[2]:=(s0*q1[2])+(s1*(s2*q2[2]));
+ result[3]:=(s0*q1[3])+(s1*(s2*q2[3]));
+end;
+
 function MatrixFromRotation(const aRotation:TVector4):TMatrix;
 var qx2,qy2,qz2,qxqx2,qxqy2,qxqz2,qxqw2,qyqy2,qyqz2,qyqw2,qzqz2,qzqw2,l:TPasGLTFFloat;
     Rotation:TPasGLTF.TVector4;
@@ -370,7 +413,7 @@ end;
 
 procedure TGLTFOpenGL.InitializeResources;
  procedure InitializeAnimations;
- var Index,ChannelIndex:TPasGLTFSizeInt;
+ var Index,ChannelIndex,ValueIndex:TPasGLTFSizeInt;
      SourceAnimation:TPasGLTF.TAnimation;
      DestinationAnimation:PAnimation;
      SourceAnimationChannel:TPasGLTF.TAnimation.TChannel;
@@ -432,6 +475,9 @@ procedure TGLTFOpenGL.InitializeResources;
       end;
       TAnimation.TChannel.TTarget.Rotation:begin
        DestinationAnimationChannel^.OutputVector4Array:=fDocument.Accessors[SourceAnimationSampler.Output].DecodeAsVector4Array(false);
+       for ValueIndex:=0 to length(DestinationAnimationChannel^.OutputVector4Array)-1 do begin
+        DestinationAnimationChannel^.OutputVector4Array[ValueIndex]:=Vector4Normalize(DestinationAnimationChannel^.OutputVector4Array[ValueIndex]);
+       end;
       end;
       TAnimation.TChannel.TTarget.Weights:begin
        DestinationAnimationChannel^.OutputScalarArray:=fDocument.Accessors[SourceAnimationSampler.Output].DecodeAsFloatArray(false);
@@ -1114,7 +1160,7 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
       Factor:=(Time-AnimationChannel^.InputTimeArray[TimeIndices[0]])/(AnimationChannel^.InputTimeArray[TimeIndices[1]]-AnimationChannel^.InputTimeArray[TimeIndices[0]]);
       if Factor<0.0 then begin
        Factor:=0.0;
-      end else begin
+      end else if Factor>1.0 then begin
        Factor:=1.0;
       end;
      end;
@@ -1157,7 +1203,30 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
        end;
       end;
       TAnimation.TChannel.TTarget.Rotation:begin
-
+       case AnimationChannel^.Interpolation of
+        TAnimation.TChannel.TInterpolation.Linear:begin
+         Vector4:=QuaternionSlerp(AnimationChannel^.OutputVector4Array[TimeIndices[0]],
+                                  AnimationChannel^.OutputVector4Array[TimeIndices[1]],
+                                  Factor);
+        end;
+        TAnimation.TChannel.TInterpolation.Step:begin
+         Vector4:=AnimationChannel^.OutputVector4Array[TimeIndices[0]];
+        end;
+        TAnimation.TChannel.TInterpolation.CubicSpline:begin
+         // TODO
+         Vector4s[0]:=@AnimationChannel^.OutputVector4Array[TimeIndices[0]];
+         Vector4s[1]:=@AnimationChannel^.OutputVector4Array[TimeIndices[1]];
+         Vector4[0]:=(Vector4s[0]^[0]*(1.0-Factor))+(Vector4s[1]^[0]*Factor);
+         Vector4[1]:=(Vector4s[0]^[1]*(1.0-Factor))+(Vector4s[1]^[1]*Factor);
+         Vector4[2]:=(Vector4s[0]^[2]*(1.0-Factor))+(Vector4s[1]^[2]*Factor);
+         Vector4[3]:=(Vector4s[0]^[3]*(1.0-Factor))+(Vector4s[1]^[3]*Factor);
+        end;
+        else begin
+         Assert(false);
+        end;
+       end;
+       Include(fNodes[AnimationChannel^.Node].OverwriteFlags,TNode.TOverwriteFlag.Rotation);
+       fNodes[AnimationChannel^.Node].Rotation:=Vector4;
       end;
       TAnimation.TChannel.TTarget.Weights:begin
 
