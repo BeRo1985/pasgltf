@@ -240,9 +240,8 @@ begin
     '  Out.metallicRoughness = vec2(solveMetallic(dot(In.diffuseColor.xyz * In.diffuseColor.xyz, vec3(0.299, 0.587, 0.114)), dot(In.specularGlossiness.xyz * In.specularGlossiness.xyz, vec3(0.299, 0.587, 0.114)), oneMinusSpecularStrength),'+#13#10+
     '                               clamp(1.0 - In.specularGlossiness.w, 1e-3, 1.0));'+#13#10+
     '  vec3 baseColorFromDiffuse = In.diffuseColor.xyz * ((oneMinusSpecularStrength / (1.0 - dielectricSpecular.x)) / max(1.0 - Out.metallicRoughness.x, 1e-6)),'+#13#10+
-    '       baseColorFromSpecular = (In.specularGlossiness.xyz - (dielectricSpecular * (1.0 - Out.metallicRoughness.x))) / max(1.0 - Out.metallicRoughness.x, 1e-6),'+#13#10+
-    '       baseColor = mix(baseColorFromDiffuse, baseColorFromSpecular, Out.metallicRoughness.x * Out.metallicRoughness.x);'+#13#10+
-    '  Out.baseColor = vec4(convertSRGBToLinearRGB(baseColor), In.diffuseColor.w);'+#13#10+
+    '       baseColorFromSpecular = (In.specularGlossiness.xyz - (dielectricSpecular * (1.0 - Out.metallicRoughness.x))) / max(1.0 - Out.metallicRoughness.x, 1e-6);'+#13#10+
+    '  Out.baseColor = vec4(convertSRGBToLinearRGB(mix(baseColorFromDiffuse, baseColorFromSpecular, Out.metallicRoughness.x * Out.metallicRoughness.x)), In.diffuseColor.w);'+#13#10+
     '}'+#13#10+
     'vec3 diffuseLambert(vec3 diffuseColor){'+#13#10+
     '  return diffuseColor * OneOverPI;'+#13#10+
