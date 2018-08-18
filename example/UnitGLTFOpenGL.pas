@@ -373,6 +373,7 @@ procedure TGLTFOpenGL.InitializeResources;
      SourceAnimation:TPasGLTF.TAnimation;
      DestinationAnimation:PAnimation;
      SourceAnimationChannel:TPasGLTF.TAnimation.TChannel;
+     SourceAnimationSampler:TPasGLTF.TAnimation.TSampler;
      DestinationAnimationChannel:TAnimation.PChannel;
  begin
 
@@ -406,6 +407,25 @@ procedure TGLTFOpenGL.InitializeResources;
      raise EGLTFOpenGL.Create('Non-supported animation channel target path "'+String(SourceAnimationChannel.Target.Path)+'"');
     end;
 
+    if (SourceAnimationChannel.Sampler>=0) and (SourceAnimationChannel.Sampler<SourceAnimation.Samplers.Count) then begin
+     SourceAnimationSampler:=SourceAnimation.Samplers[SourceAnimationChannel.Sampler];
+     case SourceAnimationSampler.Interpolation of
+      TPasGLTF.TAnimation.TSampler.TType.Linear:begin
+       DestinationAnimationChannel^.Interpolation:=TAnimation.TChannel.TInterpolation.Linear;
+      end;
+      TPasGLTF.TAnimation.TSampler.TType.Step:begin
+       DestinationAnimationChannel^.Interpolation:=TAnimation.TChannel.TInterpolation.Step;
+      end;
+      TPasGLTF.TAnimation.TSampler.TType.CubicSpline:begin
+       DestinationAnimationChannel^.Interpolation:=TAnimation.TChannel.TInterpolation.CubicSpline;
+      end;
+      else begin
+       raise EGLTFOpenGL.Create('Non-supported animation sampler interpolation method type');
+      end;
+     end;
+    end else begin
+     raise EGLTFOpenGL.Create('Non-existent sampler');
+    end;
 
    end;
 
