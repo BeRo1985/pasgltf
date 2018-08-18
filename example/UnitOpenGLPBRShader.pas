@@ -352,10 +352,7 @@ begin
     '  }'+#13#10+
     '  mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
     '  vec4 materialAlbedo = pbrMetallicRoughness.baseColor,'+#13#10+
-    '       materialNormal = vec4(normalize(tangentSpace * normalTexture.xyz), normalTexture.w * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.z);'+#13#10+
-    '  if(((uFlags & 0x20000000u) != 0u) && !gl_FrontFacing){'+#13#10+
-    '    materialNormal = -materialNormal;'+#13#10+
-    '  }'+#13#10+
+    '       materialNormal = vec4(normalize(tangentSpace * normalTexture.xyz) * ((((uFlags & 0x20000000u) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0), normalTexture.w * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.z);'+#13#10+
     '  float materialMetallic = clamp(pbrMetallicRoughness.metallicRoughness.x, 0.0, 1.0),'+#13#10+
     '        materialRoughness = clamp(pbrMetallicRoughness.metallicRoughness.y, 1e-3, 1.0),'+#13#10+
     '        materialCavity = clamp(mix(1.0, occlusionTexture.x, uMetallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
