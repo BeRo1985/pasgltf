@@ -130,6 +130,7 @@ type TPBRShader=class(TShader)
        uBRDFLUTTexture:glInt;
        uEnvMapTexture:glInt;
        uEnvMapMaxLevel:glInt;
+       uAlphaCutOff:glInt;
        constructor Create(const aAlphaTest:boolean);
        destructor Destroy; override;
        procedure BindAttributes; override;
@@ -197,6 +198,7 @@ begin
     'uniform vec3 uEmissiveFactor;'+#13#10+
     'uniform vec4 uMetallicRoughnessNormalScaleOcclusionStrengthFactor;'+#13#10+
     'uniform vec3 uLightDirection;'+#13#10+
+    'uniform float uAlphaCutOff;'+#13#10+
     'vec3 convertLinearRGBToSRGB(vec3 c){'+#13#10+
     '  return mix((pow(c, vec3(1.0 / 2.4)) * vec3(1.055)) - vec3(5.5e-2),'+#13#10+
     '             c * vec3(12.92),'+#13#10+
@@ -404,7 +406,7 @@ begin
     '  }'+#13#10+
     '  oOutput = vec4(vec3((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10;
  if aAlphaTest then begin
-  f:=f+'  if(oOutput.w < 0.5){'+#13#10+
+  f:=f+'  if(oOutput.w < uAlphaCutOff){'+#13#10+
        '    discard;'+#13#10+
        '  }'+#13#10;
  end;
@@ -452,6 +454,7 @@ begin
  uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
  uEnvMapMaxLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapMaxLevel')));
+ uAlphaCutOff:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uAlphaCutOff')));
 end;
 
 end.

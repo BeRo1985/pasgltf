@@ -1542,6 +1542,9 @@ var PBRShader:TPBRShader;
      Material:=fDocument.Materials[Primitive^.Material];
      ExtraMaterial:=@fMaterials[Primitive^.Material];
      if Material.AlphaMode=aAlphaMode then begin
+      if Material.AlphaMode=TPasGLTF.TMaterial.TAlphaMode.Mask then begin
+       glUniform1f(PBRShader.uAlphaCutOff,Material.AlphaCutOff);
+      end;
       if Material.DoubleSided then begin
        Flags:=Flags or $20000000;
        glDisable(GL_CULL_FACE);
