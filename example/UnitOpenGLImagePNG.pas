@@ -104,10 +104,14 @@ unit UnitOpenGLImagePNG;
 
 interface
 
+{$ifdef delphibla}
+uses SysUtils,Classes,PNGImage,Graphics,UnitOpenGLImage,dglOpenGL;
+{$else}
 {$ifdef fpc}
 uses SysUtils,Classes,FPImage,FPReadPNG,UnitOpenGLImage,UnitOpenGLOpenGL;
 {$else}
 uses UnitOpenGLImage,dglOpenGL;
+{$endif}
 {$endif}
 
 type PPNGPixel=^TPNGPixel;
@@ -154,7 +158,71 @@ type qword=int64;
 {$endif}
 {$endif}
 
-{$ifdef fpc}
+{$ifdef delphibla}
+function LoadPNGImage(DataPointer:pointer;DataSize:longword;var ImageData:pointer;var ImageWidth,ImageHeight:longint;HeaderOnly:boolean):boolean;
+var Stream:TMemoryStream;
+    PNG:TPNGImage;
+    BMP:TBitmap;
+    y,x:longint;
+    pin,pout,ain:PAnsiChar;
+begin
+ result:=false;
+ try
+  if (assigned(DataPointer) and (DataSize>8)) and
+     ((pansichar(DataPointer)[0]=#$89) and (pansichar(DataPointer)[1]=#$50) and (pansichar(DataPointer)[2]=#$4e) and (pansichar(DataPointer)[3]=#$47) and
+      (pansichar(DataPointer)[4]=#$0d) and (pansichar(DataPointer)[5]=#$0a) and (pansichar(DataPointer)[6]=#$1a) and (pansichar(DataPointer)[7]=#$0a)) then begin
+   Stream:=TMemoryStream.Create;
+   try
+    if Stream.Write(DataPointer^,DataSize)=longint(DataSize) then begin
+     if Stream.Seek(0,soFromBeginning)=0 then begin
+      PNG:=TPNGImage.Create;
+      try
+       PNG.LoadFromStream(Stream);
+       BMP:=TBitmap.Create;
+       try
+        BMP.Pixelformat:=pf32bit;
+        BMP.HandleType:=bmDIB;
+        BMP.Width:=PNG.Width;
+        BMP.Height:=PNG.Height;
+        BMP.Canvas.Draw(0,0,PNG);
+        ImageWidth:=BMP.Width;
+        ImageHeight:=BMP.Height;
+        GetMem(ImageData,ImageWidth*ImageHeight*4);
+        pout:=ImageData;
+        for y:=0 to ImageHeight-1 do begin
+         pin:=BMP.Scanline[y];
+         ain:=pointer(PNG.AlphaScanline[y]);
+         for x:=0 to ImageWidth-1 do begin
+          pout[0]:=pin[2];
+          pout[1]:=pin[1];
+          pout[2]:=pin[0];
+          if assigned(ain) then begin
+           pout[3]:=ain[x];
+          end else begin
+           pout[3]:=#255;
+          end;
+          inc(pin,4);
+          inc(pout,4);
+         end;
+        end;
+        result:=true;
+       finally
+        BMP.Free;
+       end;
+      finally
+       PNG.Free;
+      end;
+     end;
+    end;
+   finally
+    Stream.Free;
+   end;
+  end;
+ except
+  result:=false;
+ end;
+end;
+{$elseif defined(fpc)}
 function LoadPNGImage(DataPointer:pointer;DataSize:longword;var ImageData:pointer;var ImageWidth,ImageHeight:longint;HeaderOnly:boolean):boolean;
 var Image:TFPMemoryImage;
     ReaderPNG:TFPReaderPNG;
@@ -1821,7 +1889,7 @@ begin
  end;
 end;
 {$endif}
-{$endif}
+{$ifend}
 
 function LoadPNGGLImage(DataPointer:pointer;DataSize:longword;SRGB:boolean):TGLImage;
 var ImageData:pointer;

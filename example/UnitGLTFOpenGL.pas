@@ -166,7 +166,7 @@ type EGLTFOpenGL=class(Exception);
        procedure FinalizeResources;
        procedure UploadResources;
        procedure UnloadResources;
-       procedure Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aAnimationIndex:TPasGLTFSizeInt=0;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
+       procedure Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader,aAlphaTestPBRShader:TPBRShader;const aAnimationIndex:TPasGLTFSizeInt=0;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
        property StaticMinPosition:TPasGLTF.TVector3 read fStaticMinPosition;
        property StaticMaxPosition:TPasGLTF.TVector3 read fStaticMaxPosition;
       published
@@ -1338,7 +1338,8 @@ begin
  end;
 end;
 
-procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aAnimationIndex:TPasGLTFSizeInt=0;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
+procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader,aAlphaTestPBRShader:TPBRShader;const aAnimationIndex:TPasGLTFSizeInt=0;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
+var PBRShader:TPBRShader;
  procedure ResetNode(const aNodeIndex:TPasGLTFSizeInt);
  var Index:TPasGLTFSizeInt;
      Node:TPasGLTF.TNode;
@@ -1541,24 +1542,6 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
      Material:=fDocument.Materials[Primitive^.Material];
      ExtraMaterial:=@fMaterials[Primitive^.Material];
      if Material.AlphaMode=aAlphaMode then begin
-      case Material.AlphaMode of
-       TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
-        glDisable(GL_BLEND);
-       end;
-       TPasGLTF.TMaterial.TAlphaMode.Mask:begin
-        glDisable(GL_BLEND);
-        glEnable(GL_ALPHA_TEST);
-        glAlphaFunc(GL_GREATER,Material.AlphaCutOff);
-       end;
-       TPasGLTF.TMaterial.TAlphaMode.Blend:begin
-        glEnable(GL_BLEND);
-        if assigned(glBlendFuncSeparate) then begin
-         glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
-        end else begin
-         glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-        end;
-       end;
-      end;
       if Material.DoubleSided then begin
        Flags:=Flags or $20000000;
        glDisable(GL_CULL_FACE);
@@ -1605,35 +1588,35 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
        glBindTexture(GL_TEXTURE_2D,fTextures[Material.EmissiveTexture.Index].Handle);
        Flags:=Flags or (256 or (512*ord(Material.EmissiveTexture.TexCoord=1)));
       end;
-      glUniform1ui(aPBRShader.uFlags,Flags);
+      glUniform1ui(PBRShader.uFlags,Flags);
       if ExtraMaterial^.PBRSpecularGlossiness.Used then begin
-       glUniform4f(aPBRShader.uBaseColorFactor,
+       glUniform4f(PBRShader.uBaseColorFactor,
                    ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[0],
                    ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[1],
                    ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[2],
                    ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[3]);
-       glUniform4f(aPBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,
+       glUniform4f(PBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,
                    1.0,
                    ExtraMaterial^.PBRSpecularGlossiness.GlossinessFactor,
                    Material.NormalTexture.Scale,
                    Material.OcclusionTexture.Strength);
-       glUniform3f(aPBRShader.uSpecularFactor,
+       glUniform3f(PBRShader.uSpecularFactor,
                    ExtraMaterial^.PBRSpecularGlossiness.SpecularFactor[0],
                    ExtraMaterial^.PBRSpecularGlossiness.SpecularFactor[1],
                    ExtraMaterial^.PBRSpecularGlossiness.SpecularFactor[2]);
       end else begin
-       glUniform4f(aPBRShader.uBaseColorFactor,
+       glUniform4f(PBRShader.uBaseColorFactor,
                    Material.PBRMetallicRoughness.BaseColorFactor[0],
                    Material.PBRMetallicRoughness.BaseColorFactor[1],
                    Material.PBRMetallicRoughness.BaseColorFactor[2],
                    Material.PBRMetallicRoughness.BaseColorFactor[3]);
-       glUniform4f(aPBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,
+       glUniform4f(PBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,
                    Material.PBRMetallicRoughness.MetallicFactor,
                    Material.PBRMetallicRoughness.RoughnessFactor,
                    Material.NormalTexture.Scale,
                    Material.OcclusionTexture.Strength);
       end;
-      glUniform3f(aPBRShader.uEmissiveFactor,
+      glUniform3f(PBRShader.uEmissiveFactor,
                   Material.EmissiveFactor[0],
                   Material.EmissiveFactor[1],
                   Material.EmissiveFactor[2]);
@@ -1652,9 +1635,9 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPas
    ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
    ModelViewMatrix:=MatrixMul(ModelMatrix,aViewMatrix);
    ModelViewProjectionMatrix:=MatrixMul(ModelViewMatrix,aProjectionMatrix);
-   glUniformMatrix4fv(aPBRShader.uModelMatrix,1,false,@ModelMatrix);
-   glUniformMatrix4fv(aPBRShader.uModelViewMatrix,1,false,@ModelViewMatrix);
-   glUniformMatrix4fv(aPBRShader.uModelViewProjectionMatrix,1,false,@ModelViewProjectionMatrix);
+   glUniformMatrix4fv(PBRShader.uModelMatrix,1,false,@ModelMatrix);
+   glUniformMatrix4fv(PBRShader.uModelViewMatrix,1,false,@ModelViewMatrix);
+   glUniformMatrix4fv(PBRShader.uModelViewProjectionMatrix,1,false,@ModelViewProjectionMatrix);
    DrawMesh(fMeshes[Node.Mesh]);
   end;
   for Index:=0 to Node.Children.Count-1 do begin
@@ -1673,11 +1656,6 @@ begin
  glBindVertexArray(fVertexArrayHandle);
  glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fIndexBufferObjectHandle);
- glUniform1i(aPBRShader.uBaseColorTexture,0);
- glUniform1i(aPBRShader.uMetallicRoughnessTexture,1);
- glUniform1i(aPBRShader.uNormalTexture,2);
- glUniform1i(aPBRShader.uOcclusionTexture,3);
- glUniform1i(aPBRShader.uEmissiveTexture,4);
  for Index:=0 to Scene.Nodes.Count-1 do begin
   ResetNode(Scene.Nodes.Items[Index]);
  end;
@@ -1688,8 +1666,40 @@ begin
   ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix);
  end;
  for AlphaMode:=TPasGLTF.TMaterial.TAlphaMode.Opaque to TPasGLTF.TMaterial.TAlphaMode.Blend do begin
-  for Index:=0 to Scene.Nodes.Count-1 do begin
-   DrawNode(Scene.Nodes.Items[Index],AlphaMode);
+  case AlphaMode of
+   TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
+    PBRShader:=aPBRShader;
+    glDisable(GL_BLEND);
+   end;
+   TPasGLTF.TMaterial.TAlphaMode.Mask:begin
+    PBRShader:=aAlphaTestPBRShader;
+    glDisable(GL_BLEND);
+   end;
+   TPasGLTF.TMaterial.TAlphaMode.Blend:begin
+    PBRShader:=aPBRShader;
+    glEnable(GL_BLEND);
+    if assigned(glBlendFuncSeparate) then begin
+     glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
+    end else begin
+     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    end;
+   end;
+   else begin
+    PBRShader:=nil;
+    Assert(false);
+   end;
+  end;
+  if assigned(PBRShader) then begin
+   PBRShader.Bind;
+   glUniform1i(PBRShader.uBaseColorTexture,0);
+   glUniform1i(PBRShader.uMetallicRoughnessTexture,1);
+   glUniform1i(PBRShader.uNormalTexture,2);
+   glUniform1i(PBRShader.uOcclusionTexture,3);
+   glUniform1i(PBRShader.uEmissiveTexture,4);
+   for Index:=0 to Scene.Nodes.Count-1 do begin
+    DrawNode(Scene.Nodes.Items[Index],AlphaMode);
+   end;
+   PBRShader.Unbind;
   end;
  end;
  glBindVertexArray(0);

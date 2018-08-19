@@ -130,7 +130,7 @@ type TPBRShader=class(TShader)
        uBRDFLUTTexture:glInt;
        uEnvMapTexture:glInt;
        uEnvMapMaxLevel:glInt;
-       constructor Create;
+       constructor Create(const aAlphaTest:boolean);
        destructor Destroy; override;
        procedure BindAttributes; override;
        procedure BindVariables; override;
@@ -138,7 +138,7 @@ type TPBRShader=class(TShader)
 
 implementation
 
-constructor TPBRShader.Create;
+constructor TPBRShader.Create(const aAlphaTest:boolean);
 var f,v:ansistring;
 begin
  v:='#version 330'+#13#10+
@@ -402,8 +402,13 @@ begin
     '    color += getEnvMap(uEnvMapTexture, clamp((8.0 - 1.0) - (1.0 - (1.2 * log2(materialRoughness))), 0.0, min(8.0, float(uEnvMapMaxLevel))), rayDirection).xyz * ((specularColor * brdf.x) + brdf.yyy) * specularOcclusion;'+#13#10+
     '    color += getEnvMap(uEnvMapTexture, min(8.0, float(uEnvMapMaxLevel)), rayDirection).xyz * diffuseColor * ao;'+#13#10+
     '  }'+#13#10+
-    '  oOutput = vec4(vec3((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10+
-   '}'+#13#10;
+    '  oOutput = vec4(vec3((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10;
+ if aAlphaTest then begin
+  f:=f+'  if(oOutput.w < 0.5){'+#13#10+
+       '    discard;'+#13#10+
+       '  }'+#13#10;
+ end;
+ f:=f+'}'+#13#10;
  inherited Create(f,v);
 end;
 
