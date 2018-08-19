@@ -33,8 +33,8 @@ uses
 // Force usage of dedicated GPU for OpenGL with Delphi and FreePascal/Lazarus on Multi-GPU systems such as Notebooks on Windows
 // Insert that into your main source file, which is for example the .dpr (Delphi) or .lpr (Lazarus) file
 
-//{$define ForceDedicatedGPUUsage} // then you can uncomment and recomment this line, for compile-time-switching between
-                                   // integrated GPU and dedicated GPU
+{$define ForceDedicatedGPUUsage} // then you can uncomment and recomment this line, for compile-time-switching between
+                                 // integrated GPU and dedicated GPU
 
 {$if defined(Windows) and defined(ForceDedicatedGPUUsage) and (defined(cpu386) or defined(cpux64) or defined(cpuamd64))}
 {$ifdef fpc}
@@ -318,9 +318,9 @@ begin
   ScreenWidth:=1280;
   ScreenHeight:=720;
  end;
- for Index:=((3*4)+4)-1 downto 0 do begin
-  DepthBufferSizeCounter:=Index shr 2;
-  MultiSampleCounter:=Index and 3;
+ for Index:=0 downto 0 do begin
+  DepthBufferSizeCounter:=3;
+  MultiSampleCounter:=0;
   writeln(DepthBufferSizeCounter shl 3,' ',1 shl MultiSampleCounter);
   SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,DepthBufferSizeCounter shl 3);
   if MultiSampleCounter=0 then begin
