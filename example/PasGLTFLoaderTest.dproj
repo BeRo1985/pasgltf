@@ -214,7 +214,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
-        <Debugger_RunParams>models\buster_drone\scene.gltf</Debugger_RunParams>
+        <Debugger_RunParams>models\character_x_bot\scene.gltf</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
@@ -237,6 +237,8 @@
         <DCCReference Include="UnitOpenGLBRDFLUTShader.pas"/>
         <DCCReference Include="UnitOpenGLEnvMapFilterShader.pas"/>
         <DCCReference Include="UnitOpenGLEnvMapDrawShader.pas"/>
+        <DCCReference Include="UnitOpenGLAntialiasingShader.pas"/>
+        <DCCReference Include="UnitOpenGLHDRToLDRShader.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

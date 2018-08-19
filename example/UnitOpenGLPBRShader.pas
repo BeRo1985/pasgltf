@@ -294,14 +294,6 @@ begin
     '  rayDirection = normalize(rayDirection);'+#13#10+
     '  return textureLod(texEnvMap, (vec2((atan(rayDirection.z, rayDirection.x) / 6.283185307179586476925286766559) + 0.5, acos(rayDirection.y) / 3.1415926535897932384626433832795)), texLOD);'+#13#10+
     '}'+#13#10+
-    'vec3 ACESFilm(vec3 x){'+#13#10+
-    '  const float a = 2.51, b = 0.03, c = 2.43, d = 0.59, e = 0.14f;'+#13#10+
-    '  return clamp((x * ((a * x) + vec3(b))) / (x * ((c * x) + vec3(d)) + vec3(e)), vec3(0.0), vec3(1.0));'+#13#10+
-    '}'+#13#10+
-    'vec3 toneMappingAndToLDR(vec3 x){'+#13#10+
-    '  float exposure = 0.5;'+#13#10+
-    '  return convertLinearRGBToSRGB(ACESFilm(x * exposure));'+#13#10+
-    '}'+#13#10+
     'void main(){'+#13#10+
     '  vec4 normalTexture, occlusionTexture, emissiveTexture;'+#13#10+
     '  PBRMetallicRoughness pbrMetallicRoughness;'+#13#10+
@@ -410,7 +402,7 @@ begin
     '    color += getEnvMap(uEnvMapTexture, clamp((8.0 - 1.0) - (1.0 - (1.2 * log2(materialRoughness))), 0.0, min(8.0, float(uEnvMapMaxLevel))), rayDirection).xyz * ((specularColor * brdf.x) + brdf.yyy) * specularOcclusion;'+#13#10+
     '    color += getEnvMap(uEnvMapTexture, min(8.0, float(uEnvMapMaxLevel)), rayDirection).xyz * diffuseColor * ao;'+#13#10+
     '  }'+#13#10+
-    '  oOutput = vec4(toneMappingAndToLDR((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10+
+    '  oOutput = vec4(vec3((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10+
    '}'+#13#10;
  inherited Create(f,v);
 end;

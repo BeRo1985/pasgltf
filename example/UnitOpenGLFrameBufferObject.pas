@@ -650,7 +650,7 @@ begin
   end else begin
    glGenRenderbuffers(1,@FBO.DepthBuffer);
    glBindRenderbuffer(GL_RENDERBUFFER,FBO.DepthBuffer);
-   glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT32,FBO.WorkWidth,FBO.WorkHeight);
+   glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT32F,FBO.WorkWidth,FBO.WorkHeight);
   end;
  end;
 

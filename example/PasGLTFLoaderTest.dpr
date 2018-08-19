@@ -26,7 +26,9 @@ uses
   UnitOpenGLFrameBufferObject in 'UnitOpenGLFrameBufferObject.pas',
   UnitOpenGLBRDFLUTShader in 'UnitOpenGLBRDFLUTShader.pas',
   UnitOpenGLEnvMapFilterShader in 'UnitOpenGLEnvMapFilterShader.pas',
-  UnitOpenGLEnvMapDrawShader in 'UnitOpenGLEnvMapDrawShader.pas';
+  UnitOpenGLEnvMapDrawShader in 'UnitOpenGLEnvMapDrawShader.pas',
+  UnitOpenGLAntialiasingShader in 'UnitOpenGLAntialiasingShader.pas',
+  UnitOpenGLHDRToLDRShader in 'UnitOpenGLHDRToLDRShader.pas';
 
 var InputFileName:ansistring;
 
@@ -50,6 +52,14 @@ var fs:TFileStream;
 
     EnvMapDrawShader:TEnvMapDrawShader;
 
+    HDRSceneFBO:TFBO;
+
+    HDRToLDRShader:THDRToLDRShader;
+
+    LDRSceneFBO:TFBO;
+
+    AntialiasingShader:TAntialiasingShader;
+
     EmptyVertexArrayObjectHandle:glUInt;
 
     EnvMapTextureHandle:glUInt=0;
@@ -65,7 +75,7 @@ var Event:TSDL_Event;
     VideoFlags:longword;
     SDLWaveFormat:TSDL_AudioSpec;
     BufPosition:integer;
-    ScreenWidth,ScreenHeight,BestWidth,BestHeight,ViewPortWidth,ViewPortHeight,ViewPortX,ViewPortY,k:longint;
+    ScreenWidth,ScreenHeight,BestWidth,BestHeight,ViewPortWidth,ViewPortHeight,ViewPortX,ViewPortY:int32;
     Fullscreen:boolean;
     ShowCursor:boolean;
     SDLRunning,OldShowCursor:boolean;
@@ -75,56 +85,92 @@ var Event:TSDL_Event;
      LightDirection:UnitMath3D.TVector3;
      t:double;
  begin
-  glViewport(0,0,ViewPortWidth,ViewPortHeight);
-  glClearColor(0.0,0.0,0.0,0.0);
-  glClearDepth(1.0);
-  glViewport(ViewPortX,ViewPortY,ViewPortWidth,ViewPortHeight);
-  glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
-  ModelMatrix:=Matrix4x4Identity;
-  t:=Time*0.125;
-  ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*512.0,sin(t*0.25)*256.0,cos(t)*512.0),Vector3Origin,Vector3YAxis);
-  ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,1.0,2048.0);
-  LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
-  InverseViewProjectionMatrix:=Matrix4x4TermInverse(Matrix4x4TermMul(ViewMatrix,ProjectionMatrix));
-  glEnable(GL_MULTISAMPLE);
   begin
+   glBindFrameBuffer(GL_FRAMEBUFFER,HDRSceneFBO.FBOs[0]);
+   glDrawBuffer(GL_COLOR_ATTACHMENT0);
+   glViewport(0,0,HDRSceneFBO.Width,HDRSceneFBO.Height);
+   glClearColor(0.0,0.0,0.0,0.0);
+   glClearDepth(1.0);
+   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+   ModelMatrix:=Matrix4x4Identity;
+   t:=Time*0.125;
+   ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*512.0,sin(t*0.25)*256.0,cos(t)*512.0),Vector3Origin,Vector3YAxis);
+   ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,1.0,2048.0);
+   LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
+   InverseViewProjectionMatrix:=Matrix4x4TermInverse(Matrix4x4TermMul(ViewMatrix,ProjectionMatrix));
+   begin
+    glDisable(GL_DEPTH_TEST);
+    glDisable(GL_CULL_FACE);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D,EnvMapFBO.TextureHandles[0]);
+    EnvMapDrawShader.Bind;
+    glUniform1i(EnvMapDrawShader.uTexture,0);
+    glUniformMatrix4fv(EnvMapDrawShader.uInverseViewProjectionMatrix,1,false,@InverseViewProjectionMatrix);
+    glBindVertexArray(EmptyVertexArrayObjectHandle);
+    glDrawArrays(GL_TRIANGLES,0,3);
+    glBindVertexArray(0);
+    EnvMapDrawShader.Unbind;
+   end;
+   begin
+    glActiveTexture(GL_TEXTURE5);
+    glBindTexture(GL_TEXTURE_2D,BRDFLUTFBO.TextureHandles[0]);
+    glActiveTexture(GL_TEXTURE6);
+    glBindTexture(GL_TEXTURE_2D,EnvMapFBO.TextureHandles[0]);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    glActiveTexture(GL_TEXTURE0);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glDepthFunc(GL_LEQUAL);
+    glCullFace(GL_BACK);
+    PBRShader.Bind;
+    glUniform3fv(PBRShader.uLightDirection,1,@LightDirection);
+    glUniform1i(PBRShader.uBRDFLUTTexture,5);
+    glUniform1i(PBRShader.uEnvMapTexture,6);
+    glUniform1i(PBRShader.uEnvMapMaxLevel,Min(EnvMapFBO.WorkMaxLevel,16));
+    GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
+                    TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
+                    TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
+                    PBRShader,
+                    Time);
+    PBRShader.Unbind;
+   end;
+  end;
+  begin
+   glBindFrameBuffer(GL_FRAMEBUFFER,LDRSceneFBO.FBOs[0]);
+   glDrawBuffer(GL_COLOR_ATTACHMENT0);
+   glViewport(0,0,LDRSceneFBO.Width,LDRSceneFBO.Height);
+   glClearColor(0.0,0.0,0.0,0.0);
+   glClear(GL_COLOR_BUFFER_BIT);
    glDisable(GL_DEPTH_TEST);
    glDisable(GL_CULL_FACE);
    glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_2D,EnvMapTextureHandle);
-   EnvMapDrawShader.Bind;
-   glUniform1i(EnvMapDrawShader.uTexture,0);
-   glUniformMatrix4fv(EnvMapDrawShader.uInverseViewProjectionMatrix,1,false,@InverseViewProjectionMatrix);
+   glBindTexture(GL_TEXTURE_2D,HDRSceneFBO.TextureHandles[0]);
+   HDRToLDRShader.Bind;
+   glUniform1i(HDRToLDRShader.uTexture,0);
    glBindVertexArray(EmptyVertexArrayObjectHandle);
    glDrawArrays(GL_TRIANGLES,0,3);
    glBindVertexArray(0);
-   EnvMapDrawShader.Unbind;
+   HDRToLDRShader.Unbind;
   end;
   begin
-   glActiveTexture(GL_TEXTURE5);
-   glBindTexture(GL_TEXTURE_2D,BRDFLUTFBO.TextureHandles[0]);
-   glActiveTexture(GL_TEXTURE6);
-   glBindTexture(GL_TEXTURE_2D,EnvMapFBO.TextureHandles[0]);
-   glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
-   glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+   glBindFrameBuffer(GL_FRAMEBUFFER,0);
+   glViewport(0,0,ViewPortWidth,ViewPortHeight);
+   glClearColor(0.0,0.0,0.0,0.0);
+   glClearDepth(1.0);
+   glViewport(ViewPortX,ViewPortY,ViewPortWidth,ViewPortHeight);
+   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+   glDisable(GL_DEPTH_TEST);
+   glDisable(GL_CULL_FACE);
    glActiveTexture(GL_TEXTURE0);
-   glEnable(GL_DEPTH_TEST);
-   glEnable(GL_CULL_FACE);
-   glDepthFunc(GL_LEQUAL);
-   glCullFace(GL_BACK);
-   PBRShader.Bind;
-   glUniform3fv(PBRShader.uLightDirection,1,@LightDirection);
-   glUniform1i(PBRShader.uBRDFLUTTexture,5);
-   glUniform1i(PBRShader.uEnvMapTexture,6);
-   glUniform1i(PBRShader.uEnvMapMaxLevel,Min(EnvMapFBO.WorkMaxLevel,16));
-   GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
-                   TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
-                   TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
-                   PBRShader,
-                   Time);
-   PBRShader.Unbind;
+   glBindTexture(GL_TEXTURE_2D,LDRSceneFBO.TextureHandles[0]);
+   AntialiasingShader.Bind;
+   glUniform1i(AntialiasingShader.uTexture,0);
+   glBindVertexArray(EmptyVertexArrayObjectHandle);
+   glDrawArrays(GL_TRIANGLES,0,3);
+   glBindVertexArray(0);
+   AntialiasingShader.Unbind;
   end;
-  glDisable(GL_MULTISAMPLE);
  end;
  procedure Resize(NewWidth,NewHeight:longint);
  var Factor:int64;
@@ -167,7 +213,7 @@ var Event:TSDL_Event;
    ViewPortY:=((ScreenHeight-ViewPortHeight)+1) div 2;
   end;
  end;
-var Index:int32;
+var Index,MultiSampleCounter,DepthBufferSizeCounter,Temp:int32;
     MemoryStream:TMemoryStream;
     ImageData:TPasGLTFPointer;
     ImageWidth,ImageHeight:TPasGLTFInt32;
@@ -192,14 +238,14 @@ begin
  end;
 
  if ScreenWidth>=((BestWidth*90) div 100) then begin
-  k:=((BestWidth*90) div 100);
-  ScreenHeight:=(ScreenHeight*k) div ScreenWidth;
-  ScreenWidth:=k;
+  Temp:=((BestWidth*90) div 100);
+  ScreenHeight:=(ScreenHeight*Temp) div ScreenWidth;
+  ScreenWidth:=Temp;
  end;
  if ScreenHeight>=((BestHeight*90) div 100) then begin
-  k:=((BestHeight*90) div 100);
-  ScreenWidth:=(ScreenWidth*k) div ScreenHeight;
-  ScreenHeight:=k;
+  Temp:=((BestHeight*90) div 100);
+  ScreenWidth:=(ScreenWidth*Temp) div ScreenHeight;
+  ScreenHeight:=Temp;
  end;
 
  Resize(ScreenWidth,ScreenHeight);
@@ -211,7 +257,6 @@ begin
  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,0);
  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,0);
  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
- SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,24);
  SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,0);
  SDL_GL_SetSwapInterval(1);
  VideoFlags:=0;
@@ -221,13 +266,17 @@ begin
   ScreenWidth:=1280;
   ScreenHeight:=720;
  end;
- for k:=2 downto 0 do begin
-  if k=0 then begin
+ for Index:=((3*4)+4)-1 downto 0 do begin
+  DepthBufferSizeCounter:=Index shr 2;
+  MultiSampleCounter:=Index and 3;
+  writeln(DepthBufferSizeCounter shl 3,' ',1 shl MultiSampleCounter);
+  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,DepthBufferSizeCounter shl 3);
+  if MultiSampleCounter=0 then begin
    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,0);
    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,0);
   end else begin
    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,1);
-   SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,1 shl k);
+   SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,1 shl MultiSampleCounter);
   end;
   SurfaceWindow:=SDL_CreateWindow(pansichar(Title),(BestWidth-ScreenWidth) div 2,(BestHeight-ScreenHeight) div 2,ScreenWidth,ScreenHeight,SDL_WINDOW_OPENGL or SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE or VideoFlags);
   if assigned(SurfaceWindow) then begin
@@ -236,7 +285,7 @@ begin
    if not assigned(SurfaceContext) then begin
     SDL_DestroyWindow(SurfaceWindow);
     SurfaceWindow:=nil;
-    if k=0 then begin
+    if Index=0 then begin
      exit;
     end else begin
      continue;
@@ -259,7 +308,7 @@ begin
    end;
    SDL_DestroyWindow(SurfaceWindow);
    SurfaceWindow:=nil;
-   if k=0 then begin
+   if Index=0 then begin
     exit;
    end else begin
     continue;
@@ -387,115 +436,183 @@ begin
     EnvMapDrawShader:=TEnvMapDrawShader.Create;
     try
 
-     GLTFOpenGL:=TGLTFOpenGL.Create(GLTFDocument);
+     FillChar(HDRSceneFBO,SizeOf(TFBO),#0);
+     HDRSceneFBO.Width:=ViewPortWidth;
+     HDRSceneFBO.Height:=ViewPortHeight;
+     HDRSceneFBO.Depth:=0;
+     HDRSceneFBO.Textures:=1;
+     HDRSceneFBO.TextureFormats[0]:=GL_TEXTURE_RGBA16F;
+     HDRSceneFBO.Format:=GL_TEXTURE_RGBA16F;
+     HDRSceneFBO.SWrapMode:=wmGL_CLAMP_TO_EDGE;
+     HDRSceneFBO.TWrapMode:=wmGL_CLAMP_TO_EDGE;
+     HDRSceneFBO.RWrapMode:=wmGL_CLAMP_TO_EDGE;
+     HDRSceneFBO.MinFilterMode:=fmGL_LINEAR;
+     HDRSceneFBO.MagFilterMode:=fmGL_LINEAR;
+     HDRSceneFBO.Flags:=FBOFlagDepthBuffer;
+     CreateFrameBuffer(HDRSceneFBO);
      try
 
-      GLTFOpenGL.InitializeResources;
+      HDRToLDRShader:=THDRToLDRShader.Create;
       try
 
-       GLTFOpenGL.UploadResources;
+       FillChar(LDRSceneFBO,SizeOf(TFBO),#0);
+       LDRSceneFBO.Width:=ViewPortWidth;
+       LDRSceneFBO.Height:=ViewPortHeight;
+       LDRSceneFBO.Depth:=0;
+       LDRSceneFBO.Textures:=1;
+       LDRSceneFBO.TextureFormats[0]:=GL_TEXTURE_RGBA8UB;
+       LDRSceneFBO.Format:=GL_TEXTURE_RGBA8UB;
+       LDRSceneFBO.SWrapMode:=wmGL_CLAMP_TO_EDGE;
+       LDRSceneFBO.TWrapMode:=wmGL_CLAMP_TO_EDGE;
+       LDRSceneFBO.RWrapMode:=wmGL_CLAMP_TO_EDGE;
+       LDRSceneFBO.MinFilterMode:=fmGL_LINEAR;
+       LDRSceneFBO.MagFilterMode:=fmGL_LINEAR;
+       LDRSceneFBO.Flags:=FBOFlagDepthBuffer;
+       CreateFrameBuffer(LDRSceneFBO);
        try
 
-        PBRShader:=TPBRShader.Create;
+        AntialiasingShader:=TAntialiasingShader.Create;
         try
 
-         FullScreen:=false;
-         SDLRunning:=true;
-         while SDLRunning do begin
+         GLTFOpenGL:=TGLTFOpenGL.Create(GLTFDocument);
+         try
 
-          while SDL_PollEvent(@Event)<>0 do begin
-           case Event.type_ of
-            SDL_QUITEV,SDL_APP_TERMINATING:begin
-             SDLRunning:=false;
-             break;
-            end;
-            SDL_APP_WILLENTERBACKGROUND:begin
-             //SDL_PauseAudio(1);
-            end;
-            SDL_APP_DIDENTERFOREGROUND:begin
-             //SDL_PauseAudio(0);
-            end;
-            SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
-            end;
-            SDL_KEYDOWN:begin
-             case Event.key.keysym.sym of
-              SDLK_ESCAPE:begin
-        //     BackKey;
-               SDLRunning:=false;
-               break;
-              end;
-              SDLK_RETURN:begin
-               if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
-                FullScreen:=not FullScreen;
-                if FullScreen then begin
-                 SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
-                end else begin
-                 SDL_SetWindowFullscreen(SurfaceWindow,0);
+          GLTFOpenGL.InitializeResources;
+          try
+
+           GLTFOpenGL.UploadResources;
+           try
+
+            PBRShader:=TPBRShader.Create;
+            try
+
+             FullScreen:=false;
+             SDLRunning:=true;
+             while SDLRunning do begin
+
+              while SDL_PollEvent(@Event)<>0 do begin
+               case Event.type_ of
+                SDL_QUITEV,SDL_APP_TERMINATING:begin
+                 SDLRunning:=false;
+                 break;
+                end;
+                SDL_APP_WILLENTERBACKGROUND:begin
+                 //SDL_PauseAudio(1);
+                end;
+                SDL_APP_DIDENTERFOREGROUND:begin
+                 //SDL_PauseAudio(0);
+                end;
+                SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
+                end;
+                SDL_KEYDOWN:begin
+                 case Event.key.keysym.sym of
+                  SDLK_ESCAPE:begin
+            //     BackKey;
+                   SDLRunning:=false;
+                   break;
+                  end;
+                  SDLK_RETURN:begin
+                   if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+                    FullScreen:=not FullScreen;
+                    if FullScreen then begin
+                     SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
+                    end else begin
+                     SDL_SetWindowFullscreen(SurfaceWindow,0);
+                    end;
+                   end;
+                  end;
+                  SDLK_F4:begin
+                   if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+                    SDLRunning:=false;
+                    break;
+                   end;
+                  end;
+                 end;
+                end;
+                SDL_KEYUP:begin
+                end;
+                SDL_WINDOWEVENT:begin
+                 case event.window.event of
+                  SDL_WINDOWEVENT_RESIZED:begin
+                   ScreenWidth:=event.window.Data1;
+                   ScreenHeight:=event.window.Data2;
+                   Resize(ScreenWidth,ScreenHeight);
+                  end;
+                 end;
+                end;
+                SDL_MOUSEMOTION:begin
+                 if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
+                 end;
+                end;
+                SDL_MOUSEBUTTONDOWN:begin
+                 case event.button.button of
+                  SDL_BUTTON_LEFT:begin
+                  end;
+                  SDL_BUTTON_RIGHT:begin
+                  end;
+                 end;
+                end;
+                SDL_MOUSEBUTTONUP:begin
+                 case event.button.button of
+                  SDL_BUTTON_LEFT:begin
+                  end;
+                  SDL_BUTTON_RIGHT:begin
+                  end;
+                 end;
                 end;
                end;
               end;
-              SDLK_F4:begin
-               if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
-                SDLRunning:=false;
-                break;
-               end;
+              Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
+              if (HDRSceneFBO.Width<>VirtualCanvasWidth) or
+                 (HDRSceneFBO.Height<>VirtualCanvasHeight) then begin
+               DestroyFrameBuffer(HDRSceneFBO);
+               HDRSceneFBO.Width:=VirtualCanvasWidth;
+               HDRSceneFBO.Height:=VirtualCanvasHeight;
+               CreateFrameBuffer(HDRSceneFBO);
               end;
+              if (LDRSceneFBO.Width<>VirtualCanvasWidth) or
+                 (LDRSceneFBO.Height<>VirtualCanvasHeight) then begin
+               DestroyFrameBuffer(LDRSceneFBO);
+               LDRSceneFBO.Width:=VirtualCanvasWidth;
+               LDRSceneFBO.Height:=VirtualCanvasHeight;
+               CreateFrameBuffer(LDRSceneFBO);
+              end;
+              Draw;
+              SDL_GL_SwapWindow(SurfaceWindow);
              end;
+
+            finally
+
+             PBRShader.Free;
+
             end;
-            SDL_KEYUP:begin
-            end;
-            SDL_WINDOWEVENT:begin
-             case event.window.event of
-              SDL_WINDOWEVENT_RESIZED:begin
-               ScreenWidth:=event.window.Data1;
-               ScreenHeight:=event.window.Data2;
-               Resize(ScreenWidth,ScreenHeight);
-              end;
-             end;
-            end;
-            SDL_MOUSEMOTION:begin
-             if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
-             end;
-            end;
-            SDL_MOUSEBUTTONDOWN:begin
-             case event.button.button of
-              SDL_BUTTON_LEFT:begin
-              end;
-              SDL_BUTTON_RIGHT:begin
-              end;
-             end;
-            end;
-            SDL_MOUSEBUTTONUP:begin
-             case event.button.button of
-              SDL_BUTTON_LEFT:begin
-              end;
-              SDL_BUTTON_RIGHT:begin
-              end;
-             end;
-            end;
+
+           finally
+            GLTFOpenGL.UnloadResources;
            end;
+
+          finally
+           GLTFOpenGL.FinalizeResources;
           end;
-          Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
-          Draw;
-          SDL_GL_SwapWindow(SurfaceWindow);
+
+         finally
+          GLTFOpenGL.Free;
          end;
 
         finally
-
-         PBRShader.Free;
-
+         FreeAndNil(AntialiasingShader);
         end;
 
        finally
-        GLTFOpenGL.UnloadResources;
+        DestroyFrameBuffer(LDRSceneFBO);
        end;
 
       finally
-       GLTFOpenGL.FinalizeResources;
+       FreeAndNil(HDRToLDRShader);
       end;
 
      finally
-      GLTFOpenGL.Free;
+      DestroyFrameBuffer(HDRSceneFBO);
      end;
 
     finally
