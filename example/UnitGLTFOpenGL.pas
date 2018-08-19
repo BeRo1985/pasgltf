@@ -117,6 +117,8 @@ type EGLTFOpenGL=class(Exception);
                    TPrimitives=array of TPrimitive;
              public
               Primitives:TPrimitives;
+              MinPosition:TPasGLTF.TVector3;
+              MaxPosition:TPasGLTF.TVector3;
             end;
             PMesh=^TMesh;
             TMeshes=array of TMesh;
@@ -155,6 +157,8 @@ type EGLTFOpenGL=class(Exception);
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
        fVertexArrayHandle:glInt;
+       fStaticMinPosition:TPasGLTF.TVector3;
+       fStaticMaxPosition:TPasGLTF.TVector3;
       public
        constructor Create(const aDocument:TPasGLTF.TDocument); reintroduce;
        destructor Destroy; override;
@@ -163,6 +167,8 @@ type EGLTFOpenGL=class(Exception);
        procedure UploadResources;
        procedure UnloadResources;
        procedure Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
+       property StaticMinPosition:TPasGLTF.TVector3 read fStaticMinPosition;
+       property StaticMaxPosition:TPasGLTF.TVector3 read fStaticMaxPosition;
       published
        property Document:TPasGLTF.TDocument read fDocument;
      end;
@@ -248,6 +254,13 @@ begin
  result[0]:=aVector[0]*aFactor;
  result[1]:=aVector[1]*aFactor;
  result[2]:=aVector[2]*aFactor;
+end;
+
+function Vector3MatrixMul(const m:TPasGLTF.TMatrix4x4;const v:TVector3):TVector3;
+begin
+ result[0]:=(m[0]*v[0])+(m[4]*v[1])+(m[8]*v[2])+m[12];
+ result[1]:=(m[1]*v[0])+(m[5]*v[1])+(m[9]*v[2])+m[13];
+ result[2]:=(m[2]*v[0])+(m[6]*v[1])+(m[10]*v[2])+m[14];
 end;
 
 function Vector4Dot(const a,b:TVector4):TPasGLTFFloat;
@@ -741,13 +754,21 @@ procedure TGLTFOpenGL.InitializeResources;
 
    DestinationMesh:=@fMeshes[Index];
 
-   SetLength(DestinationMesh.Primitives,SourceMesh.Primitives.Count);
+   SetLength(DestinationMesh^.Primitives,SourceMesh.Primitives.Count);
+
+   DestinationMesh^.MinPosition[0]:=Infinity;
+   DestinationMesh^.MinPosition[1]:=Infinity;
+   DestinationMesh^.MinPosition[2]:=Infinity;
+
+   DestinationMesh^.MaxPosition[0]:=NegInfinity;
+   DestinationMesh^.MaxPosition[1]:=NegInfinity;
+   DestinationMesh^.MaxPosition[2]:=NegInfinity;
 
    for PrimitiveIndex:=0 to SourceMesh.Primitives.Count-1 do begin
 
     SourceMeshPrimitive:=SourceMesh.Primitives.Items[PrimitiveIndex];
 
-    DestinationMeshPrimitive:=@DestinationMesh.Primitives[PrimitiveIndex];
+    DestinationMeshPrimitive:=@DestinationMesh^.Primitives[PrimitiveIndex];
 
     DestinationMeshPrimitive^.Material:=SourceMeshPrimitive.Material;
 
@@ -757,6 +778,12 @@ procedure TGLTFOpenGL.InitializeResources;
       AccessorIndex:=SourceMeshPrimitive.Attributes['POSITION'];
       if AccessorIndex>=0 then begin
        TemporaryPositions:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+       DestinationMesh^.MinPosition[0]:=Min(DestinationMesh^.MinPosition[0],fDocument.Accessors[AccessorIndex].MinArray[0]);
+       DestinationMesh^.MinPosition[1]:=Min(DestinationMesh^.MinPosition[1],fDocument.Accessors[AccessorIndex].MinArray[1]);
+       DestinationMesh^.MinPosition[2]:=Min(DestinationMesh^.MinPosition[2],fDocument.Accessors[AccessorIndex].MinArray[2]);
+       DestinationMesh^.MaxPosition[0]:=Max(DestinationMesh^.MaxPosition[0],fDocument.Accessors[AccessorIndex].MaxArray[0]);
+       DestinationMesh^.MaxPosition[1]:=Max(DestinationMesh^.MaxPosition[1],fDocument.Accessors[AccessorIndex].MaxArray[1]);
+       DestinationMesh^.MaxPosition[2]:=Max(DestinationMesh^.MaxPosition[2],fDocument.Accessors[AccessorIndex].MaxArray[2]);
       end else begin
        raise EGLTFOpenGL.Create('Missing position data');
       end;
@@ -1055,6 +1082,46 @@ procedure TGLTFOpenGL.InitializeResources;
  begin
   SetLength(fTextures,fDocument.Textures.Count);
  end;
+ procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
+ var Index:TPasGLTFSizeInt;
+     Matrix:TPasGLTF.TMatrix4x4;
+     Node:TPasGLTF.TNode;
+     TemporaryVector3:TPasGLTF.TVector3;
+     Mesh:PMesh;
+ begin
+  Node:=fDocument.Nodes[aNodeIndex];
+  Matrix:=MatrixMul(
+           MatrixMul(
+            MatrixMul(
+             MatrixFromScale(Node.Scale),
+             MatrixMul(
+              MatrixFromRotation(Node.Rotation),
+              MatrixFromTranslation(Node.Translation))),
+            Node.Matrix),
+           aMatrix);
+  if Node.Mesh>=0 then begin
+   Mesh:=@fMeshes[Node.Mesh];
+   TemporaryVector3:=Vector3MatrixMul(Matrix,Mesh^.MinPosition);
+   fStaticMinPosition[0]:=Min(fStaticMinPosition[0],TemporaryVector3[0]);
+   fStaticMinPosition[1]:=Min(fStaticMinPosition[1],TemporaryVector3[1]);
+   fStaticMinPosition[2]:=Min(fStaticMinPosition[2],TemporaryVector3[2]);
+   fStaticMaxPosition[0]:=Max(fStaticMaxPosition[0],TemporaryVector3[0]);
+   fStaticMaxPosition[1]:=Max(fStaticMaxPosition[1],TemporaryVector3[1]);
+   fStaticMaxPosition[2]:=Max(fStaticMaxPosition[2],TemporaryVector3[2]);
+   TemporaryVector3:=Vector3MatrixMul(Matrix,Mesh^.MaxPosition);
+   fStaticMinPosition[0]:=Min(fStaticMinPosition[0],TemporaryVector3[0]);
+   fStaticMinPosition[1]:=Min(fStaticMinPosition[1],TemporaryVector3[1]);
+   fStaticMinPosition[2]:=Min(fStaticMinPosition[2],TemporaryVector3[2]);
+   fStaticMaxPosition[0]:=Max(fStaticMaxPosition[0],TemporaryVector3[0]);
+   fStaticMaxPosition[1]:=Max(fStaticMaxPosition[1],TemporaryVector3[1]);
+   fStaticMaxPosition[2]:=Max(fStaticMaxPosition[2],TemporaryVector3[2]);
+  end;
+  for Index:=0 to Node.Children.Count-1 do begin
+   ProcessNode(Node.Children.Items[Index],Matrix);
+  end;
+ end;
+var Index:TPasGLTFSizeInt;
+    Scene:TPasGLTF.TScene;
 begin
  if not fReady then begin
   InitializeAnimations;
@@ -1062,6 +1129,19 @@ begin
   InitializeMeshes;
   InitializeNodes;
   InitializeTextures;
+  begin
+   fStaticMinPosition[0]:=Infinity;
+   fStaticMinPosition[1]:=Infinity;
+   fStaticMinPosition[2]:=Infinity;
+   fStaticMaxPosition[0]:=NegInfinity;
+   fStaticMaxPosition[1]:=NegInfinity;
+   fStaticMaxPosition[2]:=NegInfinity;
+   for Scene in fDocument.Scenes do begin
+    for Index:=0 to Scene.Nodes.Count-1 do begin
+     ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix);
+    end;
+   end;
+  end;
   fReady:=true;
  end;
 end;
