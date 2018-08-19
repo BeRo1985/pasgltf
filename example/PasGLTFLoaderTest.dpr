@@ -171,6 +171,7 @@ var Index:int32;
     MemoryStream:TMemoryStream;
     ImageData:TPasGLTFPointer;
     ImageWidth,ImageHeight:TPasGLTFInt32;
+    OK:boolean;
 begin
 
  //FastMM4.FullDebugModeScanMemoryPoolBeforeEveryOperation:=true;
@@ -210,7 +211,7 @@ begin
  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,0);
  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,0);
  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
- SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,32);
+ SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE,24);
  SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,0);
  SDL_GL_SetSwapInterval(1);
  VideoFlags:=0;
@@ -244,11 +245,14 @@ begin
   end else begin
    exit;
   end;
+  OK:=false;
   if InitOpenGL then begin
    ReadOpenGLCore;
    ReadImplementationProperties;
    ReadExtensions;
-  end else begin
+   OK:=true;
+  end;
+  if not (OK and assigned(glGenVertexArrays)) then begin
    if assigned(SurfaceContext) then begin
     SDL_GL_DeleteContext(SurfaceContext);
     SurfaceContext:=nil;
