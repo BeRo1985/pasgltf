@@ -3,6 +3,12 @@ program PasDAELoaderTest;
  {$mode delphi}
 {$endif}
 {$apptype console}
+{$ifdef win32}
+ {$define windows}
+{$endif}
+{$ifdef win64}
+ {$define windows}
+{$endif}
 
 //  FastMM4,
 
@@ -33,8 +39,8 @@ uses
 // Force usage of dedicated GPU for OpenGL with Delphi and FreePascal/Lazarus on Multi-GPU systems such as Notebooks on Windows
 // Insert that into your main source file, which is for example the .dpr (Delphi) or .lpr (Lazarus) file
 
-{$define ForceDedicatedGPUUsage} // then you can uncomment and recomment this line, for compile-time-switching between
-                                 // integrated GPU and dedicated GPU
+//{$define ForceDedicatedGPUUsage} // then you can uncomment and recomment this line, for compile-time-switching between
+                                   // integrated GPU and dedicated GPU
 
 {$if defined(Windows) and defined(ForceDedicatedGPUUsage) and (defined(cpu386) or defined(cpux64) or defined(cpuamd64))}
 {$ifdef fpc}

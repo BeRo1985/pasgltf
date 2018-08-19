@@ -297,7 +297,7 @@ begin
     '  return textureLod(texEnvMap, (vec2((atan(rayDirection.z, rayDirection.x) / 6.283185307179586476925286766559) + 0.5, acos(rayDirection.y) / 3.1415926535897932384626433832795)), texLOD);'+#13#10+
     '}'+#13#10+
     'void main(){'+#13#10+
-    '  vec4 normalTexture, occlusionTexture, emissiveTexture;'+#13#10+
+    '  vec4 occlusionTexture, emissiveTexture;'+#13#10+
     '  PBRMetallicRoughness pbrMetallicRoughness;'+#13#10+
     '  if((uFlags & 0x40000000u) != 0u){'+#13#10+
     '    PBRSpecularGlossiness pbrSpecularGlossiness;'+#13#10+
@@ -328,12 +328,15 @@ begin
     '    pbrMetallicRoughness.baseColor = vec4(convertSRGBToLinearRGB(pbrMetallicRoughness.baseColor.xyz), pbrMetallicRoughness.baseColor.w) * uBaseColorFactor;'+#13#10+
     '    pbrMetallicRoughness.metallicRoughness *= uMetallicRoughnessNormalScaleOcclusionStrengthFactor.xy;'+#13#10+
     '  }'+#13#10+
+    '  vec3 normal;'+#13#10+
     '  if((uFlags & 16u) != 0u){'+#13#10+
-    '    normalTexture = texture(uNormalTexture, ((uFlags & 32u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
-    '    normalTexture.xyz = normalize(normalTexture.xyz - vec3(0.5));'+#13#10+
+    '    mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
+    '    vec4 normalTexture = texture(uNormalTexture, ((uFlags & 32u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '    normal = normalize(tangentSpace * normalize(normalTexture.xyz - vec3(0.5)));'+#13#10+
     '  }else{'+#13#10+
-    '    normalTexture = vec2(0.0, 1.0).xxyx;'+#13#10+
+    '    normal = normalize(vNormal);'+#13#10+
     '  }'+#13#10+
+    '  normal *= (((uFlags & 0x20000000u) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
     '  if((uFlags & 64u) != 0u){'+#13#10+
     '    occlusionTexture = texture(uOcclusionTexture, ((uFlags & 128u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
@@ -344,9 +347,7 @@ begin
     '  }else{'+#13#10+
     '    emissiveTexture = vec4(0.0);'+#13#10+
     '  }'+#13#10+
-    '  mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
-    '  vec4 materialAlbedo = pbrMetallicRoughness.baseColor,'+#13#10+
-    '       materialNormal = vec4(normalize(tangentSpace * normalTexture.xyz) * ((((uFlags & 0x20000000u) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0), normalTexture.w * uMetallicRoughnessNormalScaleOcclusionStrengthFactor.z);'+#13#10+
+    '  vec4 materialAlbedo = pbrMetallicRoughness.baseColor;'+#13#10+
     '  float materialMetallic = clamp(pbrMetallicRoughness.metallicRoughness.x, 0.0, 1.0),'+#13#10+
     '        materialRoughness = clamp(pbrMetallicRoughness.metallicRoughness.y, 1e-3, 1.0),'+#13#10+
     '        materialCavity = clamp(mix(1.0, occlusionTexture.x, uMetallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
@@ -365,7 +366,7 @@ begin
 {   '  color += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
     '                              pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
     '                              -uLightDirection,'+#13#10+
-    '                              materialNormal.xyz,'+#13#10+
+    '                              normal.xyz,'+#13#10+
     '                              diffuseColor,'+#13#10+
     '                              specularColor,'+#13#10+
     '                              viewDirection,'+#13#10+
@@ -376,17 +377,17 @@ begin
     '                              materialMetallic) +'+#13#10+
     '                (((('+#13#10+
     '                    // Sky light'+#13#10+
-    '                    (max(0.0, 0.6 + (0.4 * materialNormal.y)) * vec3(0.05, 0.20, 0.45)) +'+#13#10+
+    '                    (max(0.0, 0.6 + (0.4 * normal.y)) * vec3(0.05, 0.20, 0.45)) +'+#13#10+
     '                    // Backlight'+#13#10+
-    '                    (max(0.0, 0.2 + (0.8 * dot(materialNormal.xyz, normalize(vec3(uLightDirection.xz, 0.0).xzy)))) * vec3(0.20, 0.25, 0.25))'+#13#10+
+    '                    (max(0.0, 0.2 + (0.8 * dot(normal.xyz, normalize(vec3(uLightDirection.xz, 0.0).xzy)))) * vec3(0.20, 0.25, 0.25))'+#13#10+
     '                   ) * ambientOcclusion) +'+#13#10+
     '                  // Bounce light'+#13#10+
-    '                  (clamp(-materialNormal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
+    '                  (clamp(-normal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
     '                 ) * diffuseLambert(diffuseColor) * materialCavity));'+#13#10+ (*{}
     '  color += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
     '                         pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
     '                         -uLightDirection,'+#13#10+
-    '                         materialNormal.xyz,'+#13#10+
+    '                         normal.xyz,'+#13#10+
     '                         diffuseColor,'+#13#10+
     '                         specularColor,'+#13#10+
     '                         viewDirection,'+#13#10+
@@ -396,15 +397,16 @@ begin
     '                         materialCavity,'+#13#10+
     '                         materialMetallic);'+#13#10+(**)
     '  {'+#13#10+
-    '    float NoV = clamp(abs(dot(materialNormal.xyz, viewDirection)), 1e-3, 1.0),'+#13#10+
+    '    float NoV = clamp(abs(dot(normal.xyz, viewDirection)), 1e-3, 1.0),'+#13#10+
     '          ao = materialCavity * ambientOcclusion,'+#13#10+
     '          specularOcclusion = clamp((((NoV + ao) * (NoV + ao)) - 1.0) + ao, 0.0, 1.0);'+#13#10+
     '  	 vec2 brdf = textureLod(uBRDFLUTTexture, vec2(materialRoughness, NoV), 0.0).xy;'+#13#10+
-		'    vec3 rayDirection = -normalize(reflect(viewDirection, materialNormal.xyz));'+#13#10+
+		'    vec3 rayDirection = -normalize(reflect(viewDirection, normal.xyz));'+#13#10+
     '    color += getEnvMap(uEnvMapTexture, clamp((8.0 - 1.0) - (1.0 - (1.2 * log2(materialRoughness))), 0.0, min(8.0, float(uEnvMapMaxLevel))), rayDirection).xyz * ((specularColor * brdf.x) + brdf.yyy) * specularOcclusion;'+#13#10+
     '    color += getEnvMap(uEnvMapTexture, min(8.0, float(uEnvMapMaxLevel)), rayDirection).xyz * diffuseColor * ao;'+#13#10+
     '  }'+#13#10+
     '  oOutput = vec4(vec3((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10;
+///    '  oOutput = vec4(vec3(vNormal.xyz * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10;
  if aAlphaTest then begin
   f:=f+'  if(oOutput.w < uAlphaCutOff){'+#13#10+
        '    discard;'+#13#10+
