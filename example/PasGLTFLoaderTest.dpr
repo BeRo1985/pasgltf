@@ -102,7 +102,7 @@ var Event:TSDL_Event;
     glDisable(GL_DEPTH_TEST);
     glDisable(GL_CULL_FACE);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D,EnvMapFBO.TextureHandles[0]);
+    glBindTexture(GL_TEXTURE_2D,EnvMapTextureHandle);
     EnvMapDrawShader.Bind;
     glUniform1i(EnvMapDrawShader.uTexture,0);
     glUniformMatrix4fv(EnvMapDrawShader.uInverseViewProjectionMatrix,1,false,@InverseViewProjectionMatrix);
@@ -381,7 +381,7 @@ begin
        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-       glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,ImageWidth,ImageHeight,0,GL_RGBA,GL_UNSIGNED_BYTE,ImageData);
+       glTexImage2D(GL_TEXTURE_2D,0,GL_SRGB8_ALPHA8,ImageWidth,ImageHeight,0,GL_RGBA,GL_UNSIGNED_BYTE,ImageData);
        glGenerateMipmap(GL_TEXTURE_2D);
      finally
        FreeMem(ImageData);
