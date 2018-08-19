@@ -82,8 +82,9 @@ var Event:TSDL_Event;
     Time:double;
  procedure Draw;
  var ModelMatrix,ViewMatrix,ProjectionMatrix,InverseViewProjectionMatrix:UnitMath3D.TMatrix4x4;
-     LightDirection:UnitMath3D.TVector3;
+     LightDirection,Bounds,Center:UnitMath3D.TVector3;
      t:double;
+     v:TPasGLTFFloat;
  begin
   begin
    glBindFrameBuffer(GL_FRAMEBUFFER,HDRSceneFBO.FBOs[0]);
@@ -94,8 +95,20 @@ var Event:TSDL_Event;
    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
    ModelMatrix:=Matrix4x4Identity;
    t:=Time*0.125;
-   ViewMatrix:=Matrix4x4LookAt(Vector3(sin(t)*512.0,sin(t*0.25)*256.0,cos(t)*512.0),Vector3Origin,Vector3YAxis);
-   ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,1.0,2048.0);
+   Center.x:=(GLTFOpenGL.StaticMinPosition[0]+GLTFOpenGL.StaticMaxPosition[0])*0.5;
+   Center.y:=(GLTFOpenGL.StaticMinPosition[1]+GLTFOpenGL.StaticMaxPosition[1])*0.5;
+   Center.z:=(GLTFOpenGL.StaticMinPosition[2]+GLTFOpenGL.StaticMaxPosition[2])*0.5;
+   Bounds.x:=(GLTFOpenGL.StaticMaxPosition[0]-GLTFOpenGL.StaticMinPosition[0])*0.5;
+   Bounds.y:=(GLTFOpenGL.StaticMaxPosition[1]-GLTFOpenGL.StaticMinPosition[1])*0.5;
+   Bounds.z:=(GLTFOpenGL.StaticMaxPosition[2]-GLTFOpenGL.StaticMinPosition[2])*0.5;
+   ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
+                                          Vector3(sin(t)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*2.828,
+                                                  sin(t*0.25)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*0.25,
+                                                  cos(t)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*2.828)),
+                                       Center,
+                                       Vector3YAxis);
+   v:=Max(1024.0,sqrt(sqr(Bounds.x)+sqr(Bounds.z))*4.0);
+   ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,v/1024.0,v);
    LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
    InverseViewProjectionMatrix:=Matrix4x4TermInverse(Matrix4x4TermMul(ViewMatrix,ProjectionMatrix));
    begin
