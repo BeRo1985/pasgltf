@@ -145,6 +145,7 @@ var Event:TSDL_Event;
                     TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
                     TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
                     PBRShader,
+                    0,
                     Time);
     PBRShader.Unbind;
    end;

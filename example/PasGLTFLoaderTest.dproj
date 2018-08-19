@@ -214,7 +214,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
-        <Debugger_RunParams>models\character_x_bot\scene.gltf</Debugger_RunParams>
+        <Debugger_RunParams>models\samba_dancing_mom\scene.gltf</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

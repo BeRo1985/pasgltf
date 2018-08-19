@@ -166,7 +166,7 @@ type EGLTFOpenGL=class(Exception);
        procedure FinalizeResources;
        procedure UploadResources;
        procedure UnloadResources;
-       procedure Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
+       procedure Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aAnimationIndex:TPasGLTFSizeInt=0;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
        property StaticMinPosition:TPasGLTF.TVector3 read fStaticMinPosition;
        property StaticMaxPosition:TPasGLTF.TVector3 read fStaticMaxPosition;
       published
@@ -1338,7 +1338,7 @@ begin
  end;
 end;
 
-procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
+procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader:TPBRShader;const aAnimationIndex:TPasGLTFSizeInt=0;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
  procedure ResetNode(const aNodeIndex:TPasGLTFSizeInt);
  var Index:TPasGLTFSizeInt;
      Node:TPasGLTF.TNode;
@@ -1677,8 +1677,8 @@ begin
  for Index:=0 to Scene.Nodes.Count-1 do begin
   ResetNode(Scene.Nodes.Items[Index]);
  end;
- for Index:=0 to fDocument.Animations.Count-1 do begin
-  ProcessAnimation(Index);
+ if (aAnimationIndex>=0) and (aAnimationIndex<fDocument.Animations.Count) then begin
+  ProcessAnimation(aAnimationIndex);
  end;
  for Index:=0 to Scene.Nodes.Count-1 do begin
   ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix);
