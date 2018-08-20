@@ -256,7 +256,7 @@ begin
     '}'+#13#10+
     'vec3 specularF(const in vec3 specularColor, const in float vDotH){'+#13#10+
     '  float fc = pow(1.0 - vDotH, 5.0);'+#13#10+
-    '  return vec3(clamp(25.0 * max(max(specularColor.x, specularColor.y), specularColor.z), 0.0, 1.0) * fc) + ((1.0 - fc) * specularColor);'+#13#10+
+    '  return vec3(clamp(max(max(specularColor.x, specularColor.y), specularColor.z) * 50.0, 0.0, 1.0) * fc) + ((1.0 - fc) * specularColor);'+#13#10+
     '}'+#13#10+
     'float specularD(const in float roughness, const in float nDotH){'+#13#10+
     '  float a = roughness * roughness;'+#13#10+
@@ -283,7 +283,7 @@ begin
     '                   const in float materialMetallic){'+#13#10+
     '  vec3 halfVector = normalize(viewDirection + lightDirection);'+#13#10+
     '	 float nDotL = clamp(dot(normal, lightDirection), 1e-5, 1.0);'+#13#10+
-    '	 float nDotV = abs(dot(normal, viewDirection)) + 1e-5;'+#13#10+
+    '	 float nDotV = clamp(abs(dot(normal, viewDirection)) + 1e-5, 0.0, 1.0);'+#13#10+
     '	 float nDotH = clamp(dot(normal, halfVector), 0.0, 1.0);'+#13#10+
     '	 float vDotH = clamp(dot(viewDirection, halfVector), 0.0, 1.0);'+#13#10+
     '  vec3 diffuse = diffuseFunction(diffuseColor, materialRoughness, nDotV, nDotL, vDotH) * (1.0 - materialTransparency);'+#13#10+
@@ -397,12 +397,12 @@ begin
     '                         materialCavity,'+#13#10+
     '                         materialMetallic);'+#13#10+(**)
     '  {'+#13#10+
-    '    float NoV = clamp(abs(dot(normal.xyz, viewDirection)), 1e-3, 1.0),'+#13#10+
+    '    float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
     '          ao = materialCavity * ambientOcclusion,'+#13#10+
-    '          specularOcclusion = clamp((((NoV + ao) * (NoV + ao)) - 1.0) + ao, 0.0, 1.0);'+#13#10+
-    '  	 vec2 brdf = textureLod(uBRDFLUTTexture, vec2(materialRoughness, NoV), 0.0).xy;'+#13#10+
+    '          specularOcclusion = clamp((((NdotV + ao) * (NdotV + ao)) - 1.0) + ao, 0.0, 1.0);'+#13#10+
+    '  	 vec2 brdf = textureLod(uBRDFLUTTexture, vec2(materialRoughness, NdotV), 0.0).xy;'+#13#10+
 		'    vec3 rayDirection = -normalize(reflect(viewDirection, normal.xyz));'+#13#10+
-    '    color += getEnvMap(uEnvMapTexture, clamp((8.0 - 1.0) - (1.0 - (1.2 * log2(materialRoughness))), 0.0, min(8.0, float(uEnvMapMaxLevel))), rayDirection).xyz * ((specularColor * brdf.x) + brdf.yyy) * specularOcclusion;'+#13#10+
+    '    color += getEnvMap(uEnvMapTexture, clamp((8.0 - 1.0) - (1.0 - (1.2 * log2(materialRoughness))), 0.0, min(8.0, float(uEnvMapMaxLevel))), rayDirection).xyz * ((specularColor * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColor.x, specularColor.y), specularColor.z) * 50.0, 0.0, 1.0))) * specularOcclusion;'+#13#10+
     '    color += getEnvMap(uEnvMapTexture, min(8.0, float(uEnvMapMaxLevel)), rayDirection).xyz * diffuseColor * ao;'+#13#10+
     '  }'+#13#10+
     '  oOutput = vec4(vec3((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10;
