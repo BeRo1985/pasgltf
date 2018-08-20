@@ -279,6 +279,7 @@ var Index,MultiSampleCounter,DepthBufferSizeCounter,Temp:int32;
     ImageData:TPasGLTFPointer;
     ImageWidth,ImageHeight:TPasGLTFInt32;
     OK:boolean;
+    TempScale:TPasGLTFFloat;
 begin
 
  //FastMM4.FullDebugModeScanMemoryPoolBeforeEveryOperation:=true;
@@ -628,9 +629,10 @@ begin
                end;
                Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
                begin
-                // 1.33333333% super-sampling on top on FXAA
-                SceneFBOWidth:=ViewPortWidth+(ViewPortWidth*86) shr 8;
-                SceneFBOHeight:=ViewPortHeight+(ViewPortHeight*86) shr 8;
+                // 1 1/3 % (quadratically total-pixel-count-wise) super-sampling on top on FXAA
+                TempScale:=sqrt(1.33333333);
+                SceneFBOWidth:=round(ViewPortWidth*TempScale);
+                SceneFBOHeight:=round(ViewPortHeight*TempScale);
                 if (HDRSceneFBO.Width<>SceneFBOWidth) or
                    (HDRSceneFBO.Height<>SceneFBOHeight) then begin
                  DestroyFrameBuffer(HDRSceneFBO);
