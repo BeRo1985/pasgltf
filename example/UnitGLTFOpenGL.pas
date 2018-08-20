@@ -1143,7 +1143,7 @@ procedure TGLTFOpenGL.InitializeResources;
 
  end;
  procedure InitializeSkins;
- var Index,JointIndex:TPasGLTFSizeInt;
+ var Index,JointIndex,OldCount:TPasGLTFSizeInt;
      SourceSkin:TPasGLTF.TSkin;
      DestinationSkin:PSkin;
      JSONItem:TPasJSONItem;
@@ -1160,13 +1160,25 @@ procedure TGLTFOpenGL.InitializeResources;
 
    DestinationSkin^.Skeleton:=SourceSkin.Skeleton;
 
-   DestinationSkin^.InverseBindMatrices:=fDocument.Accessors[SourceSkin.InverseBindMatrices].DecodeAsMatrix4x4Array(false);
+   if SourceSkin.InverseBindMatrices>=0 then begin
+    DestinationSkin^.InverseBindMatrices:=fDocument.Accessors[SourceSkin.InverseBindMatrices].DecodeAsMatrix4x4Array(false);
+   end else begin
+    DestinationSkin^.InverseBindMatrices:=nil;
+   end;
 
    SetLength(DestinationSkin^.Matrices,SourceSkin.Joints.Count);
 
    SetLength(DestinationSkin^.Joints,SourceSkin.Joints.Count);
    for JointIndex:=0 to length(DestinationSkin^.Joints)-1 do begin
     DestinationSkin^.Joints[JointIndex]:=SourceSkin.Joints[JointIndex];
+   end;
+
+   OldCount:=length(DestinationSkin^.InverseBindMatrices);
+   if OldCount<SourceSkin.Joints.Count then begin
+    SetLength(DestinationSkin^.InverseBindMatrices,SourceSkin.Joints.Count);
+    for JointIndex:=0 to length(DestinationSkin^.InverseBindMatrices)-1 do begin
+     DestinationSkin^.InverseBindMatrices[JointIndex]:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+    end;
    end;
 
   end;
@@ -1237,7 +1249,7 @@ begin
    fStaticMaxPosition[2]:=NegInfinity;
    for Scene in fDocument.Scenes do begin
     for Index:=0 to Scene.Nodes.Count-1 do begin
-     ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix);
+     ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
     end;
    end;
   end;
@@ -1857,7 +1869,7 @@ begin
   ProcessAnimation(aAnimationIndex);
  end;
  for Index:=0 to Scene.Nodes.Count-1 do begin
-  ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix);
+  ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
  end;
  CurrentShader:=nil;
  for AlphaMode:=TPasGLTF.TMaterial.TAlphaMode.Opaque to TPasGLTF.TMaterial.TAlphaMode.Blend do begin

@@ -729,7 +729,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     IdentityVector3:TVector3=(1.0,1.0,1.0);
                     IdentityVector4:TVector4=(1.0,1.0,1.0,1.0);
                     IdentityQuaternion:TVector4=(0.0,0.0,0.0,1.0);
-                    IdentityMatrix:TMatrix4x4=(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
+                    IdentityMatrix4x4:TMatrix4x4=(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
             end;
             TDocument=class;
             TBaseObject=class
@@ -3239,7 +3239,7 @@ begin
  fCamera:=-1;
  fMesh:=-1;
  fSkin:=-1;
- fMatrix:=TDefaults.IdentityMatrix;
+ fMatrix:=TDefaults.IdentityMatrix4x4;
  fRotation:=TDefaults.IdentityQuaternion;
  fScale:=TDefaults.IdentityVector3;
  fTranslation:=TDefaults.NullVector3;
@@ -5185,7 +5185,7 @@ function TPasGLTF.TDocument.SaveToJSON(const aFormatted:boolean=false):TPasJSONR
       result.Add('children',JSONArray);
      end;
     end;
-    if not CompareMem(@aObject.fMatrix,@TDefaults.IdentityMatrix,SizeOf(TMatrix4x4)) then begin
+    if not CompareMem(@aObject.fMatrix,@TDefaults.IdentityMatrix4x4,SizeOf(TMatrix4x4)) then begin
      JSONArray:=TPasJSONItemArray.Create;
      try
       for Index:=0 to 15 do begin
