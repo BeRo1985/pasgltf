@@ -596,7 +596,7 @@ begin
  Temporary[11]:=((((-(ma[0]*ma[5]*ma[11]))+(ma[0]*ma[7]*ma[9])+(ma[4]*ma[1]*ma[11]))-(ma[4]*ma[3]*ma[9]))-(ma[8]*ma[1]*ma[7]))+(ma[8]*ma[3]*ma[5]);
  Temporary[15]:=((((ma[0]*ma[5]*ma[10])-(ma[0]*ma[6]*ma[9]))-(ma[4]*ma[1]*ma[10]))+(ma[4]*ma[2]*ma[9])+(ma[8]*ma[1]*ma[6]))-(ma[8]*ma[2]*ma[5]);
  Det:=(ma[0]*Temporary[0])+(ma[1]*Temporary[4])+(ma[2]*Temporary[8])+(ma[3]*Temporary[12]);
- if abs(Det)>EPSILON then begin
+ if not IsZero(Det) then begin
   Det:=1.0/Det;
   result[0]:=Temporary[0]*Det;
   result[1]:=Temporary[1]*Det;
