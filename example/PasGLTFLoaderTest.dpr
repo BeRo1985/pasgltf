@@ -80,7 +80,7 @@ var fs:TFileStream;
 
     GLTFOpenGL:TGLTFOpenGL;
 
-    PBRShaders:array[0..1] of TPBRShader;
+    PBRShaders:array[boolean,boolean] of TPBRShader;
 
     BRDFLUTShader:TBRDFLUTShader;
 
@@ -201,8 +201,8 @@ var Event:TSDL_Event;
     GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
                     TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
                     TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
-                    PBRShaders[0],
-                    PBRShaders[1],
+                    PBRShaders[false,false],
+                    PBRShaders[false,true],
                     0,
                     Time);
    end;
@@ -573,119 +573,133 @@ begin
            GLTFOpenGL.UploadResources;
            try
 
-            PBRShaders[0]:=TPBRShader.Create(false);
+            PBRShaders[false,false]:=TPBRShader.Create(false,false);
             try
 
-             PBRShaders[1]:=TPBRShader.Create(true);
+             PBRShaders[false,true]:=TPBRShader.Create(false,true);
              try
 
-              FullScreen:=false;
-              SDLRunning:=true;
-              while SDLRunning do begin
+              PBRShaders[true,false]:=TPBRShader.Create(true,false);
+              try
 
-               while SDL_PollEvent(@Event)<>0 do begin
-                case Event.type_ of
-                 SDL_QUITEV,SDL_APP_TERMINATING:begin
-                  SDLRunning:=false;
-                  break;
-                 end;
-                 SDL_APP_WILLENTERBACKGROUND:begin
-                  //SDL_PauseAudio(1);
-                 end;
-                 SDL_APP_DIDENTERFOREGROUND:begin
-                  //SDL_PauseAudio(0);
-                 end;
-                 SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
-                 end;
-                 SDL_KEYDOWN:begin
-                  case Event.key.keysym.sym of
-                   SDLK_ESCAPE:begin
-             //     BackKey;
+               PBRShaders[true,true]:=TPBRShader.Create(true,true);
+               try
+
+                FullScreen:=false;
+                SDLRunning:=true;
+                while SDLRunning do begin
+
+                 while SDL_PollEvent(@Event)<>0 do begin
+                  case Event.type_ of
+                   SDL_QUITEV,SDL_APP_TERMINATING:begin
                     SDLRunning:=false;
                     break;
                    end;
-                   SDLK_RETURN:begin
-                    if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
-                     FullScreen:=not FullScreen;
-                     if FullScreen then begin
-                      SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
-                     end else begin
-                      SDL_SetWindowFullscreen(SurfaceWindow,0);
+                   SDL_APP_WILLENTERBACKGROUND:begin
+                    //SDL_PauseAudio(1);
+                   end;
+                   SDL_APP_DIDENTERFOREGROUND:begin
+                    //SDL_PauseAudio(0);
+                   end;
+                   SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
+                   end;
+                   SDL_KEYDOWN:begin
+                    case Event.key.keysym.sym of
+                     SDLK_ESCAPE:begin
+               //     BackKey;
+                      SDLRunning:=false;
+                      break;
+                     end;
+                     SDLK_RETURN:begin
+                      if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+                       FullScreen:=not FullScreen;
+                       if FullScreen then begin
+                        SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
+                       end else begin
+                        SDL_SetWindowFullscreen(SurfaceWindow,0);
+                       end;
+                      end;
+                     end;
+                     SDLK_F4:begin
+                      if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+                       SDLRunning:=false;
+                       break;
+                      end;
                      end;
                     end;
                    end;
-                   SDLK_F4:begin
-                    if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
-                     SDLRunning:=false;
-                     break;
+                   SDL_KEYUP:begin
+                   end;
+                   SDL_WINDOWEVENT:begin
+                    case event.window.event of
+                     SDL_WINDOWEVENT_RESIZED:begin
+                      ScreenWidth:=event.window.Data1;
+                      ScreenHeight:=event.window.Data2;
+                      Resize(ScreenWidth,ScreenHeight);
+                     end;
+                    end;
+                   end;
+                   SDL_MOUSEMOTION:begin
+                    if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
+                    end;
+                   end;
+                   SDL_MOUSEBUTTONDOWN:begin
+                    case event.button.button of
+                     SDL_BUTTON_LEFT:begin
+                     end;
+                     SDL_BUTTON_RIGHT:begin
+                     end;
+                    end;
+                   end;
+                   SDL_MOUSEBUTTONUP:begin
+                    case event.button.button of
+                     SDL_BUTTON_LEFT:begin
+                     end;
+                     SDL_BUTTON_RIGHT:begin
+                     end;
                     end;
                    end;
                   end;
                  end;
-                 SDL_KEYUP:begin
-                 end;
-                 SDL_WINDOWEVENT:begin
-                  case event.window.event of
-                   SDL_WINDOWEVENT_RESIZED:begin
-                    ScreenWidth:=event.window.Data1;
-                    ScreenHeight:=event.window.Data2;
-                    Resize(ScreenWidth,ScreenHeight);
-                   end;
+                 Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
+                 begin
+                  // 1 1/3 % (quadratically total-pixel-count-wise) super-sampling on top on FXAA
+                  TempScale:=sqrt(1.33333333);
+                  SceneFBOWidth:=round(ViewPortWidth*TempScale);
+                  SceneFBOHeight:=round(ViewPortHeight*TempScale);
+                  if (HDRSceneFBO.Width<>SceneFBOWidth) or
+                     (HDRSceneFBO.Height<>SceneFBOHeight) then begin
+                   DestroyFrameBuffer(HDRSceneFBO);
+                   HDRSceneFBO.Width:=SceneFBOWidth;
+                   HDRSceneFBO.Height:=SceneFBOHeight;
+                   CreateFrameBuffer(HDRSceneFBO);
+                  end;
+                  if (LDRSceneFBO.Width<>SceneFBOWidth) or
+                     (LDRSceneFBO.Height<>SceneFBOHeight) then begin
+                   DestroyFrameBuffer(LDRSceneFBO);
+                   LDRSceneFBO.Width:=SceneFBOWidth;
+                   LDRSceneFBO.Height:=SceneFBOHeight;
+                   CreateFrameBuffer(LDRSceneFBO);
                   end;
                  end;
-                 SDL_MOUSEMOTION:begin
-                  if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
-                  end;
-                 end;
-                 SDL_MOUSEBUTTONDOWN:begin
-                  case event.button.button of
-                   SDL_BUTTON_LEFT:begin
-                   end;
-                   SDL_BUTTON_RIGHT:begin
-                   end;
-                  end;
-                 end;
-                 SDL_MOUSEBUTTONUP:begin
-                  case event.button.button of
-                   SDL_BUTTON_LEFT:begin
-                   end;
-                   SDL_BUTTON_RIGHT:begin
-                   end;
-                  end;
-                 end;
+                 Draw;
+                 SDL_GL_SwapWindow(SurfaceWindow);
                 end;
+
+               finally
+                FreeAndNil(PBRShaders[true,true]);
                end;
-               Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
-               begin
-                // 1 1/3 % (quadratically total-pixel-count-wise) super-sampling on top on FXAA
-                TempScale:=sqrt(1.33333333);
-                SceneFBOWidth:=round(ViewPortWidth*TempScale);
-                SceneFBOHeight:=round(ViewPortHeight*TempScale);
-                if (HDRSceneFBO.Width<>SceneFBOWidth) or
-                   (HDRSceneFBO.Height<>SceneFBOHeight) then begin
-                 DestroyFrameBuffer(HDRSceneFBO);
-                 HDRSceneFBO.Width:=SceneFBOWidth;
-                 HDRSceneFBO.Height:=SceneFBOHeight;
-                 CreateFrameBuffer(HDRSceneFBO);
-                end;
-                if (LDRSceneFBO.Width<>SceneFBOWidth) or
-                   (LDRSceneFBO.Height<>SceneFBOHeight) then begin
-                 DestroyFrameBuffer(LDRSceneFBO);
-                 LDRSceneFBO.Width:=SceneFBOWidth;
-                 LDRSceneFBO.Height:=SceneFBOHeight;
-                 CreateFrameBuffer(LDRSceneFBO);
-                end;
-               end;
-               Draw;
-               SDL_GL_SwapWindow(SurfaceWindow);
+
+              finally
+               FreeAndNil(PBRShaders[true,false]);
               end;
 
              finally
-              PBRShaders[1].Free;
+              FreeAndNil(PBRShaders[false,true]);
              end;
 
             finally
-             PBRShaders[0].Free;
+             FreeAndNil(PBRShaders[false,false]);
             end;
 
            finally
@@ -697,7 +711,7 @@ begin
           end;
 
          finally
-          GLTFOpenGL.Free;
+          FreeAndNil(GLTFOpenGL);
          end;
 
         finally

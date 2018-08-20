@@ -131,7 +131,7 @@ type TPBRShader=class(TShader)
        uEnvMapTexture:glInt;
        uEnvMapMaxLevel:glInt;
        uAlphaCutOff:glInt;
-       constructor Create(const aAlphaTest:boolean);
+       constructor Create(const aSkinned,aAlphaTest:boolean);
        destructor Destroy; override;
        procedure BindAttributes; override;
        procedure BindVariables; override;
@@ -139,9 +139,29 @@ type TPBRShader=class(TShader)
 
 implementation
 
-constructor TPBRShader.Create(const aAlphaTest:boolean);
-var f,v:ansistring;
+constructor TPBRShader.Create(const aSkinned,aAlphaTest:boolean);
+var f0,f1,f2,f3,f,v:ansistring;
 begin
+ if aSkinned then begin
+  f0:='uniform JointMatrices {'+#13#10+
+      '  mat4 matrices[65];'+#13#10+
+      '} uJointMatrices;'+#13#10;
+  f1:='  mat4 skinMatrix = (uJointMatrices.matrices[int(aJoints0.x)] * aWeights0.x) +'+#13#10+
+      '                    (uJointMatrices.matrices[int(aJoints0.y)] * aWeights0.y) +'+#13#10+
+      '                    (uJointMatrices.matrices[int(aJoints0.z)] * aWeights0.z) +'+#13#10+
+      '                    (uJointMatrices.matrices[int(aJoints0.w)] * aWeights0.w) +'+#13#10+
+      '                    (uJointMatrices.matrices[int(aJoints1.x)] * aWeights1.x) +'+#13#10+
+      '                    (uJointMatrices.matrices[int(aJoints1.y)] * aWeights1.y) +'+#13#10+
+      '                    (uJointMatrices.matrices[int(aJoints1.z)] * aWeights1.z) +'+#13#10+
+      '                    (uJointMatrices.matrices[int(aJoints1.w)] * aWeights1.w);'+#13#10;
+  f2:=' * transpose(inverse(mat3(skinMatrix)))';
+  f3:=' * skinMatrix';
+ end else begin
+  f0:='';
+  f1:='';
+  f2:='';
+  f3:='';
+ end;
  v:='#version 330'+#13#10+
     'layout(location = 0) in vec3 aPosition;'+#13#10+
     'layout(location = 1) in vec3 aNormal;'+#13#10+
@@ -153,9 +173,6 @@ begin
     'layout(location = 7) in vec4 aJoints1;'+#13#10+
     'layout(location = 8) in vec4 aWeights0;'+#13#10+
     'layout(location = 9) in vec4 aWeights1;'+#13#10+
-    'uniform mat4 uModelMatrix;'+#13#10+
-    'uniform mat4 uModelViewMatrix;'+#13#10+
-    'uniform mat4 uModelViewProjectionMatrix;'+#13#10+
     'out vec3 vViewSpacePosition;'+#13#10+
     'out vec2 vTexCoord0;'+#13#10+
     'out vec2 vTexCoord1;'+#13#10+
@@ -163,17 +180,22 @@ begin
     'out vec3 vTangent;'+#13#10+
     'out vec3 vBitangent;'+#13#10+
     'out vec4 vColor;'+#13#10+
+    'uniform mat4 uModelMatrix;'+#13#10+
+    'uniform mat4 uModelViewMatrix;'+#13#10+
+    'uniform mat4 uModelViewProjectionMatrix;'+#13#10+
+    f0+
     'void main(){'+#13#10+
-      'mat3 baseMatrix = transpose(inverse(mat3(uModelMatrix)));'+#13#10+
+      f1+
+      'mat3 baseMatrix = transpose(inverse(mat3(uModelMatrix)))'+f2+';'+#13#10+
       'vNormal = baseMatrix * aNormal;'+#13#10+
       'vTangent = baseMatrix * aTangent.xyz;'+#13#10+
       'vBitangent = cross(vNormal, vTangent) * aTangent.w;'+#13#10+
       'vTexCoord0 = aTexCoord0;'+#13#10+
       'vTexCoord1 = aTexCoord1;'+#13#10+
       'vColor = aColor0;'+#13#10+
-      'vec4 viewSpacePosition = uModelViewMatrix * vec4(aPosition, 1.0);'+#13#10+
+      'vec4 viewSpacePosition = uModelViewMatrix'+f3+' * vec4(aPosition, 1.0);'+#13#10+
       'vViewSpacePosition = viewSpacePosition.xyz / viewSpacePosition.w;'+#13#10+
-      'gl_Position = uModelViewProjectionMatrix * vec4(aPosition, 1.0);'+#13#10+
+      'gl_Position = uModelViewProjectionMatrix'+f3+' * vec4(aPosition, 1.0);'+#13#10+
     '}'+#13#10;
  f:='#version 330'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
