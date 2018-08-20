@@ -104,6 +104,9 @@ var fs:TFileStream;
 
     EnvMapTextureHandle:glUInt=0;
 
+    SceneFBOWidth:Int32=1280;
+    SceneFBOHeight:Int32=720;
+
 procedure Main;
 const Title='PasGLTF loader test';
       VirtualCanvasWidth=1280;
@@ -624,19 +627,24 @@ begin
                 end;
                end;
                Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
-               if (HDRSceneFBO.Width<>ViewPortWidth) or
-                  (HDRSceneFBO.Height<>ViewPortHeight) then begin
-                DestroyFrameBuffer(HDRSceneFBO);
-                HDRSceneFBO.Width:=ViewPortWidth;
-                HDRSceneFBO.Height:=ViewPortHeight;
-                CreateFrameBuffer(HDRSceneFBO);
-               end;
-               if (LDRSceneFBO.Width<>ViewPortWidth) or
-                  (LDRSceneFBO.Height<>ViewPortHeight) then begin
-                DestroyFrameBuffer(LDRSceneFBO);
-                LDRSceneFBO.Width:=ViewPortWidth;
-                LDRSceneFBO.Height:=ViewPortHeight;
-                CreateFrameBuffer(LDRSceneFBO);
+               begin
+                // 1.33333333% super-sampling on top on FXAA
+                SceneFBOWidth:=ViewPortWidth+(ViewPortWidth*86) shr 8;
+                SceneFBOHeight:=ViewPortHeight+(ViewPortHeight*86) shr 8;
+                if (HDRSceneFBO.Width<>SceneFBOWidth) or
+                   (HDRSceneFBO.Height<>SceneFBOHeight) then begin
+                 DestroyFrameBuffer(HDRSceneFBO);
+                 HDRSceneFBO.Width:=SceneFBOWidth;
+                 HDRSceneFBO.Height:=SceneFBOHeight;
+                 CreateFrameBuffer(HDRSceneFBO);
+                end;
+                if (LDRSceneFBO.Width<>SceneFBOWidth) or
+                   (LDRSceneFBO.Height<>SceneFBOHeight) then begin
+                 DestroyFrameBuffer(LDRSceneFBO);
+                 LDRSceneFBO.Width:=SceneFBOWidth;
+                 LDRSceneFBO.Height:=SceneFBOHeight;
+                 CreateFrameBuffer(LDRSceneFBO);
+                end;
                end;
                Draw;
                SDL_GL_SwapWindow(SurfaceWindow);
