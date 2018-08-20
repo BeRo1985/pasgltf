@@ -384,7 +384,7 @@ begin
     '                  // Bounce light'+#13#10+
     '                  (clamp(-normal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
     '                 ) * diffuseLambert(diffuseColor) * materialCavity));'+#13#10+ (*{}
-(*  '  color += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
+    '  color += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
     '                         pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
     '                         -uLightDirection,'+#13#10+
     '                         normal.xyz,'+#13#10+

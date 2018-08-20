@@ -39,8 +39,8 @@ uses
 // Force usage of dedicated GPU for OpenGL with Delphi and FreePascal/Lazarus on Multi-GPU systems such as Notebooks on Windows
 // Insert that into your main source file, which is for example the .dpr (Delphi) or .lpr (Lazarus) file
 
-{$define ForceDedicatedGPUUsage} // then you can uncomment and recomment this line, for compile-time-switching between
-                                 // integrated GPU and dedicated GPU
+//{$define ForceDedicatedGPUUsage} // then you can uncomment and recomment this line, for compile-time-switching between
+                                   // integrated GPU and dedicated GPU
 
 {$if defined(Windows) and defined(ForceDedicatedGPUUsage) and (defined(cpu386) or defined(cpux64) or defined(cpuamd64))}
 {$ifdef fpc}
@@ -483,8 +483,8 @@ begin
     EnvMapFBO.Height:=ImageHeight;
     EnvMapFBO.Depth:=0;
     EnvMapFBO.Textures:=1;
-    EnvMapFBO.TextureFormats[0]:=GL_TEXTURE_RGBA8UB;
-    EnvMapFBO.Format:=GL_TEXTURE_RGBA8UB;
+    EnvMapFBO.TextureFormats[0]:=GL_TEXTURE_RGBA16F;
+    EnvMapFBO.Format:=GL_TEXTURE_RGBA16F;
     EnvMapFBO.SWrapMode:=wmGL_REPEAT;
     EnvMapFBO.TWrapMode:=wmGL_REPEAT;
     EnvMapFBO.RWrapMode:=wmGL_REPEAT;

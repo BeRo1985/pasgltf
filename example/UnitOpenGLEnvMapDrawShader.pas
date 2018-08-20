@@ -141,7 +141,7 @@ begin
     'void main(){'+#13#10+
     '  vec4 p0 = uInverseViewProjectionMatrix * vec4((vTexCoord * 2.0) - vec2(1.0), 1.0, 1.0),'+#13#10+
     '       p1 = uInverseViewProjectionMatrix * vec4((vTexCoord * 2.0) - vec2(1.0), -1.0, 1.0);'+#13#10+
-    '	 oOutput = texture(uTexture, -normalize((p1.xyz / p1.w) - (p0.xyz / p0.w)));'+#13#10+
+    '	 oOutput = textureLod(uTexture, -normalize((p1.xyz / p1.w) - (p0.xyz / p0.w)), 0.0);'+#13#10+
     '}'+#13#10;
  inherited Create(f,v);
 end;
