@@ -115,6 +115,7 @@ type TEnvMapFilterShader=class(TShader)
       public
        uTexture:glInt;
        uMipMapLevel:glInt;
+       uMaxMipMapLevel:glInt;
       public
        constructor Create;
        destructor Destroy; override;
@@ -128,16 +129,26 @@ constructor TEnvMapFilterShader.Create;
 var f,v:ansistring;
 begin
  v:='#version 330'+#13#10+
+    '#extension GL_AMD_vertex_shader_layer : enable'+#13#10+
     'out vec2 vTexCoord;'+#13#10+
+    'flat out int vFaceIndex;'+#13#10+
     'void main(){'+#13#10+
-    '	vTexCoord = vec2((gl_VertexID >> 1) * 2.0, (gl_VertexID & 1) * 2.0);'+#13#10+
-    '	gl_Position = vec4(((gl_VertexID >> 1) * 4.0) - 1.0, ((gl_VertexID & 1) * 4.0) - 1.0, 0.0, 1.0);'+#13#10+
+    '  // For 18 vertices (6x attribute-less-rendered "full-screen" triangles)'+#13#10+
+    '  int vertexID = int(gl_VertexID),'+#13#10+
+    '      vertexIndex = vertexID % 3,'+#13#10+
+    '      faceIndex = vertexID / 3;'+#13#10+
+    '  vTexCoord = vec2((vertexIndex >> 1) * 2.0, (vertexIndex & 1) * 2.0);'+#13#10+
+    '  vFaceIndex = faceIndex;'+#13#10+
+    '  gl_Position = vec4(((vertexIndex >> 1) * 4.0) - 1.0, ((vertexIndex & 1) * 4.0) - 1.0, 0.0, 1.0);'+#13#10+
+    '  gl_Layer = faceIndex;'+#13#10+
     '}'+#13#10;
  f:='#version 330'+#13#10+
-    'in vec2 vTexCoord;'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
+    'in vec2 vTexCoord;'+#13#10+
+    'flat in int vFaceIndex;'+#13#10+
     'uniform int uMipMapLevel;'+#13#10+
-    'uniform sampler2D uTexture;'+#13#10+
+    'uniform int uMaxMipMapLevel;'+#13#10+
+    'uniform samplerCube uTexture;'+#13#10+
     'vec2 Hammersley(const in int index, const in int numSamples){'+#13#10+
 //  '  uint reversedIndex = bitfieldReverse(uint(index));'+#13#10+ // >= OpenGL 4.0
     '  uint reversedIndex = uint(index);'+#13#10+
@@ -161,14 +172,30 @@ begin
     '  vec3 tangentY = cross(tangentZ, tangentX);'+#13#10+
     '  return (tangentX * h.x) + (tangentY * h.y) + (tangentZ * h.z);'+#13#10+
     '}'+#13#10+
+    'vec3 getCubeMapDirection(in vec2 uv,'+#13#10+
+    '                         in int faceIndex){'+#13#10+
+    '  vec3 zDir = vec3(ivec3((faceIndex <= 1) ? 1 : 0,'+#13#10+
+    '                         (faceIndex & 2) >> 1,'+#13#10+
+    '                         (faceIndex & 4) >> 2)) *'+#13#10+
+    '             (((faceIndex & 1) == 1) ? -1.0 : 1.0),'+#13#10+
+    '       yDir = (faceIndex == 2)'+#13#10+
+    '                ? vec3(0.0, 0.0, 1.0)'+#13#10+
+    '                : ((faceIndex == 3)'+#13#10+
+    '                     ? vec3(0.0, 0.0, -1.0)'+#13#10+
+    '                     : vec3(0.0, -1.0, 0.0)),'+#13#10+
+    '       xDir = cross(zDir, yDir);'+#13#10+
+    '  return normalize((mix(-1.0, 1.0, uv.x) * xDir) +'+#13#10+
+    '                   (mix(-1.0, 1.0, uv.y) * yDir) +'+#13#10+
+    '                   zDir);'+#13#10+
+    '}'+#13#10+
     'void main(){'+#13#10+
+    '  vec3 direction = getCubeMapDirection(vTexCoord, vFaceIndex);'+#13#10+
     '  if(uMipMapLevel == 0){'+#13#10+
-    '    oOutput = textureLod(uTexture, vTexCoord, 0.0);'+#13#10+
+    '    oOutput = textureLod(uTexture, direction, 0.0);'+#13#10+
     '	}else{'+#13#10+
-    '	  float roughness = clamp(exp2((1 - ((8 - 1) - uMipMapLevel)) / 1.2), 0.0, 1.0);'+#13#10+
-    '	  const int numSamples = 64; //clamp(64 * uMipMapLevel, 1, 256);'+#13#10+
-    '	  vec2 thetaphi = ((vTexCoord * 2.0) - vec2(1.0)) * vec2(3.1415926535897932384626433832795, -1.5707963267948966192313216916398);'+#13#10+
-    '	  vec3 R = normalize(vec3(cos(thetaphi.y) * cos(thetaphi.x), sin(thetaphi.y), cos(thetaphi.y) * sin(thetaphi.x)));'+#13#10+
+    '	  float roughness = clamp(exp2((1.0 - float((uMaxMipMapLevel - 1) - uMipMapLevel)) / 1.2), 0.0, 1.0);'+#13#10+
+    '	  const int numSamples = 64;'+#13#10+
+    '	  vec3 R = direction;'+#13#10+
     '	  vec3 N = R;'+#13#10+
     '	  vec3 V = R;'+#13#10+
     '	  vec4 r = vec4(0.0);'+#13#10+
@@ -179,7 +206,7 @@ begin
     '	    float nDotL = clamp(dot(N, L), 0.0, 1.0);'+#13#10+
     '	    if(nDotL > 0.0){'+#13#10+
     '	      vec3 rayDirection = normalize(L);'+#13#10+
-    '	      r += textureLod(uTexture, vec2((atan(rayDirection.z, rayDirection.x) / 6.283185307179586476925286766559) + 0.5, acos(rayDirection.y) / 3.1415926535897932384626433832795), 0.0) * nDotL;'+#13#10+
+    '	      r += textureLod(uTexture, rayDirection, 0.0) * nDotL;'+#13#10+
     '	      w += nDotL;'+#13#10+
     '	    }'+#13#10+
     '	  }'+#13#10+
@@ -204,6 +231,7 @@ begin
  inherited BindVariables;
  uTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uTexture')));
  uMipMapLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMipMapLevel')));
+ uMaxMipMapLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMaxMipMapLevel')));
 end;
 
 end.

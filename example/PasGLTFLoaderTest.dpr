@@ -107,6 +107,16 @@ var fs:TFileStream;
     SceneFBOWidth:Int32=1280;
     SceneFBOHeight:Int32=720;
 
+    CubeMapFileNames:array[0..5] of string=
+     (
+      'posx',
+      'negx',
+      'posy',
+      'negy',
+      'posz',
+      'negz'
+     );
+
 procedure Main;
 const Title='PasGLTF loader test';
       VirtualCanvasWidth=1280;
@@ -172,7 +182,7 @@ var Event:TSDL_Event;
     glActiveTexture(GL_TEXTURE5);
     glBindTexture(GL_TEXTURE_2D,BRDFLUTFBO.TextureHandles[0]);
     glActiveTexture(GL_TEXTURE6);
-    glBindTexture(GL_TEXTURE_2D,EnvMapFBO.TextureHandles[0]);
+    glBindTexture(GL_TEXTURE_CUBE_MAP,EnvMapFBO.TextureHandles[0]);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
     glActiveTexture(GL_TEXTURE0);
@@ -280,6 +290,7 @@ var Index,MultiSampleCounter,DepthBufferSizeCounter,Temp:int32;
     ImageWidth,ImageHeight:TPasGLTFInt32;
     OK:boolean;
     TempScale:TPasGLTFFloat;
+    RootPath,TextureFileName:string;
 begin
 
  //FastMM4.FullDebugModeScanMemoryPoolBeforeEveryOperation:=true;
@@ -385,6 +396,8 @@ begin
 
  StartPerformanceCounter:=SDL_GetPerformanceCounter;
 
+ glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
+
  glGenVertexArrays(1,@EmptyVertexArrayObjectHandle);
  try
 
@@ -430,28 +443,42 @@ begin
    try
     FillChar(EnvMapFBO,SizeOf(TFBO),#0);
     EnvMapTextureHandle:=0;
-    MemoryStream:=TMemoryStream.Create;
-    try
-     MemoryStream.LoadFromFile(IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)))+'equirectangularmap.jpg');
-     ImageWidth:=2048;
-     ImageHeight:=2048;
-     if LoadImage(MemoryStream.Memory,MemoryStream.Size,ImageData,ImageWidth,ImageHeight) then begin
-      try
-       glGenTextures(1,@EnvMapTextureHandle);
-       glBindTexture(GL_TEXTURE_2D,EnvMapTextureHandle);
-       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
-       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
-       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
-       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-       glTexImage2D(GL_TEXTURE_2D,0,GL_SRGB8_ALPHA8,ImageWidth,ImageHeight,0,GL_RGBA,GL_UNSIGNED_BYTE,ImageData);
-       glGenerateMipmap(GL_TEXTURE_2D);
-     finally
-       FreeMem(ImageData);
+    glGenTextures(1,@EnvMapTextureHandle);
+    glBindTexture(GL_TEXTURE_CUBE_MAP,EnvMapTextureHandle);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_WRAP_S,GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_WRAP_T,GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_WRAP_R,GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+    RootPath:=IncludeTrailingPathDelimiter(IncludeTrailingPathDelimiter(ExtractFilePath(ParamStr(0)))+'envmap');
+    for Index:=0 to 5 do begin
+     MemoryStream:=TMemoryStream.Create;
+     try
+      TextureFileName:=RootPath+CubeMapFileNames[Index]+'.png';
+      if not FileExists(TextureFileName) then begin
+       TextureFileName:=RootPath+CubeMapFileNames[Index]+'.jpeg';
+       if not FileExists(TextureFileName) then begin
+        TextureFileName:=RootPath+CubeMapFileNames[Index]+'.jpg';
+       end;
       end;
+      MemoryStream.LoadFromFile(TextureFileName);
+      ImageWidth:=2048;
+      ImageHeight:=2048;
+      if LoadImage(MemoryStream.Memory,MemoryStream.Size,ImageData,ImageWidth,ImageHeight) then begin
+       try
+        glTexImage2D(CubeMapTexs[Index],0,GL_SRGB8_ALPHA8,ImageWidth,ImageHeight,0,GL_RGBA,GL_UNSIGNED_BYTE,ImageData);
+      finally
+        FreeMem(ImageData);
+       end;
+      end;
+     finally
+      MemoryStream.Free;
      end;
-    finally
-     MemoryStream.Free;
     end;
+    glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_BASE_LEVEL,0);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_MAX_LEVEL,trunc(log2(Min(ImageWidth,ImageHeight))));
+    glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
+    glBindTexture(GL_TEXTURE_CUBE_MAP,0);
     EnvMapFBO.Width:=ImageWidth;
     EnvMapFBO.Height:=ImageHeight;
     EnvMapFBO.Depth:=0;
@@ -461,20 +488,21 @@ begin
     EnvMapFBO.SWrapMode:=wmGL_REPEAT;
     EnvMapFBO.TWrapMode:=wmGL_REPEAT;
     EnvMapFBO.RWrapMode:=wmGL_REPEAT;
-    EnvMapFBO.MinFilterMode:=fmGL_LINEAR;
+    EnvMapFBO.MinFilterMode:=fmGL_LINEAR_MIPMAP_LINEAR;
     EnvMapFBO.MagFilterMode:=fmGL_LINEAR;
-    EnvMapFBO.Flags:=FBOFlagMipMap or FBOFlagMipMapLevelWiseFill;
+    EnvMapFBO.Flags:=FBOFlagMipMap or FBOFlagMipMapLevelWiseFill or FBOFlagCubeMap;
     CreateFrameBuffer(EnvMapFBO);
     EnvMapFilterShader.Bind;
     for Index:=0 to EnvMapFBO.WorkMaxLevel do begin
      glActiveTexture(GL_TEXTURE0);
      if Index=0 then begin
-      glBindTexture(GL_TEXTURE_2D,EnvMapTextureHandle);
+      glBindTexture(GL_TEXTURE_CUBE_MAP,EnvMapTextureHandle);
      end else begin
-      glBindTexture(GL_TEXTURE_2D,EnvMapFBO.TextureHandles[0]);
+      glBindTexture(GL_TEXTURE_CUBE_MAP,EnvMapFBO.TextureHandles[0]);
      end;
      glUniform1i(EnvMapFilterShader.uTexture,0);
      glUniform1i(EnvMapFilterShader.uMipMapLevel,Index);
+     glUniform1i(EnvMapFilterShader.uMaxMipMapLevel,EnvMapFBO.WorkMaxLevel);
      glBindFrameBuffer(GL_FRAMEBUFFER,EnvMapFBO.FBOs[Index]);
      glDrawBuffer(GL_COLOR_ATTACHMENT0);
      glViewport(0,0,EnvMapFBO.Width shr Index,EnvMapFBO.Height shr Index);
@@ -484,7 +512,7 @@ begin
      glDisable(GL_DEPTH_TEST);
      glCullFace(GL_NONE);
      glBindVertexArray(EmptyVertexArrayObjectHandle);
-     glDrawArrays(GL_TRIANGLES,0,3);
+     glDrawArrays(GL_TRIANGLES,0,18);
      glBindVertexArray(0);
      glBindFrameBuffer(GL_FRAMEBUFFER,0);
     end;

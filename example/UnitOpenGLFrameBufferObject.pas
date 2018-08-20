@@ -735,7 +735,7 @@ begin
       for j:=0 to MaxLevel do begin
        for k:=low(CubeMapTexs) to high(CubeMapTexs) do begin
         glTexImage2D(CubeMapTexs[k],j,TextureFormats[Formats[i]].InternalFormat,FBO.WorkWidth shr j,FBO.WorkHeight shr j,0,TextureFormats[Formats[i]].Format,TextureFormats[Formats[i]].Type_,nil);
-       end
+       end;
       end;
      end else begin
       for j:=low(CubeMapTexs) to high(CubeMapTexs) do begin
