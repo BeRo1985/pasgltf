@@ -399,7 +399,7 @@ begin
     '  {'+#13#10+
     '    float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
     '          ao = materialCavity * ambientOcclusion,'+#13#10+
-    '          specularOcclusion = clamp((((NdotV + ao) * (NdotV + ao)) - 1.0) + ao, 0.0, 1.0);'+#13#10+
+    '          specularOcclusion = clamp((pow(NdotV + ao, materialRoughness * materialRoughness) - 1.0) + ao, 0.0, 1.0);'+#13#10+
     '  	 vec2 brdf = textureLod(uBRDFLUTTexture, vec2(materialRoughness, NdotV), 0.0).xy;'+#13#10+
 		'    vec3 rayDirection = normalize(reflect(viewDirection, normal.xyz));'+#13#10+
     '    color += textureLod(uEnvMapTexture, rayDirection, clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(materialRoughness))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColor * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColor.x, specularColor.y), specularColor.z) * 50.0, 0.0, 1.0))) * specularOcclusion;'+#13#10+
