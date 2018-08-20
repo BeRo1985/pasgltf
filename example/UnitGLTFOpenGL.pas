@@ -14,7 +14,8 @@ unit UnitGLTFOpenGL;
 
 interface
 
-uses SysUtils,Classes,Math,PasJSON,PasGLTF,dglOpenGL,UnitOpenGLImage,UnitOpenGLPBRShader;
+uses SysUtils,Classes,Math,PasJSON,PasGLTF,dglOpenGL,UnitOpenGLImage,
+     UnitOpenGLShader,UnitOpenGLPBRShader;
 
 type EGLTFOpenGL=class(Exception);
 
@@ -122,6 +123,15 @@ type EGLTFOpenGL=class(Exception);
             end;
             PMesh=^TMesh;
             TMeshes=array of TMesh;
+            TSkin=record
+             Skeleton:TPasGLTFSizeInt;
+             InverseBindMatrices:TPasGLTF.TMatrix4x4DynamicArray;
+             Matrices:TPasGLTF.TMatrix4x4DynamicArray;
+             Joints:TPasGLTFSizeIntDynamicArray;
+             UniformBufferObjectHandle:glUInt;
+            end;
+            PSkin=^TSkin;
+            TSkins=array of TSkin;
             TNode=record
              public
               type TOverwriteFlag=
@@ -152,6 +162,7 @@ type EGLTFOpenGL=class(Exception);
        fAnimations:TAnimations;
        fMaterials:TMaterials;
        fMeshes:TMeshes;
+       fSkins:TSkins;
        fNodes:TNodes;
        fTextures:TTextures;
        fVertexBufferObjectHandle:glInt;
@@ -166,7 +177,16 @@ type EGLTFOpenGL=class(Exception);
        procedure FinalizeResources;
        procedure UploadResources;
        procedure UnloadResources;
-       procedure Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader,aAlphaTestPBRShader:TPBRShader;const aAnimationIndex:TPasGLTFSizeInt=0;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
+       procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
+                      const aViewMatrix:TPasGLTF.TMatrix4x4;
+                      const aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                      const aNonSkinnedNormalPBRShader:TPBRShader;
+                      const aNonSkinnedAlphaTestPBRShader:TPBRShader;
+                      const aSkinnedNormalPBRShader:TPBRShader;
+                      const aSkinnedAlphaTestPBRShader:TPBRShader;
+                      const aAnimationIndex:TPasGLTFSizeInt=0;
+                      const aTime:TPasGLTFFloat=0.0;
+                      const aScene:TPasGLTFSizeInt=-1);
        property StaticMinPosition:TPasGLTF.TVector3 read fStaticMinPosition;
        property StaticMaxPosition:TPasGLTF.TVector3 read fStaticMaxPosition;
       published
@@ -555,6 +575,50 @@ begin
  result[15]:=(a[12]*b[3])+(a[13]*b[7])+(a[14]*b[11])+(a[15]*b[15]);
 end;
 
+function MatrixInverse(const ma:TPasGLTF.TMatrix4x4):TPasGLTF.TMatrix4x4;
+var Temporary:array[0..15] of TPasGLTFFloat;
+    Det:TPasGLTFFloat;
+begin
+ Temporary[0]:=(((ma[5]*ma[10]*ma[15])-(ma[5]*ma[11]*ma[14]))-(ma[9]*ma[6]*ma[15])+(ma[9]*ma[7]*ma[14])+(ma[13]*ma[6]*ma[11]))-(ma[13]*ma[7]*ma[10]);
+ Temporary[4]:=((((-(ma[4]*ma[10]*ma[15]))+(ma[4]*ma[11]*ma[14])+(ma[8]*ma[6]*ma[15]))-(ma[8]*ma[7]*ma[14]))-(ma[12]*ma[6]*ma[11]))+(ma[12]*ma[7]*ma[10]);
+ Temporary[8]:=((((ma[4]*ma[9]*ma[15])-(ma[4]*ma[11]*ma[13]))-(ma[8]*ma[5]*ma[15]))+(ma[8]*ma[7]*ma[13])+(ma[12]*ma[5]*ma[11]))-(ma[12]*ma[7]*ma[9]);
+ Temporary[12]:=((((-(ma[4]*ma[9]*ma[14]))+(ma[4]*ma[10]*ma[13])+(ma[8]*ma[5]*ma[14]))-(ma[8]*ma[6]*ma[13]))-(ma[12]*ma[5]*ma[10]))+(ma[12]*ma[6]*ma[9]);
+ Temporary[1]:=((((-(ma[1]*ma[10]*ma[15]))+(ma[1]*ma[11]*ma[14])+(ma[9]*ma[2]*ma[15]))-(ma[9]*ma[3]*ma[14]))-(ma[13]*ma[2]*ma[11]))+(ma[13]*ma[3]*ma[10]);
+ Temporary[5]:=(((ma[0]*ma[10]*ma[15])-(ma[0]*ma[11]*ma[14]))-(ma[8]*ma[2]*ma[15])+(ma[8]*ma[3]*ma[14])+(ma[12]*ma[2]*ma[11]))-(ma[12]*ma[3]*ma[10]);
+ Temporary[9]:=((((-(ma[0]*ma[9]*ma[15]))+(ma[0]*ma[11]*ma[13])+(ma[8]*ma[1]*ma[15]))-(ma[8]*ma[3]*ma[13]))-(ma[12]*ma[1]*ma[11]))+(ma[12]*ma[3]*ma[9]);
+ Temporary[13]:=((((ma[0]*ma[9]*ma[14])-(ma[0]*ma[10]*ma[13]))-(ma[8]*ma[1]*ma[14]))+(ma[8]*ma[2]*ma[13])+(ma[12]*ma[1]*ma[10]))-(ma[12]*ma[2]*ma[9]);
+ Temporary[2]:=((((ma[1]*ma[6]*ma[15])-(ma[1]*ma[7]*ma[14]))-(ma[5]*ma[2]*ma[15]))+(ma[5]*ma[3]*ma[14])+(ma[13]*ma[2]*ma[7]))-(ma[13]*ma[3]*ma[6]);
+ Temporary[6]:=((((-(ma[0]*ma[6]*ma[15]))+(ma[0]*ma[7]*ma[14])+(ma[4]*ma[2]*ma[15]))-(ma[4]*ma[3]*ma[14]))-(ma[12]*ma[2]*ma[7]))+(ma[12]*ma[3]*ma[6]);
+ Temporary[10]:=((((ma[0]*ma[5]*ma[15])-(ma[0]*ma[7]*ma[13]))-(ma[4]*ma[1]*ma[15]))+(ma[4]*ma[3]*ma[13])+(ma[12]*ma[1]*ma[7]))-(ma[12]*ma[3]*ma[5]);
+ Temporary[14]:=((((-(ma[0]*ma[5]*ma[14]))+(ma[0]*ma[6]*ma[13])+(ma[4]*ma[1]*ma[14]))-(ma[4]*ma[2]*ma[13]))-(ma[12]*ma[1]*ma[6]))+(ma[12]*ma[2]*ma[5]);
+ Temporary[3]:=((((-(ma[1]*ma[6]*ma[11]))+(ma[1]*ma[7]*ma[10])+(ma[5]*ma[2]*ma[11]))-(ma[5]*ma[3]*ma[10]))-(ma[9]*ma[2]*ma[7]))+(ma[9]*ma[3]*ma[6]);
+ Temporary[7]:=((((ma[0]*ma[6]*ma[11])-(ma[0]*ma[7]*ma[10]))-(ma[4]*ma[2]*ma[11]))+(ma[4]*ma[3]*ma[10])+(ma[8]*ma[2]*ma[7]))-(ma[8]*ma[3]*ma[6]);
+ Temporary[11]:=((((-(ma[0]*ma[5]*ma[11]))+(ma[0]*ma[7]*ma[9])+(ma[4]*ma[1]*ma[11]))-(ma[4]*ma[3]*ma[9]))-(ma[8]*ma[1]*ma[7]))+(ma[8]*ma[3]*ma[5]);
+ Temporary[15]:=((((ma[0]*ma[5]*ma[10])-(ma[0]*ma[6]*ma[9]))-(ma[4]*ma[1]*ma[10]))+(ma[4]*ma[2]*ma[9])+(ma[8]*ma[1]*ma[6]))-(ma[8]*ma[2]*ma[5]);
+ Det:=(ma[0]*Temporary[0])+(ma[1]*Temporary[4])+(ma[2]*Temporary[8])+(ma[3]*Temporary[12]);
+ if abs(Det)>EPSILON then begin
+  Det:=1.0/Det;
+  result[0]:=Temporary[0]*Det;
+  result[1]:=Temporary[1]*Det;
+  result[2]:=Temporary[2]*Det;
+  result[3]:=Temporary[3]*Det;
+  result[4]:=Temporary[4]*Det;
+  result[5]:=Temporary[5]*Det;
+  result[6]:=Temporary[6]*Det;
+  result[7]:=Temporary[7]*Det;
+  result[8]:=Temporary[8]*Det;
+  result[9]:=Temporary[9]*Det;
+  result[10]:=Temporary[10]*Det;
+  result[11]:=Temporary[11]*Det;
+  result[12]:=Temporary[12]*Det;
+  result[13]:=Temporary[13]*Det;
+  result[14]:=Temporary[14]*Det;
+  result[15]:=Temporary[15]*Det;
+ end else begin
+  result:=ma;
+ end;
+end;
+
 { TGLTFModel }
 
 constructor TGLTFOpenGL.Create(const aDocument:TPasGLTF.TDocument);
@@ -563,8 +627,12 @@ begin
  fDocument:=aDocument;
  fReady:=false;
  fUploaded:=false;
+ fAnimations:=nil;
  fMaterials:=nil;
  fMeshes:=nil;
+ fSkins:=nil;
+ fNodes:=nil;
+ fTextures:=nil;
 end;
 
 destructor TGLTFOpenGL.Destroy;
@@ -1074,6 +1142,36 @@ procedure TGLTFOpenGL.InitializeResources;
   end;
 
  end;
+ procedure InitializeSkins;
+ var Index,JointIndex:TPasGLTFSizeInt;
+     SourceSkin:TPasGLTF.TSkin;
+     DestinationSkin:PSkin;
+     JSONItem:TPasJSONItem;
+     JSONObject:TPasJSONItemObject;
+ begin
+
+  SetLength(fSkins,fDocument.Skins.Count);
+
+  for Index:=0 to fDocument.Skins.Count-1 do begin
+
+   SourceSkin:=fDocument.Skins.Items[Index];
+
+   DestinationSkin:=@fSkins[Index];
+
+   DestinationSkin^.Skeleton:=SourceSkin.Skeleton;
+
+   DestinationSkin^.InverseBindMatrices:=fDocument.Accessors[SourceSkin.InverseBindMatrices].DecodeAsMatrix4x4Array(false);
+
+   SetLength(DestinationSkin^.Matrices,SourceSkin.Joints.Count);
+
+   SetLength(DestinationSkin^.Joints,SourceSkin.Joints.Count);
+   for JointIndex:=0 to length(DestinationSkin^.Joints)-1 do begin
+    DestinationSkin^.Joints[JointIndex]:=SourceSkin.Joints[JointIndex];
+   end;
+
+  end;
+
+ end;
  procedure InitializeNodes;
  begin
   SetLength(fNodes,fDocument.Nodes.Count);
@@ -1127,6 +1225,7 @@ begin
   InitializeAnimations;
   InitializeMaterials;
   InitializeMeshes;
+  InitializeSkins;
   InitializeNodes;
   InitializeTextures;
   begin
@@ -1150,6 +1249,12 @@ procedure TGLTFOpenGL.FinalizeResources;
 begin
  if fReady then begin
   fReady:=false;
+  fAnimations:=nil;
+  fMaterials:=nil;
+  fMeshes:=nil;
+  fSkins:=nil;
+  fNodes:=nil;
+  fTextures:=nil;
  end;
 end;
 
@@ -1292,6 +1397,18 @@ var AllVertices:TAllVertices;
   end;
   glBindTexture(GL_TEXTURE_2D,0);
  end;
+ procedure CreateSkinUniformBufferObjects;
+ var Index:TPasGLTFSizeInt;
+     Skin:PSkin;
+ begin
+  for Index:=0 to length(fSkins)-1 do begin
+   Skin:=@fSkins[Index];
+   glGenBuffers(1,@Skin^.UniformBufferObjectHandle);
+   glBindBuffer(GL_UNIFORM_BUFFER,Skin^.UniformBufferObjectHandle);
+   glBufferData(GL_UNIFORM_BUFFER,length(Skin^.Joints)*SizeOf(TPasGLTF.TMatrix4x4),nil,GL_DYNAMIC_DRAW);
+   glBindBuffer(GL_UNIFORM_BUFFER,0);
+  end;
+ end;
 begin
  if not fUploaded then begin
   fUploaded:=true;
@@ -1302,6 +1419,7 @@ begin
     CollectVerticesAndIndicesFromMeshes;
     CreateOpenGLObjects;
     LoadTextures;
+    CreateSkinUniformBufferObjects;
    finally
     FreeAndNil(AllIndices);
    end;
@@ -1330,16 +1448,47 @@ procedure TGLTFOpenGL.UnloadResources;
    end;
   end;
  end;
+ procedure DeleteSkinUniformBufferObjects;
+ var Index:TPasGLTFSizeInt;
+     Skin:PSkin;
+ begin
+  for Index:=0 to length(fSkins)-1 do begin
+   Skin:=@fSkins[Index];
+   if Skin^.UniformBufferObjectHandle>0 then begin
+    glDeleteBuffers(1,@Skin^.UniformBufferObjectHandle);
+   end;
+  end;
+ end;
 begin
  if fUploaded then begin
   fUploaded:=false;
   DeleteOpenGLObjects;
   UnloadTextures;
+  DeleteSkinUniformBufferObjects;
  end;
 end;
 
-procedure TGLTFOpenGL.Draw(const aModelMatrix,aViewMatrix,aProjectionMatrix:TPasGLTF.TMatrix4x4;const aPBRShader,aAlphaTestPBRShader:TPBRShader;const aAnimationIndex:TPasGLTFSizeInt=0;const aTime:TPasGLTFFloat=0.0;const aScene:TPasGLTFSizeInt=-1);
-var PBRShader:TPBRShader;
+procedure TGLTFOpenGL.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
+                           const aViewMatrix:TPasGLTF.TMatrix4x4;
+                           const aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                           const aNonSkinnedNormalPBRShader:TPBRShader;
+                           const aNonSkinnedAlphaTestPBRShader:TPBRShader;
+                           const aSkinnedNormalPBRShader:TPBRShader;
+                           const aSkinnedAlphaTestPBRShader:TPBRShader;
+                           const aAnimationIndex:TPasGLTFSizeInt=0;
+                           const aTime:TPasGLTFFloat=0.0;
+                           const aScene:TPasGLTFSizeInt=-1);
+var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
+    CurrentShader:TShader;
+ procedure UseShader(const aShader:TShader);
+ begin
+  if CurrentShader<>aShader then begin
+   CurrentShader:=aShader;
+   if assigned(CurrentShader) then begin
+    CurrentShader.Bind;
+   end;
+  end;
+ end;
  procedure ResetNode(const aNodeIndex:TPasGLTFSizeInt);
  var Index:TPasGLTFSizeInt;
      Node:TPasGLTF.TNode;
@@ -1528,6 +1677,7 @@ var PBRShader:TPBRShader;
   end;
  end;
  procedure DrawNode(const aNodeIndex:TPasGLTFSizeInt;const aAlphaMode:TPasGLTF.TMaterial.TAlphaMode);
+ var PBRShader:TPBRShader;
   procedure DrawMesh(const aMesh:TMesh);
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
@@ -1628,9 +1778,11 @@ var PBRShader:TPBRShader;
     end;
    end;
   end;
- var Index:TPasGLTFSizeInt;
-     Matrix,ModelMatrix,ModelViewMatrix,ModelViewProjectionMatrix:TPasGLTF.TMatrix4x4;
+ var Index,JointIndex:TPasGLTFSizeInt;
+     Matrix,ModelMatrix,ModelViewMatrix,ModelViewProjectionMatrix,
+     JointMatrix,InverseMatrix:TPasGLTF.TMatrix4x4;
      Node:TPasGLTF.TNode;
+     Skin:PSkin;
  begin
   Node:=fDocument.Nodes[aNodeIndex];
   Matrix:=fNodes[aNodeIndex].Matrix;
@@ -1638,6 +1790,26 @@ var PBRShader:TPBRShader;
    ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
    ModelViewMatrix:=MatrixMul(ModelMatrix,aViewMatrix);
    ModelViewProjectionMatrix:=MatrixMul(ModelViewMatrix,aProjectionMatrix);
+   if (Node.Skin>=0) and (Node.Skin<length(fSkins)) then begin
+    Skin:=@fSkins[Node.Skin];
+    PBRShader:=SkinnedPBRShader;
+    UseShader(PBRShader);
+    InverseMatrix:=MatrixInverse(Matrix);
+    for JointIndex:=0 to length(Skin^.Joints)-1 do begin
+     Skin^.Matrices[JointIndex]:=MatrixMul(
+                                  InverseMatrix,
+                                  MatrixMul(
+                                   Skin^.InverseBindMatrices[JointIndex],
+                                   fNodes[Skin^.Joints[JointIndex]].Matrix));
+    end;
+    glBindBuffer(GL_UNIFORM_BUFFER,Skin^.UniformBufferObjectHandle);
+    glBufferSubData(GL_UNIFORM_BUFFER,0,length(Skin^.Matrices)*SizeOf(TPasGLTF.TMatrix4x4),@Skin^.Matrices[0]);
+    glBindBuffer(GL_UNIFORM_BUFFER,0);
+    glBindBufferBase(GL_UNIFORM_BUFFER,PBRShader.uJointMatrices,Skin^.UniformBufferObjectHandle);
+   end else begin
+    PBRShader:=NonSkinnedPBRShader;
+    UseShader(PBRShader);
+   end;
    glUniformMatrix4fv(PBRShader.uModelMatrix,1,false,@ModelMatrix);
    glUniformMatrix4fv(PBRShader.uModelViewMatrix,1,false,@ModelViewMatrix);
    glUniformMatrix4fv(PBRShader.uModelViewProjectionMatrix,1,false,@ModelViewProjectionMatrix);
@@ -1668,18 +1840,22 @@ begin
  for Index:=0 to Scene.Nodes.Count-1 do begin
   ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix);
  end;
+ CurrentShader:=nil;
  for AlphaMode:=TPasGLTF.TMaterial.TAlphaMode.Opaque to TPasGLTF.TMaterial.TAlphaMode.Blend do begin
   case AlphaMode of
    TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
-    PBRShader:=aPBRShader;
+    NonSkinnedPBRShader:=aNonSkinnedNormalPBRShader;
+    SkinnedPBRShader:=aSkinnedNormalPBRShader;
     glDisable(GL_BLEND);
    end;
    TPasGLTF.TMaterial.TAlphaMode.Mask:begin
-    PBRShader:=aAlphaTestPBRShader;
+    NonSkinnedPBRShader:=aNonSkinnedAlphaTestPBRShader;
+    SkinnedPBRShader:=aSkinnedAlphaTestPBRShader;
     glDisable(GL_BLEND);
    end;
    TPasGLTF.TMaterial.TAlphaMode.Blend:begin
-    PBRShader:=aPBRShader;
+    NonSkinnedPBRShader:=aNonSkinnedNormalPBRShader;
+    SkinnedPBRShader:=aSkinnedNormalPBRShader;
     glEnable(GL_BLEND);
     if assigned(glBlendFuncSeparate) then begin
      glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
@@ -1688,23 +1864,29 @@ begin
     end;
    end;
    else begin
-    PBRShader:=nil;
+    NonSkinnedPBRShader:=nil;
     Assert(false);
    end;
   end;
-  if assigned(PBRShader) then begin
-   PBRShader.Bind;
-   glUniform1i(PBRShader.uBaseColorTexture,0);
-   glUniform1i(PBRShader.uMetallicRoughnessTexture,1);
-   glUniform1i(PBRShader.uNormalTexture,2);
-   glUniform1i(PBRShader.uOcclusionTexture,3);
-   glUniform1i(PBRShader.uEmissiveTexture,4);
+  if assigned(NonSkinnedPBRShader) then begin
+   UseShader(NonSkinnedPBRShader);
+   glUniform1i(NonSkinnedPBRShader.uBaseColorTexture,0);
+   glUniform1i(NonSkinnedPBRShader.uMetallicRoughnessTexture,1);
+   glUniform1i(NonSkinnedPBRShader.uNormalTexture,2);
+   glUniform1i(NonSkinnedPBRShader.uOcclusionTexture,3);
+   glUniform1i(NonSkinnedPBRShader.uEmissiveTexture,4);
+   UseShader(SkinnedPBRShader);
+   glUniform1i(SkinnedPBRShader.uBaseColorTexture,0);
+   glUniform1i(SkinnedPBRShader.uMetallicRoughnessTexture,1);
+   glUniform1i(SkinnedPBRShader.uNormalTexture,2);
+   glUniform1i(SkinnedPBRShader.uOcclusionTexture,3);
+   glUniform1i(SkinnedPBRShader.uEmissiveTexture,4);
    for Index:=0 to Scene.Nodes.Count-1 do begin
     DrawNode(Scene.Nodes.Items[Index],AlphaMode);
    end;
-   PBRShader.Unbind;
   end;
  end;
+ glUseProgram(0);
  glBindVertexArray(0);
  glBindBuffer(GL_ARRAY_BUFFER,0);
  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);

@@ -131,6 +131,7 @@ type TPBRShader=class(TShader)
        uEnvMapTexture:glInt;
        uEnvMapMaxLevel:glInt;
        uAlphaCutOff:glInt;
+       uJointMatrices:glInt;
        constructor Create(const aSkinned,aAlphaTest:boolean);
        destructor Destroy; override;
        procedure BindAttributes; override;
@@ -143,7 +144,7 @@ constructor TPBRShader.Create(const aSkinned,aAlphaTest:boolean);
 var f0,f1,f2,f3,f,v:ansistring;
 begin
  if aSkinned then begin
-  f0:='uniform JointMatrices {'+#13#10+
+  f0:='layout(std140) uniform JointMatrices {'+#13#10+
       '  mat4 matrices[65];'+#13#10+
       '} uJointMatrices;'+#13#10;
   f1:='  mat4 skinMatrix = (uJointMatrices.matrices[int(aJoints0.x)] * aWeights0.x) +'+#13#10+
@@ -479,6 +480,7 @@ begin
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
  uEnvMapMaxLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapMaxLevel')));
  uAlphaCutOff:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uAlphaCutOff')));
+ uJointMatrices:=glGetUniformBlockIndex(ProgramHandle,pointer(pansichar('JointMatrices')));
 end;
 
 end.

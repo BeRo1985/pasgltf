@@ -417,9 +417,13 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
      PPasGLTFSizeUInt=^TPasGLTFSizeUInt;
      TPasGLTFSizeUInt=TPasGLTFPtrUInt;
 
+     TPasGLTFSizeUIntDynamicArray=array of TPasGLTFSizeUInt;
+
      PPPasGLTFSizeInt=^PPasGLTFSizeInt;
      PPasGLTFSizeInt=^TPasGLTFSizeInt;
      TPasGLTFSizeInt=TPasGLTFPtrInt;
+
+     TPasGLTFSizeIntDynamicArray=array of TPasGLTFSizeInt;
 
      PPPasGLTFNativeUInt=^PPasGLTFNativeUInt;
      PPasGLTFNativeUInt=^TPasGLTFNativeUInt;

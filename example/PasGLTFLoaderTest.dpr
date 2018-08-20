@@ -203,6 +203,8 @@ var Event:TSDL_Event;
                     TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
                     PBRShaders[false,false],
                     PBRShaders[false,true],
+                    PBRShaders[true,false],
+                    PBRShaders[true,true],
                     0,
                     Time);
    end;
