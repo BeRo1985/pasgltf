@@ -624,18 +624,18 @@ begin
                 end;
                end;
                Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
-               if (HDRSceneFBO.Width<>VirtualCanvasWidth) or
-                  (HDRSceneFBO.Height<>VirtualCanvasHeight) then begin
+               if (HDRSceneFBO.Width<>ViewPortWidth) or
+                  (HDRSceneFBO.Height<>ViewPortHeight) then begin
                 DestroyFrameBuffer(HDRSceneFBO);
-                HDRSceneFBO.Width:=VirtualCanvasWidth;
-                HDRSceneFBO.Height:=VirtualCanvasHeight;
+                HDRSceneFBO.Width:=ViewPortWidth;
+                HDRSceneFBO.Height:=ViewPortHeight;
                 CreateFrameBuffer(HDRSceneFBO);
                end;
-               if (LDRSceneFBO.Width<>VirtualCanvasWidth) or
-                  (LDRSceneFBO.Height<>VirtualCanvasHeight) then begin
+               if (LDRSceneFBO.Width<>ViewPortWidth) or
+                  (LDRSceneFBO.Height<>ViewPortHeight) then begin
                 DestroyFrameBuffer(LDRSceneFBO);
-                LDRSceneFBO.Width:=VirtualCanvasWidth;
-                LDRSceneFBO.Height:=VirtualCanvasHeight;
+                LDRSceneFBO.Width:=ViewPortWidth;
+                LDRSceneFBO.Height:=ViewPortHeight;
                 CreateFrameBuffer(LDRSceneFBO);
                end;
                Draw;
