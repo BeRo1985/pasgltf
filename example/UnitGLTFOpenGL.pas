@@ -1783,6 +1783,8 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
      JointMatrix,InverseMatrix:TPasGLTF.TMatrix4x4;
      Node:TPasGLTF.TNode;
      Skin:PSkin;
+     p:pointer;
+     pm:TPasGLTF.PMatrix4x4;
  begin
   Node:=fDocument.Nodes[aNodeIndex];
   Matrix:=fNodes[aNodeIndex].Matrix;
@@ -1795,15 +1797,32 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     PBRShader:=SkinnedPBRShader;
     UseShader(PBRShader);
     InverseMatrix:=MatrixInverse(Matrix);
-    for JointIndex:=0 to length(Skin^.Joints)-1 do begin
-     Skin^.Matrices[JointIndex]:=MatrixMul(
-                                  InverseMatrix,
-                                  MatrixMul(
-                                   Skin^.InverseBindMatrices[JointIndex],
-                                   fNodes[Skin^.Joints[JointIndex]].Matrix));
-    end;
     glBindBuffer(GL_UNIFORM_BUFFER,Skin^.UniformBufferObjectHandle);
-    glBufferSubData(GL_UNIFORM_BUFFER,0,length(Skin^.Matrices)*SizeOf(TPasGLTF.TMatrix4x4),@Skin^.Matrices[0]);
+    p:=glMapBuffer(GL_UNIFORM_BUFFER,GL_WRITE_ONLY);
+    if assigned(p) then begin
+     try
+      pm:=p;
+      for JointIndex:=0 to length(Skin^.Joints)-1 do begin
+       pm^:=MatrixMul(
+             InverseMatrix,
+             MatrixMul(
+              Skin^.InverseBindMatrices[JointIndex],
+              fNodes[Skin^.Joints[JointIndex]].Matrix));
+       inc(pm);
+      end;
+     finally
+      glUnmapBuffer(GL_UNIFORM_BUFFER);
+     end;
+    end else begin
+     for JointIndex:=0 to length(Skin^.Joints)-1 do begin
+      Skin^.Matrices[JointIndex]:=MatrixMul(
+                                   InverseMatrix,
+                                   MatrixMul(
+                                    Skin^.InverseBindMatrices[JointIndex],
+                                    fNodes[Skin^.Joints[JointIndex]].Matrix));
+     end;
+     glBufferSubData(GL_UNIFORM_BUFFER,0,length(Skin^.Matrices)*SizeOf(TPasGLTF.TMatrix4x4),@Skin^.Matrices[0]);
+    end;
     glBindBuffer(GL_UNIFORM_BUFFER,0);
     glBindBufferBase(GL_UNIFORM_BUFFER,PBRShader.uJointMatrices,Skin^.UniformBufferObjectHandle);
    end else begin
