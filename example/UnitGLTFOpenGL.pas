@@ -1711,9 +1711,8 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
        Flags:=Flags or $20000000;
        glDisable(GL_CULL_FACE);
       end else begin
-       glDisable(GL_CULL_FACE);
-{      glEnable(GL_CULL_FACE);
-       glCullFace(GL_BACK);}
+       glEnable(GL_CULL_FACE);
+       glCullFace(GL_BACK);
       end;
       if ExtraMaterial^.PBRSpecularGlossiness.Used then begin
        Flags:=Flags or $40000000;
