@@ -3,14 +3,20 @@
 // License: zlib
 unit UnitSDL2;
 {$ifdef fpc}
-{$mode delphi}
-{$packrecords c}
-{$ifdef cpu386}
- {$asmmode intel}
-{$endif}
-{$ifdef cpuamd64}
- {$asmmode intel}
-{$endif}
+ {$mode delphi}
+ {$packrecords c}
+ {$ifdef cpu386}
+  {$asmmode intel}
+ {$endif}
+ {$ifdef cpuamd64}
+  {$asmmode intel}
+ {$endif}
+{$else}
+ {$ifdef conditionalexpressions}
+  {$if CompilerVersion>=24.0}
+   {$legacyifend on}
+  {$ifend}
+ {$endif}
 {$endif}
 {$if defined(Win32) or defined(Win64)}
  {$define Windows}
@@ -96,6 +102,7 @@ uses {$if defined(Windows)}
       BaseUnix,
       Unix,
       UnixType,
+      dl,
       {$if not (defined(GP2X) or defined(Darwin) or defined(SkyOS) or defined(Android))}
        x,
        xlib,
@@ -119,6 +126,9 @@ const SDL2LibName={$if defined(Win32)}
       SDL_MAJOR_VERSION=2;
       SDL_MINOR_VERSION=0;
       SDL_PATCHLEVEL=5;
+
+      SDL_FALSE=0;
+      SDL_TRUE=1;
 
       SDL_INIT_TIMER=$00000001;
       SDL_INIT_AUDIO=$00000010;
@@ -181,6 +191,11 @@ const SDL2LibName={$if defined(Win32)}
       SDL_MULTIGESTURE=$802;
       SDL_CLIPBOARDUPDATE=$900;
       SDL_DROPFILE=$1000;
+      SDL_DROPTEXT=$1001;
+      SDL_DROPBEGIN=$1002;
+      SDL_DROPCOMPLETE=$1003;
+      SDL_AUDIODEVICEADDED=$1100;
+      SDL_AUDIODEVICEREMOVED=$1101; 
       SDL_RENDER_TARGETS_RESET=$2000;
       SDL_RENDER_DEVICE_RESET=$2001;
       SDL_USEREVENT=$8000;
@@ -225,6 +240,20 @@ const SDL2LibName={$if defined(Win32)}
       SDL_WINDOW_MOUSE_FOCUS=$00000400;      //*< window has mouse focus */
       SDL_WINDOW_FOREIGN=$00000800;      //*< window not created by SDL */
       SDL_WINDOW_FULLSCREEN_DESKTOP=SDL_WINDOW_FULLSCREEN or $00001000; //*< fake fullscreen window, that takes the size of the desktop */
+      SDL_WINDOW_ALLOW_HIGHDPI=$00002000;      //**< window should be created in high-DPI mode if supported */
+      SDL_WINDOW_MOUSE_CAPTURE=$00004000;      //**< window has mouse captured (unrelated to INPUT_GRABBED) */
+      SDL_WINDOW_ALWAYS_ON_TOP=$00008000;      //**< window should always be above others */
+      SDL_WINDOW_SKIP_TASKBAR=$00010000;     //**< window should not be added to the taskbar */
+      SDL_WINDOW_UTILITY=$00020000;      //**< window should be treated as a utility window */
+      SDL_WINDOW_TOOLTIP=$00040000;      //**< window should be treated as a tooltip */
+      SDL_WINDOW_POPUP_MENU=$00080000;      //**< window should be treated as a popup menu */
+{$ifdef Android}
+      //  uses on Android still a self-patched SDL 2.0.5 version
+    	SDL_WINDOW_VULKAN=$00100000;   //**< window usable with Vulkan */
+{$else}
+      // SDL 2.0.6
+    	SDL_WINDOW_VULKAN=$10000000;         //**< window usable with Vulkan */
+{$endif}
 
       SDL_WINDOWPOS_CENTERED_MASK=$2FFF0000;
 
@@ -1021,7 +1050,23 @@ const SDL2LibName={$if defined(Win32)}
       SDL_HINT_BMP_SAVE_LEGACY_FORMAT='SDL_BMP_SAVE_LEGACY_FORMAT';
       SDL_HINT_WINDOWS_DISABLE_THREAD_NAMING='SDL_WINDOWS_DISABLE_THREAD_NAMING';
       SDL_HINT_RPI_VIDEO_LAYER='SDL_RPI_VIDEO_LAYER';
+      SDL_HINT_AUDIO_RESAMPLING_MODE='SDL_AUDIO_RESAMPLING_MODE';
+      SDL_HINT_WINRT_REMEMBER_WINDOW_FULLSCREEN_PREFERENCE='SDL_WINRT_REMEMBER_WINDOW_FULLSCREEN_PREFERENCE';
+      SDL_HINT_ANDROID_HIDE_SYSTEM_BARS='SDL_ANDROID_HIDE_SYSTEM_BARS';
 
+      SDL_MESSAGEBOX_ERROR=$00000010;   //**< error dialog */
+      SDL_MESSAGEBOX_WARNING=$00000020;   //**< warning dialog */
+      SDL_MESSAGEBOX_INFORMATION=$00000040;   //**< informational dialog */
+
+      SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT=$00000001;
+      SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT=$00000002;
+
+      SDL_MESSAGEBOX_COLOR_BACKGROUND=0;
+      SDL_MESSAGEBOX_COLOR_TEXT=1;
+      SDL_MESSAGEBOX_COLOR_BUTTON_BORDER=2;
+      SDL_MESSAGEBOX_COLOR_BUTTON_BACKGROUND=3;
+      SDL_MESSAGEBOX_COLOR_BUTTON_SELECTED=4;
+      
 type PSDLInt8=^TSDLInt8;
      TSDLInt8={$ifdef fpc}Int8{$else}ShortInt{$endif};
 
@@ -1244,6 +1289,15 @@ type PSDLInt8=^TSDLInt8;
       hdc_:Hdc;
       hinstance:HModule;
      end;
+{$elseif defined(Android)}
+     // The Windows custom window manager information structure
+     PSDL_SysWMinfo=^TSDL_SysWMinfo;
+     TSDL_SysWMinfo=record
+      version:TSDL_version;
+      subsystem:TSDL_SysWm;
+      window:PANativeWindow;	// The display window
+      EGLsurface:pointer;
+     end;
 {$elseif defined(Unix)}
      // The Unix custom window manager information structure
  {$if not (defined(GP2X) or defined(Darwin) or defined(SkyOS) or defined(Android))}
@@ -1409,7 +1463,10 @@ type PSDLInt8=^TSDLInt8;
       type_:TSDLUInt32;
       timeStamp:TSDLUInt32;
       windowID:TSDLUInt32;
-      x,y:TSDLInt32;
+      which:TSDLUInt32;
+      x:TSDLInt32;
+      y:TSDLInt32;
+      Direction:TSDLInt32;
      end;
 
      TSDL_JoyAxisEvent=record
@@ -1542,11 +1599,39 @@ type PSDLInt8=^TSDLInt8;
 
      TSDL_EventFilter=function(event:PSDL_Event):TSDLInt32; cdecl;
 
-     PUInt8Array=^TUInt8Array;
-     TUInt8Array=array[0..65535] of TSDLUInt8;
+     PSDL_MessageBoxColor=^TSDL_MessageBoxColor;
+     TSDL_MessageBoxColor=record
+      r,g,b:TSDLUInt8;
+     end;
 
-     PUInt32Array=^TUInt32Array;
-     TUInt32Array=array[0..16383] of TSDLUInt32;
+     PSDL_MessageBoxColorScheme=^TSDL_MessageBoxColorScheme;
+     TSDL_MessageBoxColorScheme=record
+      colors:array[0..4] of TSDL_MessageBoxColor;
+     end;
+
+     PSDL_MessageBoxButtonData=^TSDL_MessageBoxButtonData;
+     TSDL_MessageBoxButtonData=record
+      flags:TSDLUInt32;
+      buttonid:TSDLInt32;
+      text:PAnsiChar;
+     end;
+
+     PSDL_MessageBoxData=^TSDL_MessageBoxData;
+     TSDL_MessageBoxData=record
+      flags:TSDLUInt32;
+      window:PSDL_Window;
+      title:PAnsiChar;
+      message:PAnsiChar;
+      numbuttons:TSDLInt32;
+      buttons:PSDL_MessageBoxButtonData;
+      colorScheme:PSDL_MessageBoxColorScheme;
+     end;
+
+     PSDLUInt8Array=^TSDLUInt8Array;
+     TSDLUInt8Array=array[0..65535] of TSDLUInt8;
+
+     PSDLUInt32Array=^TSDLUInt32Array;
+     TSDLUInt32Array=array[0..16383] of TSDLUInt32;
 
      PSDL_Thread=Pointer;
      PSDL_mutex=Pointer;
@@ -1696,7 +1781,7 @@ function SDL_DestroyRenderer(renderer:PSDL_Renderer):TSDLInt32; cdecl; external 
 
 function SDL_GL_MakeCurrent(window:PSDL_Window;context:PSDL_GLContext):TSDLInt32; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
 
-function SDL_GL_CreateContext(windo:PSDL_Window):PSDL_GLContext; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+function SDL_GL_CreateContext(window:PSDL_Window):PSDL_GLContext; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
 procedure SDL_GL_DeleteContext(context:PSDL_GLContext); cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
 function SDL_GL_SwapWindow(window:PSDL_Window):TSDLInt32; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
 function SDL_GL_SetSwapInterval(interval:TSDLInt32):TSDLInt32; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
@@ -1873,6 +1958,10 @@ procedure SDL_LogMessage(category:TSDL_LogCategory;priority:TSDL_LogPriority;con
 procedure SDL_LogGetOutputFunction(LogCallback:PSDL_LogOutputCallback;UserData:PPointer); cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
 procedure SDL_LogSetOutputFunction(LogCallback:TSDL_LogOutputCallback;UserData:pointer); cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
 
+function SDL_ShowMessageBox(const messageboxdata:PSDL_MessageBoxData;const buttonid:PSDLInt32):TSDLInt32; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+
+function SDL_ShowSimpleMessageBox(flags:TSDLUInt32;title,message_:PAnsiChar;window:PSDL_Window):TSDLInt32; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+
 function SDL_SetHintWithPriority(name,value:PAnsiChar;priority:TSDL_HintPriority):boolean; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
 function SDL_SetHint(name,value:PAnsichar):boolean; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
 function SDL_GetHint(name:PAnsichar):PAnsichar; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
@@ -1881,9 +1970,108 @@ procedure SDL_AddHintCallback(name:PAnsichar;callback:TSDL_HintCallback;userdata
 procedure SDL_DelHintCallback(name:PAnsichar;callback:TSDL_HintCallback;userdata:pointer); cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
 procedure SDL_ClearHints; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
 
+{$if defined(Android)}
+function SDL_AndroidGetJNIEnv:pointer; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+function SDL_AndroidGetActivity:pointer; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+{$ifend}
+
+{$if defined(UseSDL2WithVulkanSupport)}
+{$if defined(UseSDL2WithStaticVulkanSupport)}
+function SDL_Vulkan_LoadLibrary(path:PAnsiChar):TSDLInt32; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+function SDL_Vulkan_GetVkGetInstanceProcAddr:pointer; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+procedure SDL_Vulkan_UnloadLibrary; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+function SDL_Vulkan_GetInstanceExtensions(window:PSDL_Window;pCount:PSDLUInt32;names:pointer{PPAnsiChar}):boolean; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+function SDL_Vulkan_CreateSurface(window:PSDL_Window;instance_:TVkInstance;surface:PVkSurfaceKHR):boolean; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+procedure SDL_Vulkan_GetDrawableSize(window:PSDL_Window;w,h:PSDLInt32); cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+{$else}
+type TSDL_Vulkan_LoadLibrary=function(path:PAnsiChar):TSDLInt32; cdecl;
+     TSDL_Vulkan_GetVkGetInstanceProcAddr=function:pointer; cdecl;
+     TSDL_Vulkan_UnloadLibrary=procedure; cdecl;
+     TSDL_Vulkan_GetInstanceExtensions=function(window:PSDL_Window;pCount:PSDLUInt32;names:pointer{PPAnsiChar}):boolean; cdecl;
+     TSDL_Vulkan_CreateSurface=function(window:PSDL_Window;instance_:TVkInstance;surface:PVkSurfaceKHR):boolean; cdecl;
+     TSDL_Vulkan_GetDrawableSize=procedure(window:PSDL_Window;w,h:PSDLInt32); cdecl;
+
+var SDL_Vulkan_LoadLibrary:TSDL_Vulkan_LoadLibrary=nil;
+    SDL_Vulkan_GetVkGetInstanceProcAddr:TSDL_Vulkan_GetVkGetInstanceProcAddr=nil;
+    SDL_Vulkan_UnloadLibrary:TSDL_Vulkan_UnloadLibrary=nil;
+    SDL_Vulkan_GetInstanceExtensions:TSDL_Vulkan_GetInstanceExtensions=nil;
+    SDL_Vulkan_CreateSurface:TSDL_Vulkan_CreateSurface=nil;
+    SDL_Vulkan_GetDrawableSize:TSDL_Vulkan_GetDrawableSize=nil;
+
+{$define UseDynamicSDL2}
+
+{$ifend}
+{$ifend}
+
+{$ifdef UseDynamicSDL2}
+var SDL_Library:pointer=nil;
+{$endif}
+
+procedure SDL_GetVersion(out Version:TSDL_Version); cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+function SDL_GetRevision:PAnsiChar; cdecl; external {$ifndef staticlink}SDL2LibName{$endif};
+
 procedure SDL_VERSION(out Version:TSDL_Version);
 
 implementation
+
+{$ifdef UseDynamicSDL2}
+function sdl2LoadLibrary(const LibraryName:string):pointer; {$ifdef CAN_INLINE}inline;{$endif}
+begin
+{$ifdef Windows}
+ result:={%H-}pointer(LoadLibrary(PChar(LibraryName)));
+{$else}
+{$ifdef Unix}
+ result:=dlopen(PChar(LibraryName),RTLD_NOW or RTLD_LAZY);
+{$else}
+ result:=nil;
+{$endif}
+{$endif}
+end;
+
+function sdl2FreeLibrary(LibraryHandle:pointer):boolean; {$ifdef CAN_INLINE}inline;{$endif}
+begin
+ result:=assigned(LibraryHandle);
+ if result then begin
+{$ifdef Windows}
+  result:=FreeLibrary({%H-}HMODULE(LibraryHandle));
+{$else}
+{$ifdef Unix}
+  result:=dlclose(LibraryHandle)=0;
+{$else}
+  result:=false;
+{$endif}
+{$endif}
+ end;
+end;
+
+function sdl2GetProcAddress(LibraryHandle:pointer;const ProcName:string):pointer; {$ifdef CAN_INLINE}inline;{$endif}
+begin
+{$ifdef Windows}
+ result:=GetProcAddress({%H-}HMODULE(LibraryHandle),PChar(ProcName));
+{$else}
+{$ifdef Unix}
+ result:=dlsym(LibraryHandle,PChar(ProcName));
+{$else}
+ result:=nil;
+{$endif}
+{$endif}
+end;
+
+function LoadSDL2Library(const LibraryName:string=SDL2LibName):boolean;
+begin
+ SDL_Library:=sdl2LoadLibrary(LibraryName);
+ result:=assigned(SDL_Library);
+ if result then begin
+  SDL_Vulkan_LoadLibrary:=sdl2GetProcAddress(SDL_Library,'SDL_Vulkan_LoadLibrary');
+  SDL_Vulkan_GetVkGetInstanceProcAddr:=sdl2GetProcAddress(SDL_Library,'SDL_Vulkan_GetVkGetInstanceProcAddr');
+  SDL_Vulkan_UnloadLibrary:=sdl2GetProcAddress(SDL_Library,'SDL_Vulkan_UnloadLibrary');
+  SDL_Vulkan_GetInstanceExtensions:=sdl2GetProcAddress(SDL_Library,'SDL_Vulkan_GetInstanceExtensions');
+  SDL_Vulkan_CreateSurface:=sdl2GetProcAddress(SDL_Library,'SDL_Vulkan_CreateSurface');
+  SDL_Vulkan_GetDrawableSize:=sdl2GetProcAddress(SDL_Library,'SDL_Vulkan_GetDrawableSize');
+ end;
+end;
+
+{$endif}
 
 function SDL_BUTTON(Button:TSDLInt32):TSDLInt32;
 begin
@@ -1897,5 +2085,13 @@ begin
  Version.patch:=SDL_PATCHLEVEL;
 end;
 
+{$ifdef UseDynamicSDL2}
+initialization
+ LoadSDL2Library;
+finalization
+ if assigned(SDL_Library) then begin
+  sdl2FreeLibrary(SDL_Library);
+ end;
+{$endif}
 end.
 
