@@ -1369,6 +1369,7 @@ var AllVertices:TAllVertices;
      ImageData:TPasGLTFPointer;
      ImageWidth,ImageHeight:TPasGLTFInt32;
      Handle:glUInt;
+     Anisotropy:TPasGLTFFloat;
  begin
   for Index:=0 to length(fTextures)-1 do begin
    Handle:=0;
@@ -1393,10 +1394,12 @@ var AllVertices:TAllVertices;
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
        end;
-{      glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,0);
-       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,0);}
+       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,0);
+       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,trunc(log2(Min(ImageWidth,ImageHeight))));
        glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA8,ImageWidth,ImageHeight,0,GL_RGBA,GL_UNSIGNED_BYTE,ImageData);
        glGenerateMipmap(GL_TEXTURE_2D);
+       glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY,@Anisotropy);
+       glTexParameterf(GL_TEXTURE_2D,GL_TEXTURE_MAX_ANISOTROPY,Anisotropy);
      finally
        FreeMem(ImageData);
       end;
