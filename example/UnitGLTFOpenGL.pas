@@ -1742,8 +1742,19 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
      Material:=fDocument.Materials[Primitive^.Material];
      ExtraMaterial:=@fMaterials[Primitive^.Material];
      if Material.AlphaMode=aAlphaMode then begin
-      if Material.AlphaMode=TPasGLTF.TMaterial.TAlphaMode.Mask then begin
-       glUniform1f(PBRShader.uAlphaCutOff,Material.AlphaCutOff);
+      case Material.AlphaMode of
+       TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
+        // Nothing
+       end;
+       TPasGLTF.TMaterial.TAlphaMode.Mask:begin
+        glUniform1f(PBRShader.uAlphaCutOff,Material.AlphaCutOff);
+       end;
+       TPasGLTF.TMaterial.TAlphaMode.Blend:begin
+        Flags:=Flags or $10000000;
+       end;
+       else begin
+        Assert(false);
+       end;
       end;
       if Material.DoubleSided then begin
        Flags:=Flags or $20000000;
@@ -1915,11 +1926,7 @@ begin
     NonSkinnedPBRShader:=aNonSkinnedNormalPBRShader;
     SkinnedPBRShader:=aSkinnedNormalPBRShader;
     glEnable(GL_BLEND);
-    if assigned(glBlendFuncSeparate) then begin
-     glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
-    end else begin
-     glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-    end;
+    glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
    end;
    else begin
     NonSkinnedPBRShader:=nil;

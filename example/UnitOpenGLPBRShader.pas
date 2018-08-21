@@ -428,10 +428,11 @@ begin
     '    color += textureLod(uEnvMapTexture, rayDirection, clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(materialRoughness))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColor * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColor.x, specularColor.y), specularColor.z) * 50.0, 0.0, 1.0))) * specularOcclusion;'+#13#10+
     '    color += textureLod(uEnvMapTexture, normal.xyz, float(uEnvMapMaxLevel)).xyz * diffuseColor * ao;'+#13#10+
     '  }'+#13#10+
-    '  oOutput = vec4(vec3((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10;
+    '  float alpha = materialAlbedo.w * vColor.w;'+#13#10+
+    '  oOutput = vec4(vec3((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), mix(1.0, alpha, float(int(uint((uFlags >> 28u) & 1u)))));'+#13#10;
 ///    '  oOutput = vec4(vec3(vNormal.xyz * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10;
  if aAlphaTest then begin
-  f:=f+'  if(oOutput.w < uAlphaCutOff){'+#13#10+
+  f:=f+'  if(alpha < uAlphaCutOff){'+#13#10+
        '    discard;'+#13#10+
        '  }'+#13#10;
  end;
