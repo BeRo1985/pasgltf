@@ -173,7 +173,7 @@ var Event:TSDL_Event;
    glClearDepth(0.0);
    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
    ModelMatrix:=Matrix4x4Identity;
-   t:=Time;//*0.125;
+   t:=0.0;//Time*0.125;
    Center.x:=(GLTFOpenGL.StaticMinPosition[0]+GLTFOpenGL.StaticMaxPosition[0])*0.5;
    Center.y:=(GLTFOpenGL.StaticMinPosition[1]+GLTFOpenGL.StaticMaxPosition[1])*0.5;
    Center.z:=(GLTFOpenGL.StaticMinPosition[2]+GLTFOpenGL.StaticMaxPosition[2])*0.5;
@@ -182,7 +182,7 @@ var Event:TSDL_Event;
    Bounds.z:=(GLTFOpenGL.StaticMaxPosition[2]-GLTFOpenGL.StaticMinPosition[2])*0.5;
    ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
                                           Vector3(sin(t)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*2.828,
-                                                  sin(t*0.25)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*3.0,
+                                                  sin(t*0.25)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*0.0,
                                                   cos(t)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*2.828)),
                                        Center,
                                        Vector3YAxis);

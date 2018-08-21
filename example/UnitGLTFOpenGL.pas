@@ -1028,7 +1028,8 @@ procedure TGLTFOpenGL.InitializeResources;
         if Vector3Dot(TemporaryNormals[TemporaryTriangleIndices[IndexIndex+0]],Normal)<0.0 then begin
          Normal:=Vector3Neg(Normal);
         end;
-        Area:=(t1t0[0]*t2t0[1])-(t2t0[0]*t1t0[1]);
+{$if true}
+        Area:=(t2t0[0]*t1t0[1])-(t1t0[0]*t2t0[1]);
         if IsZero(Area) then begin
          Tangent[0]:=0.0;
          Tangent[1]:=1.0;
@@ -1037,23 +1038,29 @@ procedure TGLTFOpenGL.InitializeResources;
          Bitangent[1]:=0.0;
          Bitangent[2]:=0.0;
         end else begin
-         Tangent[0]:=((t2t0[1]*p1p0[0])-(t1t0[1]*p2p0[0]))/Area;
-         Tangent[1]:=((t2t0[1]*p1p0[1])-(t1t0[1]*p2p0[1]))/Area;
-         Tangent[2]:=((t2t0[1]*p1p0[2])-(t1t0[1]*p2p0[2]))/Area;
+         Tangent[0]:=((t1t0[1]*p2p0[0])-(t2t0[1]*p1p0[0]))/Area;
+         Tangent[1]:=((t1t0[1]*p2p0[1])-(t2t0[1]*p1p0[1]))/Area;
+         Tangent[2]:=((t1t0[1]*p2p0[2])-(t2t0[1]*p1p0[2]))/Area;
          Bitangent[0]:=((t1t0[0]*p2p0[0])-(t2t0[0]*p1p0[0]))/Area;
          Bitangent[1]:=((t1t0[0]*p2p0[1])-(t2t0[0]*p1p0[1]))/Area;
          Bitangent[2]:=((t1t0[0]*p2p0[2])-(t2t0[0]*p1p0[2]))/Area;
         end;
-{       Tangent[0]:=(t1t0[1]*p2p0[0])-(t2t0[1]*p1p0[0]);
+        if Vector3Dot(Vector3Cross(Tangent,Bitangent),Normal)<0.0 then begin
+         Tangent:=Vector3Neg(Tangent);
+         Bitangent:=Vector3Neg(Bitangent);
+        end;
+{$else}
+        Tangent[0]:=(t1t0[1]*p2p0[0])-(t2t0[1]*p1p0[0]);
         Tangent[1]:=(t1t0[1]*p2p0[1])-(t2t0[1]*p1p0[1]);
         Tangent[2]:=(t1t0[1]*p2p0[2])-(t2t0[1]*p1p0[2]);
         Bitangent[0]:=(t1t0[0]*p2p0[0])-(t2t0[0]*p1p0[0]);
         Bitangent[1]:=(t1t0[0]*p2p0[1])-(t2t0[0]*p1p0[1]);
-        Bitangent[2]:=(t1t0[0]*p2p0[2])-(t2t0[0]*p1p0[2]);}
-        if Vector3Dot(Vector3Cross(Bitangent,Tangent),Normal)<0.0 then begin
+        Bitangent[2]:=(t1t0[0]*p2p0[2])-(t2t0[0]*p1p0[2]);
+        if Vector3Dot(Vector3Cross(Tangent,Bitangent),Normal)<0.0 then begin
          Tangent:=Vector3Neg(Tangent);
          Bitangent:=Vector3Neg(Bitangent);
         end;
+{$ifend}
         PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+0]])^:=Vector3Add(PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+0]])^,Tangent);
         PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+1]])^:=Vector3Add(PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+1]])^,Tangent);
         PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+2]])^:=Vector3Add(PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+2]])^,Tangent);
