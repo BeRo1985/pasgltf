@@ -114,7 +114,7 @@ uses dglOpenGL,UnitOpenGLShader;
 type TEnvMapDrawShader=class(TShader)
       public
        uTexture:glInt;
-       uInverseViewProjectionMatrix:glInt;
+       uViewProjectionMatrix:glInt;
       public
        constructor Create;
        destructor Destroy; override;
@@ -128,20 +128,24 @@ constructor TEnvMapDrawShader.Create;
 var f,v:ansistring;
 begin
  v:='#version 330'+#13#10+
-    'out vec2 vTexCoord;'+#13#10+
+    'out vec3 vPosition;'+#13#10+
+    'uniform mat4 uViewProjectionMatrix;'+#13#10+
     'void main(){'+#13#10+
-    '	vTexCoord = vec2((gl_VertexID >> 1) * 2.0, (gl_VertexID & 1) * 2.0);'+#13#10+
-    '	gl_Position = vec4(((gl_VertexID >> 1) * 4.0) - 1.0, ((gl_VertexID & 1) * 4.0) - 1.0, 0.0, 1.0);'+#13#10+
+    '  int vertexID = int(gl_VertexID),'+#13#10+
+    '      vertexIndex = vertexID % 3,'+#13#10+
+    '      faceIndex = vertexID / 3,'+#13#10+
+    '      stripVertexID = faceIndex + (((faceIndex & 1) == 0) ? (2 - vertexIndex) : vertexIndex),'+#13#10+
+    '	     reversed = int(stripVertexID > 6),'+#13#10+
+    '	     index = (reversed == 1) ? (13 - stripVertexID) : stripVertexID;'+#13#10+
+    '  vPosition = (vec3(ivec3(int((index < 3) || (index == 4)), reversed ^ int((index > 0) && (index < 4)), reversed ^ int((index < 2) || (index > 5)))) * 2.0) - vec3(1.0);'+#13#10+
+    '	 gl_Position = (uViewProjectionMatrix * vec4(vPosition, 1.0)).xyww;'+#13#10+
     '}'+#13#10;
  f:='#version 330'+#13#10+
-    'in vec2 vTexCoord;'+#13#10+
+    'in vec3 vPosition;'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
-    'uniform mat4 uInverseViewProjectionMatrix;'+#13#10+
     'uniform samplerCube uTexture;'+#13#10+
     'void main(){'+#13#10+
-    '  vec4 p0 = uInverseViewProjectionMatrix * vec4((vTexCoord * 2.0) - vec2(1.0), 1.0, 1.0),'+#13#10+
-    '       p1 = uInverseViewProjectionMatrix * vec4((vTexCoord * 2.0) - vec2(1.0), -1.0, 1.0);'+#13#10+
-    '	 oOutput = textureLod(uTexture, -normalize((p1.xyz / p1.w) - (p0.xyz / p0.w)), 0.0);'+#13#10+
+    '	 oOutput = texture(uTexture, normalize(vPosition));'+#13#10+
     '}'+#13#10;
  inherited Create(f,v);
 end;
@@ -160,7 +164,7 @@ procedure TEnvMapDrawShader.BindVariables;
 begin
  inherited BindVariables;
  uTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uTexture')));
- uInverseViewProjectionMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uInverseViewProjectionMatrix')));
+ uViewProjectionMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uViewProjectionMatrix')));
 end;
 
 end.
