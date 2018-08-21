@@ -20,7 +20,8 @@ uses SysUtils,Classes,Math,PasJSON,PasGLTF,dglOpenGL,UnitOpenGLImage,
 type EGLTFOpenGL=class(Exception);
 
      TGLTFOpenGL=class
-      private
+      public
+       const MaxMorphTargets=256;
        type TAnimation=record
              public
               type TChannel=record
@@ -155,6 +156,17 @@ type EGLTFOpenGL=class(Exception);
             end;
             PTexture=^TTexture;
             TTextures=array of TTexture;
+            TMorphTargetVertex=packed record
+             Position:TPasGLTF.TVector4;
+             Normal:TPasGLTF.TVector4;
+             Tangent:TPasGLTF.TVector4;
+            end;
+            TMorphTargetVertexDynamicArray=array of TMorphTargetVertex;
+            TMorphTargetUniformBuffer=packed record
+             MetaData:TPasGLTF.TInt32Vector4; // x = count of weights, y = count of morph vertices, z = start buffer index, w = unused
+             Weights:array[0..MaxMorphTargets-1] of TPasGLTFFloat;
+            end;
+            PMorphTargetUniformBuffer=^TMorphTargetUniformBuffer;
       private
        fDocument:TPasGLTF.TDocument;
        fReady:boolean;
