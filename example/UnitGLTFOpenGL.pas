@@ -1812,19 +1812,16 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     glBindBuffer(GL_UNIFORM_BUFFER,Skin^.UniformBufferObjectHandle);
     p:=glMapBuffer(GL_UNIFORM_BUFFER,GL_WRITE_ONLY);
     if assigned(p) then begin
-     try
-      pm:=p;
-      for JointIndex:=0 to length(Skin^.Joints)-1 do begin
-       pm^:=MatrixMul(
-             InverseMatrix,
-             MatrixMul(
-              Skin^.InverseBindMatrices[JointIndex],
-              fNodes[Skin^.Joints[JointIndex]].Matrix));
-       inc(pm);
-      end;
-     finally
-      glUnmapBuffer(GL_UNIFORM_BUFFER);
+     pm:=p;
+     for JointIndex:=0 to length(Skin^.Joints)-1 do begin
+      pm^:=MatrixMul(
+            InverseMatrix,
+            MatrixMul(
+             Skin^.InverseBindMatrices[JointIndex],
+             fNodes[Skin^.Joints[JointIndex]].Matrix));
+      inc(pm);
      end;
+     glUnmapBuffer(GL_UNIFORM_BUFFER);
     end else begin
      for JointIndex:=0 to length(Skin^.Joints)-1 do begin
       Skin^.Matrices[JointIndex]:=MatrixMul(
