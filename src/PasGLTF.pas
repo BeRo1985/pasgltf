@@ -698,6 +698,9 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
             TVector4=array[0..3] of TPasGLTFFloat;
             PVector4=^TVector4;
             TVector4DynamicArray=array of TVector4;
+            TInt32Vector4=array[0..3] of TPasGLTFInt32;
+            PInt32Vector4=^TInt32Vector4;
+            TInt32Vector4DynamicArray=array of TInt32Vector4;
             TMatrix2x2=array[0..3] of TPasGLTFFloat;
             PMatrix2x2=^TMatrix2x2;
             TMatrix2x2DynamicArray=array of TMatrix2x2;
@@ -856,6 +859,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               function DecodeAsVector2Array(const aForVertex:boolean=true):TVector2DynamicArray;
               function DecodeAsVector3Array(const aForVertex:boolean=true):TVector3DynamicArray;
               function DecodeAsVector4Array(const aForVertex:boolean=true):TVector4DynamicArray;
+              function DecodeAsInt32Vector4Array(const aForVertex:boolean=true):TInt32Vector4DynamicArray;
               function DecodeAsColorArray(const aForVertex:boolean=true):TVector4DynamicArray;
               function DecodeAsMatrix2x2Array(const aForVertex:boolean=true):TMatrix2x2DynamicArray;
               function DecodeAsMatrix3x3Array(const aForVertex:boolean=true):TMatrix3x3DynamicArray;
@@ -2682,6 +2686,22 @@ begin
   result[Index,1]:=DoubleArray[(Index shl 2) or 1];
   result[Index,2]:=DoubleArray[(Index shl 2) or 2];
   result[Index,3]:=DoubleArray[(Index shl 2) or 3];
+ end;
+end;
+
+function TPasGLTF.TAccessor.DecodeAsInt32Vector4Array(const aForVertex:boolean):TInt32Vector4DynamicArray;
+var Index:TPasGLTFSizeInt;
+    DoubleArray:TPasGLTFDoubleDynamicArray;
+begin
+ result:=nil;
+ DoubleArray:=DecodeAsDoubleArray(aForVertex);
+ Assert((length(DoubleArray) and 3)=0);
+ SetLength(result,length(DoubleArray) shr 2);
+ for Index:=0 to length(result)-1 do begin
+  result[Index,0]:=trunc(DoubleArray[(Index shl 2) or 0]);
+  result[Index,1]:=trunc(DoubleArray[(Index shl 2) or 1]);
+  result[Index,2]:=trunc(DoubleArray[(Index shl 2) or 2]);
+  result[Index,3]:=trunc(DoubleArray[(Index shl 2) or 3]);
  end;
 end;
 

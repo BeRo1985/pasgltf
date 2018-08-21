@@ -74,8 +74,8 @@ type EGLTFOpenGL=class(Exception);
              TexCoord0:TPasGLTF.TVector2;
              TexCoord1:TPasGLTF.TVector2;
              Color0:TPasGLTF.TVector4;
-             Joints0:TPasGLTF.TVector4;
-             Joints1:TPasGLTF.TVector4;
+             Joints0:TPasGLTF.TInt32Vector4;
+             Joints1:TPasGLTF.TInt32Vector4;
              Weights0:TPasGLTF.TVector4;
              Weights1:TPasGLTF.TVector4;
             end;
@@ -798,10 +798,10 @@ procedure TGLTFOpenGL.InitializeResources;
      TemporaryBitangents:TPasGLTF.TVector3DynamicArray;
      TemporaryTangents,
      TemporaryColor0,
-     TemporaryJoints0,
-     TemporaryJoints1,
      TemporaryWeights0,
      TemporaryWeights1:TPasGLTF.TVector4DynamicArray;
+     TemporaryJoints0,
+     TemporaryJoints1:TPasGLTF.TInt32Vector4DynamicArray;
      TemporaryTexCoord0,
      TemporaryTexCoord1:TPasGLTF.TVector2DynamicArray;
      TemporaryIndices,
@@ -899,7 +899,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['JOINTS_0'];
       if AccessorIndex>=0 then begin
-       TemporaryJoints0:=fDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
+       TemporaryJoints0:=fDocument.Accessors[AccessorIndex].DecodeAsInt32Vector4Array(true);
       end else begin
        TemporaryJoints0:=nil;
       end;
@@ -907,7 +907,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['JOINTS_1'];
       if AccessorIndex>=0 then begin
-       TemporaryJoints1:=fDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
+       TemporaryJoints1:=fDocument.Accessors[AccessorIndex].DecodeAsInt32Vector4Array(true);
       end else begin
        TemporaryJoints1:=nil;
       end;
@@ -946,11 +946,27 @@ procedure TGLTFOpenGL.InitializeResources;
       end;
       TPasGLTF.TMesh.TPrimitive.TMode.TriangleStrip:begin
        TemporaryTriangleIndices:=nil;
-       // TODO
+       SetLength(TemporaryTriangleIndices,(length(TemporaryIndices)-2)*3);
+       for IndexIndex:=0 to length(TemporaryIndices)-3 do begin
+        if (IndexIndex and 1)<>0 then begin
+         TemporaryTriangleIndices[(IndexIndex*3)+0]:=TemporaryIndices[IndexIndex+0];
+         TemporaryTriangleIndices[(IndexIndex*3)+1]:=TemporaryIndices[IndexIndex+1];
+         TemporaryTriangleIndices[(IndexIndex*3)+2]:=TemporaryIndices[IndexIndex+2];
+        end else begin
+         TemporaryTriangleIndices[(IndexIndex*3)+0]:=TemporaryIndices[IndexIndex+0];
+         TemporaryTriangleIndices[(IndexIndex*3)+1]:=TemporaryIndices[IndexIndex+2];
+         TemporaryTriangleIndices[(IndexIndex*3)+2]:=TemporaryIndices[IndexIndex+1];
+        end;
+       end;
       end;
       TPasGLTF.TMesh.TPrimitive.TMode.TriangleFan:begin
        TemporaryTriangleIndices:=nil;
-       // TODO
+       SetLength(TemporaryTriangleIndices,(length(TemporaryIndices)-2)*3);
+       for IndexIndex:=2 to length(TemporaryIndices)-1 do begin
+        TemporaryTriangleIndices[((IndexIndex-1)*3)+0]:=TemporaryIndices[0];
+        TemporaryTriangleIndices[((IndexIndex-1)*3)+1]:=TemporaryIndices[IndexIndex-1];
+        TemporaryTriangleIndices[((IndexIndex-1)*3)+2]:=TemporaryIndices[IndexIndex];
+       end;
       end;
       else begin
        TemporaryTriangleIndices:=nil;
@@ -1342,11 +1358,11 @@ var AllVertices:TAllVertices;
     glEnableVertexAttribArray(TVertexAttributeBindingLocations.Color0);
    end;
    begin
-    glVertexAttribPointer(TVertexAttributeBindingLocations.Joints0,4,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Joints0);
+    glVertexAttribPointer(TVertexAttributeBindingLocations.Joints0,4,GL_INT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Joints0);
     glEnableVertexAttribArray(TVertexAttributeBindingLocations.Joints0);
    end;
    begin
-    glVertexAttribPointer(TVertexAttributeBindingLocations.Joints1,4,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Joints1);
+    glVertexAttribPointer(TVertexAttributeBindingLocations.Joints1,4,GL_INT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Joints1);
     glEnableVertexAttribArray(TVertexAttributeBindingLocations.Joints1);
    end;
    begin
