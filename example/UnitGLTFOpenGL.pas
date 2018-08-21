@@ -1834,10 +1834,11 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
      pm:=p;
      for JointIndex:=0 to length(Skin^.Joints)-1 do begin
       pm^:=MatrixMul(
-            InverseMatrix,
             MatrixMul(
              Skin^.InverseBindMatrices[JointIndex],
-             fNodes[Skin^.Joints[JointIndex]].Matrix));
+             fNodes[Skin^.Joints[JointIndex]].Matrix),
+            InverseMatrix
+           );
       inc(pm);
      end;
      glUnmapBuffer(GL_UNIFORM_BUFFER);
