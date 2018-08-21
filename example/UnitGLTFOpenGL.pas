@@ -1547,7 +1547,7 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     Time:=aTime-(floor(aTime/Time)*Time);
 
     for InputTimeArrayIndex:=1 to length(AnimationChannel^.InputTimeArray)-1 do begin
-     if AnimationChannel^.InputTimeArray[InputTimeArrayIndex]>=Time then begin
+     if AnimationChannel^.InputTimeArray[InputTimeArrayIndex]>Time then begin
       TimeIndices[1]:=InputTimeArrayIndex;
       break;
      end;
@@ -1813,7 +1813,7 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     UseShader(PBRShader);
     InverseMatrix:=MatrixInverse(Matrix);
     glBindBuffer(GL_UNIFORM_BUFFER,Skin^.UniformBufferObjectHandle);
-    p:=glMapBuffer(GL_UNIFORM_BUFFER,GL_WRITE_ONLY);
+    p:=glMapBufferRange(GL_UNIFORM_BUFFER,0,length(Skin^.Matrices)*SizeOf(TPasGLTF.TMatrix4x4),GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
     if assigned(p) then begin
      pm:=p;
      for JointIndex:=0 to length(Skin^.Joints)-1 do begin
@@ -1825,15 +1825,6 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
       inc(pm);
      end;
      glUnmapBuffer(GL_UNIFORM_BUFFER);
-    end else begin
-     for JointIndex:=0 to length(Skin^.Joints)-1 do begin
-      Skin^.Matrices[JointIndex]:=MatrixMul(
-                                   InverseMatrix,
-                                   MatrixMul(
-                                    Skin^.InverseBindMatrices[JointIndex],
-                                    fNodes[Skin^.Joints[JointIndex]].Matrix));
-     end;
-     glBufferSubData(GL_UNIFORM_BUFFER,0,length(Skin^.Matrices)*SizeOf(TPasGLTF.TMatrix4x4),@Skin^.Matrices[0]);
     end;
     glBindBuffer(GL_UNIFORM_BUFFER,0);
     glBindBufferBase(GL_UNIFORM_BUFFER,PBRShader.uJointMatrices,Skin^.UniformBufferObjectHandle);
