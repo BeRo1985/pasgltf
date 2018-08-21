@@ -170,11 +170,7 @@ var Event:TSDL_Event;
    glDrawBuffer(GL_COLOR_ATTACHMENT0);
    glViewport(0,0,HDRSceneFBO.Width,HDRSceneFBO.Height);
    glClearColor(0.0,0.0,0.0,0.0);
-   if assigned(glClipControl) then begin
-    glClearDepth(0.0);
-   end else begin
-    glClearDepth(1.0);
-   end;
+   glClearDepth(0.0);
    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
    ModelMatrix:=Matrix4x4Identity;
    t:=Time;//*0.125;
@@ -190,15 +186,9 @@ var Event:TSDL_Event;
                                                   cos(t)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*2.828)),
                                        Center,
                                        Vector3YAxis);
-   if assigned(glClipControl) then begin
-    ProjectionMatrix:=Matrix4x4ProjectionReversedZ(45.0,ViewPortWidth/ViewPortHeight,0.1);
-    glClipControl(GL_LOWER_LEFT,GL_ZERO_TO_ONE);
-    glDepthFunc(GL_GEQUAL);
-   end else begin
-    v:=Max(1024.0,sqrt(sqr(Bounds.x)+sqr(Bounds.z))*4.0);
-    ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,v/1024.0,v);
-    glDepthFunc(GL_LEQUAL);
-   end;
+   ProjectionMatrix:=Matrix4x4ProjectionReversedZ(45.0,ViewPortWidth/ViewPortHeight,0.1);
+   glClipControl(GL_LOWER_LEFT,GL_ZERO_TO_ONE);
+   glDepthFunc(GL_GEQUAL);
    LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
    SkyBoxViewProjectionMatrix:=Matrix4x4TermMul(Matrix4x4Rotation(ViewMatrix),ProjectionMatrix);
    begin
@@ -243,9 +233,7 @@ var Event:TSDL_Event;
                     0,
                     Time);
    end;
-   if assigned(glClipControl) then begin
-    glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);
-   end;
+   glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);
   end;
   begin
    glBindFrameBuffer(GL_FRAMEBUFFER,LDRSceneFBO.FBOs[0]);
