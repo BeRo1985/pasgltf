@@ -117,6 +117,28 @@ var fs:TFileStream;
       'negz'
      );
 
+function Matrix4x4ProjectionReversedZ(const aFOV,aAspectRatio,aZNear:single):TMatrix4x4;
+var f:single;
+begin
+ f:=1.0/tan(aFOV*DEG2RAD*0.5);
+ result[0,0]:=f/aAspectRatio;
+ result[0,1]:=0.0;
+ result[0,2]:=0.0;
+ result[0,3]:=0.0;
+ result[1,0]:=0.0;
+ result[1,1]:=f;
+ result[1,2]:=0.0;
+ result[1,3]:=0.0;
+ result[2,0]:=0.0;
+ result[2,1]:=0.0;
+ result[2,2]:=0.0;
+ result[2,3]:=-1.0;
+ result[3,0]:=0.0;
+ result[3,1]:=0.0;
+ result[3,2]:=aZNear;
+ result[3,3]:=0.0;
+end;
+
 procedure Main;
 const Title='PasGLTF loader test';
       VirtualCanvasWidth=1280;
@@ -145,7 +167,11 @@ var Event:TSDL_Event;
    glDrawBuffer(GL_COLOR_ATTACHMENT0);
    glViewport(0,0,HDRSceneFBO.Width,HDRSceneFBO.Height);
    glClearColor(0.0,0.0,0.0,0.0);
-   glClearDepth(1.0);
+   if assigned(glClipControl) then begin
+    glClearDepth(0.0);
+   end else begin
+    glClearDepth(1.0);
+   end;
    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
    ModelMatrix:=Matrix4x4Identity;
    t:=Time*0.125;
@@ -161,8 +187,15 @@ var Event:TSDL_Event;
                                                   cos(t)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*2.828)),
                                        Center,
                                        Vector3YAxis);
-   v:=Max(1024.0,sqrt(sqr(Bounds.x)+sqr(Bounds.z))*4.0);
-   ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,v/1024.0,v);
+   if assigned(glClipControl) then begin
+    ProjectionMatrix:=Matrix4x4ProjectionReversedZ(45.0,ViewPortWidth/ViewPortHeight,0.1);
+    glClipControl(GL_LOWER_LEFT,GL_ZERO_TO_ONE);
+    glDepthFunc(GL_GEQUAL);
+   end else begin
+    v:=Max(1024.0,sqrt(sqr(Bounds.x)+sqr(Bounds.z))*4.0);
+    ProjectionMatrix:=Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,v/1024.0,v);
+    glDepthFunc(GL_LEQUAL);
+   end;
    LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
    InverseViewProjectionMatrix:=Matrix4x4TermInverse(Matrix4x4TermMul(ViewMatrix,ProjectionMatrix));
    begin
@@ -188,7 +221,6 @@ var Event:TSDL_Event;
     glActiveTexture(GL_TEXTURE0);
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-    glDepthFunc(GL_LEQUAL);
     glCullFace(GL_BACK);
     for PBRShader in PBRShaders do begin
      PBRShader.Bind;
@@ -207,6 +239,9 @@ var Event:TSDL_Event;
                     PBRShaders[true,true],
                     0,
                     Time);
+   end;
+   if assigned(glClipControl) then begin
+    glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);
    end;
   end;
   begin
