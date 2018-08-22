@@ -236,7 +236,8 @@ type EGLTFOpenGL=class(Exception);
                       const aSkinnedAlphaTestPBRShader:TPBRShader;
                       const aAnimationIndex:TPasGLTFSizeInt=0;
                       const aTime:TPasGLTFFloat=0.0;
-                      const aScene:TPasGLTFSizeInt=-1);
+                      const aScene:TPasGLTFSizeInt=-1;
+                      const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
        property StaticMinPosition:TPasGLTF.TVector3 read fStaticMinPosition;
        property StaticMaxPosition:TPasGLTF.TVector3 read fStaticMaxPosition;
       published
@@ -1633,7 +1634,8 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                            const aSkinnedAlphaTestPBRShader:TPBRShader;
                            const aAnimationIndex:TPasGLTFSizeInt=0;
                            const aTime:TPasGLTFFloat=0.0;
-                           const aScene:TPasGLTFSizeInt=-1);
+                           const aScene:TPasGLTFSizeInt=-1;
+                           const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
 var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     CurrentShader:TShader;
     CurrentSkinUniformBufferObjectUniformBufferObjectHandle:glUInt;
@@ -2136,29 +2138,29 @@ begin
  ProcessSkins;
  CurrentShader:=nil;
  for AlphaMode:=TPasGLTF.TMaterial.TAlphaMode.Opaque to TPasGLTF.TMaterial.TAlphaMode.Blend do begin
-  case AlphaMode of
-   TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
-    NonSkinnedPBRShader:=aNonSkinnedNormalPBRShader;
-    SkinnedPBRShader:=aSkinnedNormalPBRShader;
-    glDisable(GL_BLEND);
+  if (aAlphaModes=[]) or (AlphaMode in aAlphaModes) then begin
+   case AlphaMode of
+    TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
+     NonSkinnedPBRShader:=aNonSkinnedNormalPBRShader;
+     SkinnedPBRShader:=aSkinnedNormalPBRShader;
+     glDisable(GL_BLEND);
+    end;
+    TPasGLTF.TMaterial.TAlphaMode.Mask:begin
+     NonSkinnedPBRShader:=aNonSkinnedAlphaTestPBRShader;
+     SkinnedPBRShader:=aSkinnedAlphaTestPBRShader;
+     glDisable(GL_BLEND);
+    end;
+    TPasGLTF.TMaterial.TAlphaMode.Blend:begin
+     NonSkinnedPBRShader:=aNonSkinnedNormalPBRShader;
+     SkinnedPBRShader:=aSkinnedNormalPBRShader;
+     glEnable(GL_BLEND);
+     glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
+    end;
+    else begin
+     NonSkinnedPBRShader:=nil;
+     Assert(false);
+    end;
    end;
-   TPasGLTF.TMaterial.TAlphaMode.Mask:begin
-    NonSkinnedPBRShader:=aNonSkinnedAlphaTestPBRShader;
-    SkinnedPBRShader:=aSkinnedAlphaTestPBRShader;
-    glDisable(GL_BLEND);
-   end;
-   TPasGLTF.TMaterial.TAlphaMode.Blend:begin
-    NonSkinnedPBRShader:=aNonSkinnedNormalPBRShader;
-    SkinnedPBRShader:=aSkinnedNormalPBRShader;
-    glEnable(GL_BLEND);
-    glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
-   end;
-   else begin
-    NonSkinnedPBRShader:=nil;
-    Assert(false);
-   end;
-  end;
-  if assigned(NonSkinnedPBRShader) then begin
    for Index:=0 to Scene.Nodes.Count-1 do begin
     DrawNode(Scene.Nodes.Items[Index],AlphaMode);
    end;

@@ -1096,6 +1096,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      Blend=2
                     );
                    PAlphaMode=^TAlphaMode;
+                   TAlphaModes=set of TAlphaMode;
                    TTexture=class(TBaseExtensionsExtrasObject)
                     private
                      fIndex:TPasGLTFSizeInt;
