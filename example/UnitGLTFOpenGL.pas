@@ -1626,6 +1626,7 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                            const aScene:TPasGLTFSizeInt=-1);
 var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     CurrentShader:TShader;
+    CurrentSkinUniformBufferObjectUniformBufferObjectHandle:glUInt;
  procedure UseShader(const aShader:TShader);
  begin
   if CurrentShader<>aShader then begin
@@ -2059,14 +2060,17 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
       (fSkins[Node.Skin].SkinUniformBufferObjectIndex>=0) then begin
     Skin:=@fSkins[Node.Skin];
     SkinUniformBufferObject:=@fSkinUniformBufferObjects[Skin^.SkinUniformBufferObjectIndex];
+    if CurrentSkinUniformBufferObjectUniformBufferObjectHandle<>SkinUniformBufferObject^.UniformBufferObjectHandle then begin
+     CurrentSkinUniformBufferObjectUniformBufferObjectHandle:=SkinUniformBufferObject^.UniformBufferObjectHandle;
+     glBindBufferBase(GL_UNIFORM_BUFFER,
+                      TPBRShader.uboJointMatrices,
+                      SkinUniformBufferObject^.UniformBufferObjectHandle);
+    enD;
     PBRShader:=SkinnedPBRShader;
     UseShader(PBRShader);
-    glBindBufferBase(GL_UNIFORM_BUFFER,
-                     PBRShader.uJointMatrices,
-                     SkinUniformBufferObject^.UniformBufferObjectHandle);
+    glUniform1i(PBRShader.uJointOffset,Skin^.SkinUniformBufferObjectOffset);
     InverseMatrix:=MatrixInverse(Matrix);
     glUniformMatrix4fv(PBRShader.uInverseGlobalTransform,1,false,@InverseMatrix);
-    glUniform1i(PBRShader.uJointOffset,Skin^.SkinUniformBufferObjectOffset);
    end else begin
     PBRShader:=NonSkinnedPBRShader;
     UseShader(PBRShader);
@@ -2093,6 +2097,7 @@ begin
  end else begin
   Scene:=fDocument.Scenes[aScene];
  end;
+ CurrentSkinUniformBufferObjectUniformBufferObjectHandle:=0;
  glBindVertexArray(fVertexArrayHandle);
  glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fIndexBufferObjectHandle);

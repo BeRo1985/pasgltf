@@ -109,9 +109,11 @@ unit UnitOpenGLPBRShader;
 
 interface
 
-uses dglOpenGL,UnitOpenGLShader;
+uses SysUtils,Classes,dglOpenGL,UnitOpenGLShader;
 
 type TPBRShader=class(TShader)
+      public
+       const uboJointMatrices=2;
       public
        uBaseColorFactor:glInt;
        uBaseColorTexture:glInt;
@@ -131,7 +133,6 @@ type TPBRShader=class(TShader)
        uEnvMapTexture:glInt;
        uEnvMapMaxLevel:glInt;
        uAlphaCutOff:glInt;
-       uJointMatrices:glInt;
        uInverseGlobalTransform:glInt;
        uJointOffset:glInt;
        constructor Create(const aSkinned,aAlphaTest:boolean);
@@ -146,8 +147,8 @@ constructor TPBRShader.Create(const aSkinned,aAlphaTest:boolean);
 var f0,f1,f2,f3,f,v:ansistring;
 begin
  if aSkinned then begin
-  f0:='layout(std140) uniform JointMatrices {'+#13#10+
-      '  mat4 matrices[65];'+#13#10+
+  f0:='layout(std140, binding = '+IntToStr(uboJointMatrices)+') uniform uboJointMatrices {'+#13#10+
+      '  mat4 matrices[256];'+#13#10+ // 256 * 64 = 16kB, the minimum required UBO size in the OpenGL specification
       '} uJointMatrices;'+#13#10+
       'uniform mat4 uInverseGlobalTransform;'+#13#10+
       'uniform int uJointOffset;'+#13#10;
@@ -485,7 +486,7 @@ begin
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
  uEnvMapMaxLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapMaxLevel')));
  uAlphaCutOff:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uAlphaCutOff')));
- uJointMatrices:=glGetUniformBlockIndex(ProgramHandle,pointer(pansichar('JointMatrices')));
+//uboJointMatrices:=glGetUniformBlockIndex(ProgramHandle,pointer(pansichar('uboJointMatrices')));
  uInverseGlobalTransform:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uInverseGlobalTransform')));
  uJointOffset:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uJointOffset')));
  glUniform1i(uBaseColorTexture,0);
