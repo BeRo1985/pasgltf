@@ -173,7 +173,7 @@ var Event:TSDL_Event;
    glClearDepth(0.0);
    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
    ModelMatrix:=Matrix4x4Identity;
-   t:=0.0;//Time*0.125;
+   t:=Time*0.125;
    Center.x:=(GLTFOpenGL.StaticMinPosition[0]+GLTFOpenGL.StaticMaxPosition[0])*0.5;
    Center.y:=(GLTFOpenGL.StaticMinPosition[1]+GLTFOpenGL.StaticMaxPosition[1])*0.5;
    Center.z:=(GLTFOpenGL.StaticMinPosition[2]+GLTFOpenGL.StaticMaxPosition[2])*0.5;

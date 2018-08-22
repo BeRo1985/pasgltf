@@ -1836,6 +1836,15 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
                   Material.EmissiveFactor[2]);
       glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
      end;
+    end else begin
+     if aAlphaMode=TPasGLTF.TMaterial.TAlphaMode.Opaque then begin
+      Flags:=0;
+      glUniform1ui(PBRShader.uFlags,Flags);
+      glUniform4f(PBRShader.uBaseColorFactor,1.0,1.0,1.0,1.0);
+      glUniform4f(PBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,0.0,1.0,1.0,1.0);
+      glUniform3f(PBRShader.uEmissiveFactor,1.0,1.0,1.0);
+      glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
+     end;
     end;
    end;
   end;
@@ -1893,7 +1902,11 @@ var Index:TPasGLTFSizeInt;
     AlphaMode:TPasGLTF.TMaterial.TAlphaMode;
 begin
  if aScene<0 then begin
-  Scene:=fDocument.Scenes[fDocument.Scene];
+  if fDocument.Scene<0 then begin
+   Scene:=fDocument.Scenes[0];
+  end else begin
+   Scene:=fDocument.Scenes[fDocument.Scene];
+  end;
  end else begin
   Scene:=fDocument.Scenes[aScene];
  end;
