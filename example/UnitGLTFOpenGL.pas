@@ -1851,9 +1851,11 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
       Material:TPasGLTF.TMaterial;
       ExtraMaterial:PMaterial;
       Flags:TPasGLTFUInt32;
+      DoDraw:boolean;
   begin
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
+    DoDraw:=false;
     if (Primitive^.Material>=0) and (Primitive^.Material<fDocument.Materials.Count) then begin
      Flags:=0;
      Material:=fDocument.Materials[Primitive^.Material];
@@ -1951,7 +1953,7 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
                   Material.EmissiveFactor[0],
                   Material.EmissiveFactor[1],
                   Material.EmissiveFactor[2]);
-      glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
+      DoDraw:=true;
      end;
     end else begin
      if aAlphaMode=TPasGLTF.TMaterial.TAlphaMode.Opaque then begin
@@ -1960,8 +1962,14 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
       glUniform4f(PBRShader.uBaseColorFactor,1.0,1.0,1.0,1.0);
       glUniform4f(PBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,0.0,1.0,1.0,1.0);
       glUniform3f(PBRShader.uEmissiveFactor,1.0,1.0,1.0);
-      glDrawElements(Primitive^.PrimitiveMode,Primitive^.CountIndices,GL_UNSIGNED_INT,@PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
+      DoDraw:=true;
      end;
+    end;
+    if DoDraw then begin
+     glDrawElements(Primitive^.PrimitiveMode,
+                    Primitive^.CountIndices,
+                    GL_UNSIGNED_INT,
+                    @PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
     end;
    end;
   end;
