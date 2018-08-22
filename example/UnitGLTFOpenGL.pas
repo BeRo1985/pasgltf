@@ -2134,18 +2134,6 @@ begin
    end;
   end;
   if assigned(NonSkinnedPBRShader) then begin
-   UseShader(NonSkinnedPBRShader);
-   glUniform1i(NonSkinnedPBRShader.uBaseColorTexture,0);
-   glUniform1i(NonSkinnedPBRShader.uMetallicRoughnessTexture,1);
-   glUniform1i(NonSkinnedPBRShader.uNormalTexture,2);
-   glUniform1i(NonSkinnedPBRShader.uOcclusionTexture,3);
-   glUniform1i(NonSkinnedPBRShader.uEmissiveTexture,4);
-   UseShader(SkinnedPBRShader);
-   glUniform1i(SkinnedPBRShader.uBaseColorTexture,0);
-   glUniform1i(SkinnedPBRShader.uMetallicRoughnessTexture,1);
-   glUniform1i(SkinnedPBRShader.uNormalTexture,2);
-   glUniform1i(SkinnedPBRShader.uOcclusionTexture,3);
-   glUniform1i(SkinnedPBRShader.uEmissiveTexture,4);
    for Index:=0 to Scene.Nodes.Count-1 do begin
     DrawNode(Scene.Nodes.Items[Index],AlphaMode);
    end;

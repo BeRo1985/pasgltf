@@ -219,8 +219,6 @@ var Event:TSDL_Event;
     for PBRShader in PBRShaders do begin
      PBRShader.Bind;
      glUniform3fv(PBRShader.uLightDirection,1,@LightDirection);
-     glUniform1i(PBRShader.uBRDFLUTTexture,5);
-     glUniform1i(PBRShader.uEnvMapTexture,6);
      glUniform1i(PBRShader.uEnvMapMaxLevel,Min(EnvMapFBO.WorkMaxLevel,16));
      PBRShader.Unbind;
     end;

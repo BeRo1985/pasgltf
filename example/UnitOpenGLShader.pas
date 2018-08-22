@@ -209,8 +209,10 @@ begin
     raise EShaderException.Create('Unable to link shader');
    end;
 
+   glUseProgram(ProgramHandle);
    BindVariables;
-   
+   glUseProgram(0);
+
   except
    FragmentShader:='';
    VertexShader:='';

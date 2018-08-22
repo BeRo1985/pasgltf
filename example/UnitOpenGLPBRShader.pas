@@ -149,7 +149,7 @@ begin
   f0:='layout(std140) uniform JointMatrices {'+#13#10+
       '  mat4 matrices[65];'+#13#10+
       '} uJointMatrices;'+#13#10+
-      'uniform mat4 uInverseGlobalTransform;'+#13#10;
+      'uniform mat4 uInverseGlobalTransform;'+#13#10+
       'uniform int uJointOffset;'+#13#10;
   f1:='  mat4 skinMatrix = ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.x)]) * aWeights0.x) +'+#13#10+
       '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.y)]) * aWeights0.y) +'+#13#10+
@@ -488,6 +488,13 @@ begin
  uJointMatrices:=glGetUniformBlockIndex(ProgramHandle,pointer(pansichar('JointMatrices')));
  uInverseGlobalTransform:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uInverseGlobalTransform')));
  uJointOffset:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uJointOffset')));
+ glUniform1i(uBaseColorTexture,0);
+ glUniform1i(uMetallicRoughnessTexture,1);
+ glUniform1i(uNormalTexture,2);
+ glUniform1i(uOcclusionTexture,3);
+ glUniform1i(uEmissiveTexture,4);
+ glUniform1i(uBRDFLUTTexture,5);
+ glUniform1i(uEnvMapTexture,6);
 end;
 
 end.
