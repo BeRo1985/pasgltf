@@ -1823,6 +1823,7 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
 var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     CurrentShader:TShader;
     CurrentSkinUniformBufferObjectUniformBufferObjectHandle:glUInt;
+    CullFace,Blend:TPasGLTFInt32;
  procedure UseShader(const aShader:TShader);
  begin
   if CurrentShader<>aShader then begin
@@ -2129,11 +2130,40 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
                        ExtraMaterial^.UniformBufferObjectOffset,
                        SizeOf(TMaterial.TUniformBufferObjectData));
      if Material.AlphaMode=aAlphaMode then begin
+      case aAlphaMode of
+       TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
+        if Blend<>0 then begin
+         Blend:=0;
+         glDisable(GL_BLEND);
+        end;
+       end;
+       TPasGLTF.TMaterial.TAlphaMode.Mask:begin
+        if Blend<>0 then begin
+         Blend:=0;
+         glDisable(GL_BLEND);
+        end;
+       end;
+       TPasGLTF.TMaterial.TAlphaMode.Blend:begin
+        if Blend<>1 then begin
+         Blend:=1;
+         glEnable(GL_BLEND);
+         glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
+        end;
+       end;
+       else begin
+        Assert(false);
+       end;
+      end;
       if Material.DoubleSided then begin
-       glDisable(GL_CULL_FACE);
+       if CullFace<>0 then begin
+        CullFace:=0;
+        glDisable(GL_CULL_FACE);
+       end;
       end else begin
-       glEnable(GL_CULL_FACE);
-       glCullFace(GL_BACK);
+       if CullFace<>1 then begin
+        CullFace:=1;
+        glEnable(GL_CULL_FACE);
+       end;
       end;
       if ExtraMaterial^.PBRSpecularGlossiness.Used then begin
        if (ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fTextures)) then begin
@@ -2170,6 +2200,14 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
      end;
     end else begin
      if aAlphaMode=TPasGLTF.TMaterial.TAlphaMode.Opaque then begin
+      if Blend<>0 then begin
+       Blend:=0;
+       glDisable(GL_BLEND);
+      end;
+      if CullFace<>1 then begin
+       CullFace:=1;
+       glEnable(GL_CULL_FACE);
+      end;
       glBindBufferRange(GL_UNIFORM_BUFFER,
                         TPBRShader.uboMaterial,
                         fMaterialUniformBufferObjects[0].UniformBufferObjectHandle,
@@ -2268,6 +2306,9 @@ begin
   ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
  end;
  ProcessSkins;
+ glCullFace(GL_BACK);
+ CullFace:=-1;
+ Blend:=-1;
  CurrentShader:=nil;
  for AlphaMode:=TPasGLTF.TMaterial.TAlphaMode.Opaque to TPasGLTF.TMaterial.TAlphaMode.Blend do begin
   if (aAlphaModes=[]) or (AlphaMode in aAlphaModes) then begin
@@ -2275,18 +2316,14 @@ begin
     TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
      NonSkinnedPBRShader:=aNonSkinnedNormalPBRShader;
      SkinnedPBRShader:=aSkinnedNormalPBRShader;
-     glDisable(GL_BLEND);
     end;
     TPasGLTF.TMaterial.TAlphaMode.Mask:begin
      NonSkinnedPBRShader:=aNonSkinnedAlphaTestPBRShader;
      SkinnedPBRShader:=aSkinnedAlphaTestPBRShader;
-     glDisable(GL_BLEND);
     end;
     TPasGLTF.TMaterial.TAlphaMode.Blend:begin
      NonSkinnedPBRShader:=aNonSkinnedNormalPBRShader;
      SkinnedPBRShader:=aSkinnedNormalPBRShader;
-     glEnable(GL_BLEND);
-     glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
     end;
     else begin
      NonSkinnedPBRShader:=nil;
