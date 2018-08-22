@@ -164,7 +164,7 @@ begin
   f2:='';
   f3:='';
  end;
- v:='#version 330'+#13#10+
+ v:='#version 430'+#13#10+
     'layout(location = 0) in vec3 aPosition;'+#13#10+
     'layout(location = 1) in vec3 aNormal;'+#13#10+
     'layout(location = 2) in vec4 aTangent;'+#13#10+
@@ -202,7 +202,7 @@ begin
     '  vViewSpacePosition = viewSpacePosition.xyz / viewSpacePosition.w;'+#13#10+
     '  gl_Position = uFrameGlobals.projectionMatrix * viewSpacePosition;'+#13#10+
     '}'+#13#10;
- f:='#version 330'+#13#10+
+ f:='#version 430'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
     'in vec3 vViewSpacePosition;'+#13#10+
     'in vec2 vTexCoord0;'+#13#10+
