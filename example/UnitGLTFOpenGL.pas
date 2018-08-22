@@ -1724,12 +1724,15 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
 
  end;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
- var Index:TPasGLTFSizeInt;
-     Matrix:TPasGLTF.TMatrix4x4;
+ var Index,JointIndex:TPasGLTFSizeInt;
+     Matrix,InverseMatrix:TPasGLTF.TMatrix4x4;
      Node:TPasGLTF.TNode;
      ExtraNode:PNode;
      Translation,Scale:TVector3;
      Rotation:TVector4;
+     Skin:PSkin;
+     p:pointer;
+     pm:TPasGLTF.PMatrix4x4;
  begin
   Node:=fDocument.Nodes[aNodeIndex];
   ExtraNode:=@fNodes[aNodeIndex];
@@ -1758,6 +1761,28 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
             Node.Matrix),
            aMatrix);
   fNodes[aNodeIndex].Matrix:=Matrix;
+  if (Node.Mesh>=0) and (Node.Mesh<length(fMeshes)) then begin
+   if (aAnimationIndex>=0) and (Node.Skin>=0) and (Node.Skin<length(fSkins)) then begin
+    Skin:=@fSkins[Node.Skin];
+    InverseMatrix:=MatrixInverse(Matrix);
+    glBindBuffer(GL_UNIFORM_BUFFER,Skin^.UniformBufferObjectHandle);
+    p:=glMapBufferRange(GL_UNIFORM_BUFFER,0,length(Skin^.Matrices)*SizeOf(TPasGLTF.TMatrix4x4),GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
+    if assigned(p) then begin
+     pm:=p;
+     for JointIndex:=0 to length(Skin^.Joints)-1 do begin
+      pm^:=MatrixMul(
+            MatrixMul(
+             Skin^.InverseBindMatrices[JointIndex],
+             fNodes[Skin^.Joints[JointIndex]].Matrix),
+            InverseMatrix
+           );
+      inc(pm);
+     end;
+     glUnmapBuffer(GL_UNIFORM_BUFFER);
+    end;
+    glBindBuffer(GL_UNIFORM_BUFFER,0);
+   end;
+  end;
   for Index:=0 to Node.Children.Count-1 do begin
    ProcessNode(Node.Children.Items[Index],Matrix);
   end;
@@ -1884,13 +1909,11 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     end;
    end;
   end;
- var Index,JointIndex:TPasGLTFSizeInt;
+ var Index:TPasGLTFSizeInt;
      Matrix,ModelMatrix,ModelViewMatrix,ModelViewProjectionMatrix,
-     JointMatrix,InverseMatrix:TPasGLTF.TMatrix4x4;
+     JointMatrix:TPasGLTF.TMatrix4x4;
      Node:TPasGLTF.TNode;
      Skin:PSkin;
-     p:pointer;
-     pm:TPasGLTF.PMatrix4x4;
  begin
   Node:=fDocument.Nodes[aNodeIndex];
   Matrix:=fNodes[aNodeIndex].Matrix;
@@ -1902,23 +1925,6 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     Skin:=@fSkins[Node.Skin];
     PBRShader:=SkinnedPBRShader;
     UseShader(PBRShader);
-    InverseMatrix:=MatrixInverse(Matrix);
-    glBindBuffer(GL_UNIFORM_BUFFER,Skin^.UniformBufferObjectHandle);
-    p:=glMapBufferRange(GL_UNIFORM_BUFFER,0,length(Skin^.Matrices)*SizeOf(TPasGLTF.TMatrix4x4),GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
-    if assigned(p) then begin
-     pm:=p;
-     for JointIndex:=0 to length(Skin^.Joints)-1 do begin
-      pm^:=MatrixMul(
-            MatrixMul(
-             Skin^.InverseBindMatrices[JointIndex],
-             fNodes[Skin^.Joints[JointIndex]].Matrix),
-            InverseMatrix
-           );
-      inc(pm);
-     end;
-     glUnmapBuffer(GL_UNIFORM_BUFFER);
-    end;
-    glBindBuffer(GL_UNIFORM_BUFFER,0);
     glBindBufferBase(GL_UNIFORM_BUFFER,PBRShader.uJointMatrices,Skin^.UniformBufferObjectHandle);
    end else begin
     PBRShader:=NonSkinnedPBRShader;
