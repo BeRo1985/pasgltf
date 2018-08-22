@@ -115,7 +115,7 @@ type TPBRShader=class(TShader)
       public
        const uboFrameGlobals=0;
              uboMaterial=1;
-             uboJointMatrices=2;
+             ssboJointMatrices=2;
       public
        uBaseColorTexture:glInt;
        uMetallicRoughnessTexture:glInt;
@@ -141,20 +141,20 @@ constructor TPBRShader.Create(const aSkinned,aAlphaTest:boolean);
 var f0,f1,f2,f3,f,v:ansistring;
 begin
  if aSkinned then begin
-  f0:='layout(std140, binding = '+IntToStr(uboJointMatrices)+') uniform uboJointMatrices {'+#13#10+
-      '  mat4 matrices[256];'+#13#10+ // 256 * 64 = 16kB, the minimum required UBO size in the OpenGL specification
-      '} uJointMatrices;'+#13#10+
+  f0:='layout(std140, binding = '+IntToStr(ssboJointMatrices)+') buffer ssboJointMatrices {'+#13#10+
+      '  mat4 jointMatrices[];'+#13#10+
+      '};'+#13#10+
       'uniform mat4 uInverseGlobalTransform;'+#13#10+
       'uniform int uJointOffset;'+#13#10;
-  f1:='  mat4 skinMatrix = ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.x)]) * aWeights0.x) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.y)]) * aWeights0.y) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.z)]) * aWeights0.z) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.w)]) * aWeights0.w);'+#13#10+
+  f1:='  mat4 skinMatrix = ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints0.x)]) * aWeights0.x) +'+#13#10+
+      '                    ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints0.y)]) * aWeights0.y) +'+#13#10+
+      '                    ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints0.z)]) * aWeights0.z) +'+#13#10+
+      '                    ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints0.w)]) * aWeights0.w);'+#13#10+
       '  if(any(not(equal(aWeights1, vec4(0.0))))){'+#13#10+
-      '    skinMatrix += ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.x)]) * aWeights1.x) +'+#13#10+
-      '                  ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.y)]) * aWeights1.y) +'+#13#10+
-      '                  ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.z)]) * aWeights1.z) +'+#13#10+
-      '                  ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.w)]) * aWeights1.w);'+#13#10+
+      '    skinMatrix += ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints1.x)]) * aWeights1.x) +'+#13#10+
+      '                  ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints1.y)]) * aWeights1.y) +'+#13#10+
+      '                  ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints1.z)]) * aWeights1.z) +'+#13#10+
+      '                  ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints1.w)]) * aWeights1.w);'+#13#10+
       '  }'+#13#10;
   f2:=' * skinMatrix';
   f3:=' * transpose(inverse(mat3(skinMatrix)))';

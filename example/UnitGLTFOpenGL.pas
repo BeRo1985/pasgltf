@@ -158,11 +158,10 @@ type EGLTFOpenGL=class(Exception);
              InverseBindMatrices:TPasGLTF.TMatrix4x4DynamicArray;
              Matrices:TPasGLTF.TMatrix4x4DynamicArray;
              Joints:TPasGLTFSizeIntDynamicArray;
-//           UniformBufferObjectHandle:glUInt;
-             SkinUniformBufferObjectIndex:TPasGLTFSizeInt;
-             SkinUniformBufferObjectOffset:TPasGLTFSizeInt;
-             SkinUniformBufferObjectByteOffset:TPasGLTFSizeInt;
-             SkinUniformBufferObjectByteSize:TPasGLTFSizeInt;
+             SkinShaderStorageBufferObjectIndex:TPasGLTFSizeInt;
+             SkinShaderStorageBufferObjectOffset:TPasGLTFSizeInt;
+             SkinShaderStorageBufferObjectByteOffset:TPasGLTFSizeInt;
+             SkinShaderStorageBufferObjectByteSize:TPasGLTFSizeInt;
             end;
             PSkin=^TSkin;
             TSkins=array of TSkin;
@@ -189,15 +188,15 @@ type EGLTFOpenGL=class(Exception);
             end;
             PTexture=^TTexture;
             TTextures=array of TTexture;
-            TSkinUniformBufferObject=record
+            TSkinShaderStorageBufferObject=record
              Count:TPasGLTFSizeInt;
              Size:TPasGLTFSizeInt;
-             UniformBufferObjectHandle:glUInt;
+             ShaderStorageBufferObjectHandle:glUInt;
              Skins:TPasGLTFSizeIntDynamicArray;
              CountSkins:TPasGLTFSizeInt;
             end;
-            PSkinUniformBufferObject=^TSkinUniformBufferObject;
-            TSkinUniformBufferObjects=array of TSkinUniformBufferObject;
+            PSkinShaderStorageBufferObject=^TSkinShaderStorageBufferObject;
+            TSkinShaderStorageBufferObjects=array of TSkinShaderStorageBufferObject;
             TMorphTargetVertex=packed record
              Position:TPasGLTF.TVector4;
              Normal:TPasGLTF.TVector4;
@@ -232,7 +231,7 @@ type EGLTFOpenGL=class(Exception);
        fSkins:TSkins;
        fNodes:TNodes;
        fTextures:TTextures;
-       fSkinUniformBufferObjects:TSkinUniformBufferObjects;
+       fSkinShaderStorageBufferObjects:TSkinShaderStorageBufferObjects;
        fMaterialUniformBufferObjects:TMaterialUniformBufferObjects;
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
@@ -706,7 +705,7 @@ begin
  fSkins:=nil;
  fNodes:=nil;
  fTextures:=nil;
- fSkinUniformBufferObjects:=nil;
+ fSkinShaderStorageBufferObjects:=nil;
  fMaterialUniformBufferObjects:=nil;
 end;
 
@@ -1331,7 +1330,7 @@ procedure TGLTFOpenGL.InitializeResources;
 
    DestinationSkin^.Skeleton:=SourceSkin.Skeleton;
 
-   DestinationSkin^.SkinUniformBufferObjectIndex:=-1;
+   DestinationSkin^.SkinShaderStorageBufferObjectIndex:=-1;
 
    if SourceSkin.InverseBindMatrices>=0 then begin
     DestinationSkin^.InverseBindMatrices:=fDocument.Accessors[SourceSkin.InverseBindMatrices].DecodeAsMatrix4x4Array(false);
@@ -1365,52 +1364,52 @@ procedure TGLTFOpenGL.InitializeResources;
  begin
   SetLength(fTextures,fDocument.Textures.Count);
  end;
- procedure InitializeSkinUniformBufferObjects;
- var Index,CountMatrices,CountSkinUniformBufferObjects:TPasGLTFSizeInt;
+ procedure InitializeSkinShaderStorageBufferObjects;
+ var Index,CountMatrices,CountSkinShaderStorageBufferObjects:TPasGLTFSizeInt;
      SourceSkin:TPasGLTF.TSkin;
      DestinationSkin:PSkin;
-     SkinUniformBufferObject:PSkinUniformBufferObject;
+     SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
  begin
-  CountSkinUniformBufferObjects:=0;
+  CountSkinShaderStorageBufferObjects:=0;
   for Index:=0 to fDocument.Skins.Count-1 do begin
    SourceSkin:=fDocument.Skins[Index];
    DestinationSkin:=@fSkins[Index];
    CountMatrices:=SourceSkin.Joints.Count;
-   if (CountSkinUniformBufferObjects=0) or
-      ((fSkinUniformBufferObjects[CountSkinUniformBufferObjects-1].Size+(CountMatrices*SizeOf(TPasGLTF.TMatrix4x4)))>16384) then begin
-    if length(fSkinUniformBufferObjects)<=CountSkinUniformBufferObjects then begin
-     SetLength(fSkinUniformBufferObjects,(CountSkinUniformBufferObjects+1)*2);
+   if (CountSkinShaderStorageBufferObjects=0) or
+      ((fSkinShaderStorageBufferObjects[CountSkinShaderStorageBufferObjects-1].Size+(CountMatrices*SizeOf(TPasGLTF.TMatrix4x4)))>134217728) then begin // 128MB = the minimum required SSBO size in the OpenGL specification
+    if length(fSkinShaderStorageBufferObjects)<=CountSkinShaderStorageBufferObjects then begin
+     SetLength(fSkinShaderStorageBufferObjects,(CountSkinShaderStorageBufferObjects+1)*2);
     end;
-    DestinationSkin^.SkinUniformBufferObjectIndex:=CountSkinUniformBufferObjects;
-    DestinationSkin^.SkinUniformBufferObjectOffset:=0;
-    DestinationSkin^.SkinUniformBufferObjectByteOffset:=DestinationSkin^.SkinUniformBufferObjectOffset*SizeOf(TPasGLTF.TMatrix4x4);
-    DestinationSkin^.SkinUniformBufferObjectByteSize:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
-    SkinUniformBufferObject:=@fSkinUniformBufferObjects[CountSkinUniformBufferObjects];
-    inc(CountSkinUniformBufferObjects);
-    SkinUniformBufferObject^.Count:=CountMatrices;
-    SkinUniformBufferObject^.Size:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
-    SkinUniformBufferObject^.CountSkins:=1;
-    SetLength(SkinUniformBufferObject^.Skins,1);
-    SkinUniformBufferObject^.Skins[0]:=Index;
+    DestinationSkin^.SkinShaderStorageBufferObjectIndex:=CountSkinShaderStorageBufferObjects;
+    DestinationSkin^.SkinShaderStorageBufferObjectOffset:=0;
+    DestinationSkin^.SkinShaderStorageBufferObjectByteOffset:=DestinationSkin^.SkinShaderStorageBufferObjectOffset*SizeOf(TPasGLTF.TMatrix4x4);
+    DestinationSkin^.SkinShaderStorageBufferObjectByteSize:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
+    SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[CountSkinShaderStorageBufferObjects];
+    inc(CountSkinShaderStorageBufferObjects);
+    SkinShaderStorageBufferObject^.Count:=CountMatrices;
+    SkinShaderStorageBufferObject^.Size:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
+    SkinShaderStorageBufferObject^.CountSkins:=1;
+    SetLength(SkinShaderStorageBufferObject^.Skins,1);
+    SkinShaderStorageBufferObject^.Skins[0]:=Index;
    end else begin
-    SkinUniformBufferObject:=@fSkinUniformBufferObjects[CountSkinUniformBufferObjects-1];
-    DestinationSkin^.SkinUniformBufferObjectIndex:=CountSkinUniformBufferObjects-1;
-    DestinationSkin^.SkinUniformBufferObjectOffset:=SkinUniformBufferObject^.Count;
-    DestinationSkin^.SkinUniformBufferObjectByteOffset:=DestinationSkin^.SkinUniformBufferObjectOffset*SizeOf(TPasGLTF.TMatrix4x4);
-    DestinationSkin^.SkinUniformBufferObjectByteSize:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
-    inc(SkinUniformBufferObject^.Count,CountMatrices);
-    inc(SkinUniformBufferObject^.Size,CountMatrices*SizeOf(TPasGLTF.TMatrix4x4));
-    if length(SkinUniformBufferObject^.Skins)<=SkinUniformBufferObject^.CountSkins then begin
-     SetLength(SkinUniformBufferObject^.Skins,(SkinUniformBufferObject^.CountSkins+1)*2);
+    SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[CountSkinShaderStorageBufferObjects-1];
+    DestinationSkin^.SkinShaderStorageBufferObjectIndex:=CountSkinShaderStorageBufferObjects-1;
+    DestinationSkin^.SkinShaderStorageBufferObjectOffset:=SkinShaderStorageBufferObject^.Count;
+    DestinationSkin^.SkinShaderStorageBufferObjectByteOffset:=DestinationSkin^.SkinShaderStorageBufferObjectOffset*SizeOf(TPasGLTF.TMatrix4x4);
+    DestinationSkin^.SkinShaderStorageBufferObjectByteSize:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
+    inc(SkinShaderStorageBufferObject^.Count,CountMatrices);
+    inc(SkinShaderStorageBufferObject^.Size,CountMatrices*SizeOf(TPasGLTF.TMatrix4x4));
+    if length(SkinShaderStorageBufferObject^.Skins)<=SkinShaderStorageBufferObject^.CountSkins then begin
+     SetLength(SkinShaderStorageBufferObject^.Skins,(SkinShaderStorageBufferObject^.CountSkins+1)*2);
     end;
-    SkinUniformBufferObject^.Skins[SkinUniformBufferObject^.CountSkins]:=Index;
-    inc(SkinUniformBufferObject^.CountSkins);
+    SkinShaderStorageBufferObject^.Skins[SkinShaderStorageBufferObject^.CountSkins]:=Index;
+    inc(SkinShaderStorageBufferObject^.CountSkins);
    end;
   end;
-  SetLength(fSkinUniformBufferObjects,CountSkinUniformBufferObjects);
-  for Index:=0 to length(fSkinUniformBufferObjects)-1 do begin
-   SkinUniformBufferObject:=@fSkinUniformBufferObjects[Index];
-   SetLength(SkinUniformBufferObject^.Skins,SkinUniformBufferObject^.CountSkins);
+  SetLength(fSkinShaderStorageBufferObjects,CountSkinShaderStorageBufferObjects);
+  for Index:=0 to length(fSkinShaderStorageBufferObjects)-1 do begin
+   SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[Index];
+   SetLength(SkinShaderStorageBufferObject^.Skins,SkinShaderStorageBufferObject^.CountSkins);
   end;
  end;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
@@ -1461,7 +1460,7 @@ begin
   InitializeMeshes;
   InitializeSkins;
   InitializeNodes;
-  InitializeSkinUniformBufferObjects;
+  InitializeSkinShaderStorageBufferObjects;
   begin
    fStaticMinPosition[0]:=Infinity;
    fStaticMinPosition[1]:=Infinity;
@@ -1489,7 +1488,7 @@ begin
   fSkins:=nil;
   fNodes:=nil;
   fTextures:=nil;
-  fSkinUniformBufferObjects:=nil;
+  fSkinShaderStorageBufferObjects:=nil;
  end;
 end;
 
@@ -1635,16 +1634,16 @@ var AllVertices:TAllVertices;
   end;
   glBindTexture(GL_TEXTURE_2D,0);
  end;
- procedure CreateSkinUniformBufferObjects;
+ procedure CreateSkinShaderStorageBufferObjects;
  var Index:TPasGLTFSizeInt;
-     SkinUniformBufferObject:PSkinUniformBufferObject;
+     SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
  begin
-  for Index:=0 to length(fSkinUniformBufferObjects)-1 do begin
-   SkinUniformBufferObject:=@fSkinUniformBufferObjects[Index];
-   glGenBuffers(1,@SkinUniformBufferObject^.UniformBufferObjectHandle);
-   glBindBuffer(GL_UNIFORM_BUFFER,SkinUniformBufferObject^.UniformBufferObjectHandle);
-   glBufferData(GL_UNIFORM_BUFFER,SkinUniformBufferObject^.Size,nil,GL_DYNAMIC_DRAW);
-   glBindBuffer(GL_UNIFORM_BUFFER,0);
+  for Index:=0 to length(fSkinShaderStorageBufferObjects)-1 do begin
+   SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[Index];
+   glGenBuffers(1,@SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+   glBindBuffer(GL_SHADER_STORAGE_BUFFER,SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+   glBufferData(GL_SHADER_STORAGE_BUFFER,SkinShaderStorageBufferObject^.Size,nil,GL_DYNAMIC_DRAW);
+   glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
   end;
  end;
  procedure CreateFrameGlobalsUniformBufferObject;
@@ -1742,7 +1741,7 @@ begin
     CollectVerticesAndIndicesFromMeshes;
     CreateOpenGLObjects;
     LoadTextures;
-    CreateSkinUniformBufferObjects;
+    CreateSkinShaderStorageBufferObjects;
     CreateFrameGlobalsUniformBufferObject;
     CreateMaterialUniformBufferObjects;
    finally
@@ -1773,14 +1772,14 @@ procedure TGLTFOpenGL.UnloadResources;
    end;
   end;
  end;
- procedure DestroySkinUniformBufferObjects;
+ procedure DestroySkinShaderStorageBufferObjects;
  var Index:TPasGLTFSizeInt;
-     SkinUniformBufferObject:PSkinUniformBufferObject;
+     SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
  begin
-  for Index:=0 to length(fSkinUniformBufferObjects)-1 do begin
-   SkinUniformBufferObject:=@fSkinUniformBufferObjects[Index];
-   if SkinUniformBufferObject^.UniformBufferObjectHandle>0 then begin
-    glDeleteBuffers(1,@SkinUniformBufferObject^.UniformBufferObjectHandle);
+  for Index:=0 to length(fSkinShaderStorageBufferObjects)-1 do begin
+   SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[Index];
+   if SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle>0 then begin
+    glDeleteBuffers(1,@SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
    end;
   end;
  end;
@@ -1803,7 +1802,7 @@ begin
   fUploaded:=false;
   DeleteOpenGLObjects;
   UnloadTextures;
-  DestroySkinUniformBufferObjects;
+  DestroySkinShaderStorageBufferObjects;
   DestroyFrameGlobalsUniformBufferObject;
   DestroyMaterialUniformBufferObjects;
  end;
@@ -1822,7 +1821,7 @@ procedure TGLTFOpenGL.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                            const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
 var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     CurrentShader:TShader;
-    CurrentSkinUniformBufferObjectUniformBufferObjectHandle:glUInt;
+    CurrentSkinShaderStorageBufferObjectHandle:glUInt;
     CullFace,Blend:TPasGLTFInt32;
  procedure UseShader(const aShader:TShader);
  begin
@@ -2059,12 +2058,12 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
   end;
  end;
  procedure ProcessSkins;
-  procedure ProcessSkinUniformBufferObjects;
-   procedure ProcessSkinUniformBufferObject(const aSkinUniformBufferObject:PSkinUniformBufferObject);
+  procedure ProcessSkinShaderStorageBufferObjects;
+   procedure ProcessSkinShaderStorageBufferObject(const aSkinShaderStorageBufferObject:PSkinShaderStorageBufferObject);
     procedure ProcessSkin(const aSkin:PSkin;const aData:pointer);
     var JointIndex:TPasGLTFSizeInt;
         Skin:PSkin;
-        SkinUniformBufferObject:PSkinUniformBufferObject;
+        SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
         UniformBufferObjectMatrix:TPasGLTF.PMatrix4x4;
     begin
      UniformBufferObjectMatrix:=aData;
@@ -2079,35 +2078,35 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
        Skin:PSkin;
    begin
     Used:=false;
-    for Index:=0 to length(aSkinUniformBufferObject^.Skins)-1 do begin
-     if fSkins[aSkinUniformBufferObject^.Skins[Index]].Used then begin
+    for Index:=0 to length(aSkinShaderStorageBufferObject^.Skins)-1 do begin
+     if fSkins[aSkinShaderStorageBufferObject^.Skins[Index]].Used then begin
       Used:=true;
       break;
      end;
     end;
     if Used then begin
-     glBindBuffer(GL_UNIFORM_BUFFER,aSkinUniformBufferObject^.UniformBufferObjectHandle);
-     Data:=glMapBufferRange(GL_UNIFORM_BUFFER,0,aSkinUniformBufferObject^.Size,GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
+     glBindBuffer(GL_SHADER_STORAGE_BUFFER,aSkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+     Data:=glMapBufferRange(GL_SHADER_STORAGE_BUFFER,0,aSkinShaderStorageBufferObject^.Size,GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
      if assigned(Data) then begin
-      for Index:=0 to length(aSkinUniformBufferObject^.Skins)-1 do begin
-       Skin:=@fSkins[aSkinUniformBufferObject^.Skins[Index]];
+      for Index:=0 to length(aSkinShaderStorageBufferObject^.Skins)-1 do begin
+       Skin:=@fSkins[aSkinShaderStorageBufferObject^.Skins[Index]];
        if Skin^.Used then begin
-        ProcessSkin(Skin,@PPasGLTFUint8Array(Data)^[Skin^.SkinUniformBufferObjectByteOffset]);
+        ProcessSkin(Skin,@PPasGLTFUint8Array(Data)^[Skin^.SkinShaderStorageBufferObjectByteOffset]);
        end;
       end;
-      glUnmapBuffer(GL_UNIFORM_BUFFER);
+      glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
      end;
     end;
    end;
   var Index:TPasGLTFSizeInt;
   begin
-   for Index:=0 to length(fSkinUniformBufferObjects)-1 do begin
-    ProcessSkinUniformBufferObject(@fSkinUniformBufferObjects[Index]);
+   for Index:=0 to length(fSkinShaderStorageBufferObjects)-1 do begin
+    ProcessSkinShaderStorageBufferObject(@fSkinShaderStorageBufferObjects[Index]);
    end;
-   glBindBuffer(GL_UNIFORM_BUFFER,0);
+   glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
   end;
  begin
-  ProcessSkinUniformBufferObjects;
+  ProcessSkinShaderStorageBufferObjects;
  end;
  procedure DrawNode(const aNodeIndex:TPasGLTFSizeInt;const aAlphaMode:TPasGLTF.TMaterial.TAlphaMode);
  var PBRShader:TPBRShader;
@@ -2228,7 +2227,7 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
      Matrix,ModelMatrix,InverseMatrix:TPasGLTF.TMatrix4x4;
      Node:TPasGLTF.TNode;
      Skin:PSkin;
-     SkinUniformBufferObject:PSkinUniformBufferObject;
+     SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
  begin
   Node:=fDocument.Nodes[aNodeIndex];
   Matrix:=fNodes[aNodeIndex].Matrix;
@@ -2236,20 +2235,20 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
    ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
    if (aAnimationIndex>=0) and
       ((Node.Skin>=0) and (Node.Skin<length(fSkins))) and
-      (fSkins[Node.Skin].SkinUniformBufferObjectIndex>=0) then begin
+      (fSkins[Node.Skin].SkinShaderStorageBufferObjectIndex>=0) then begin
     Skin:=@fSkins[Node.Skin];
-    SkinUniformBufferObject:=@fSkinUniformBufferObjects[Skin^.SkinUniformBufferObjectIndex];
-    if CurrentSkinUniformBufferObjectUniformBufferObjectHandle<>SkinUniformBufferObject^.UniformBufferObjectHandle then begin
-     CurrentSkinUniformBufferObjectUniformBufferObjectHandle:=SkinUniformBufferObject^.UniformBufferObjectHandle;
-     glBindBufferBase(GL_UNIFORM_BUFFER,
-                      TPBRShader.uboJointMatrices,
-                      SkinUniformBufferObject^.UniformBufferObjectHandle);
+    SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[Skin^.SkinShaderStorageBufferObjectIndex];
+    if CurrentSkinShaderStorageBufferObjectHandle<>SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle then begin
+     CurrentSkinShaderStorageBufferObjectHandle:=SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle;
+     glBindBufferBase(GL_SHADER_STORAGE_BUFFER,
+                      TPBRShader.ssboJointMatrices,
+                      SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
     enD;
     PBRShader:=SkinnedPBRShader;
     UseShader(PBRShader);
     InverseMatrix:=MatrixInverse(Matrix);
     glUniformMatrix4fv(PBRShader.uInverseGlobalTransform,1,false,@InverseMatrix);
-    glUniform1i(PBRShader.uJointOffset,Skin^.SkinUniformBufferObjectOffset);
+    glUniform1i(PBRShader.uJointOffset,Skin^.SkinShaderStorageBufferObjectOffset);
    end else begin
     PBRShader:=NonSkinnedPBRShader;
     UseShader(PBRShader);
@@ -2288,7 +2287,7 @@ begin
  end else begin
   Scene:=fDocument.Scenes[aScene];
  end;
- CurrentSkinUniformBufferObjectUniformBufferObjectHandle:=0;
+ CurrentSkinShaderStorageBufferObjectHandle:=0;
  UpdateFrameGlobalsUniformBufferObject;
  glBindVertexArray(fVertexArrayHandle);
  glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
