@@ -99,6 +99,22 @@ type EGLTFOpenGL=class(Exception);
                     SpecularGlossinessTexture:TTexture;
                    end;
                    PPBRSpecularGlossiness=^TPBRSpecularGlossiness;
+                   TUniformBufferObjectData=packed record // 128 bytes
+                    uBaseColorFactor:TPasGLTF.TVector4;
+                    uSpecularFactor:TPasGLTF.TVector4; // actually TVector3, but for easier and more convenient alignment reasons a TVector4
+                    uEmissiveFactor:TPasGLTF.TVector4; // actually TVector3, but for easier and more convenient alignment reasons a TVector4
+                    uMetallicRoughnessNormalScaleOcclusionStrengthFactor:TPasGLTF.TVector4;
+                    // uvec4 uAlphaCutOffFlags begin
+                     uAlphaCutOff:TPasGLTFFloat;
+                     uFlags:TPasGLTFUInt32;
+                     uReversed0:TPasGLTFUInt32;
+                     uReversed1:TPasGLTFUInt32;
+                    // uvec4 uAlphaCutOffFlags end
+                    uReversed2:TPasGLTF.TInt32Vector4;
+                    uReversed3:TPasGLTF.TInt32Vector4;
+                    uReversed4:TPasGLTF.TInt32Vector4;
+                   end;
+                   PUniformBufferObjectData=^TUniformBufferObjectData;
              public
               PBRSpecularGlossiness:TPBRSpecularGlossiness;
             end;
