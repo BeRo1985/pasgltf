@@ -1898,7 +1898,7 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
    ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
    ModelViewMatrix:=MatrixMul(ModelMatrix,aViewMatrix);
    ModelViewProjectionMatrix:=MatrixMul(ModelViewMatrix,aProjectionMatrix);
-   if (Node.Skin>=0) and (Node.Skin<length(fSkins)) then begin
+   if (aAnimationIndex>=0) and (Node.Skin>=0) and (Node.Skin<length(fSkins)) then begin
     Skin:=@fSkins[Node.Skin];
     PBRShader:=SkinnedPBRShader;
     UseShader(PBRShader);

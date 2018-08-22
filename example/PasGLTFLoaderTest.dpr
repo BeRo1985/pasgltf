@@ -164,6 +164,7 @@ var Event:TSDL_Event;
      t:double;
      v:TPasGLTFFloat;
      PBRShader:TPBRShader;
+     t0,t1:int64;
  begin
   begin
    glBindFrameBuffer(GL_FRAMEBUFFER,HDRSceneFBO.FBOs[0]);
@@ -223,6 +224,7 @@ var Event:TSDL_Event;
      glUniform1i(PBRShader.uEnvMapMaxLevel,Min(EnvMapFBO.WorkMaxLevel,16));
      PBRShader.Unbind;
     end;
+    t0:=SDL_GetPerformanceCounter;
     GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
                     TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
                     TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
@@ -232,6 +234,8 @@ var Event:TSDL_Event;
                     PBRShaders[true,true],
                     0,
                     Time);
+    t1:=SDL_GetPerformanceCounter;
+    write(#13,(t1-t0)/SDL_GetPerformanceFrequency:1:5);
    end;
    glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);
   end;
