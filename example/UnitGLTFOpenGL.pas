@@ -47,6 +47,7 @@ type EGLTFOpenGL=class(Exception);
                      OutputScalarArray:TPasGLTFFloatDynamicArray;
                      OutputVector3Array:TPasGLTF.TVector3DynamicArray;
                      OutputVector4Array:TPasGLTF.TVector4DynamicArray;
+                     Last:TPasGLTFSizeInt;
                    end;
                    PChannel=^TChannel;
                    TChannels=array of TChannel;
@@ -679,6 +680,8 @@ procedure TGLTFOpenGL.InitializeResources;
     SourceAnimationChannel:=SourceAnimation.Channels[ChannelIndex];
 
     DestinationAnimationChannel:=@DestinationAnimation^.Channels[ChannelIndex];
+
+    DestinationAnimationChannel^.Last:=-1;
 
     DestinationAnimationChannel^.Node:=SourceAnimationChannel.Target.Node;
 
@@ -1557,10 +1560,10 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
    n:=((y3-y2)-y0)+y1;
    result:=(n*t*t2)+(((y0-y1)-n)*t2)+((y2-y0)*t)+y1;
   end;
- var ChannelIndex,InputTimeArrayIndex:TPasGLTFSizeInt;
+ var ChannelIndex,InputTimeArrayIndex,l,r,m:TPasGLTFSizeInt;
      Animation:PAnimation;
      AnimationChannel:TAnimation.PChannel;
-     Time,Factor,Scalar:TPasGLTFFloat;
+     Time,Factor,Scalar,Value:TPasGLTFFloat;
      Vector3:TPasGLTF.TVector3;
      Vector4:TPasGLTF.TVector4;
      Vector3s:array[-1..2] of TPasGLTF.PVector3;
@@ -1581,12 +1584,38 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     Time:=AnimationChannel^.InputTimeArray[TimeIndices[1]];
     Time:=aTime-(floor(aTime/Time)*Time);
 
-    for InputTimeArrayIndex:=1 to length(AnimationChannel^.InputTimeArray)-1 do begin
+    if (AnimationChannel^.Last<0) or (Time<AnimationChannel^.InputTimeArray[AnimationChannel.Last]) then begin
+     l:=0;
+    end else begin
+     l:=AnimationChannel^.Last;
+    end;
+
+    r:=length(AnimationChannel^.InputTimeArray);
+    if ((l+1)<r) and (Time<AnimationChannel^.InputTimeArray[l+1]) then begin
+     inc(l);
+    end else begin
+     while l<r do begin
+      m:=l+((r-l) shr 1);
+      Value:=AnimationChannel^.InputTimeArray[m];
+      if Value<=Time then begin
+       l:=m+1;
+       if Time<AnimationChannel^.InputTimeArray[l] then begin
+        break;
+       end;
+      end else begin
+       r:=m;
+      end;
+     end;
+    end;
+
+    for InputTimeArrayIndex:=Min(Max(l,0),length(AnimationChannel^.InputTimeArray)-1) to length(AnimationChannel^.InputTimeArray)-1 do begin
      if AnimationChannel^.InputTimeArray[InputTimeArrayIndex]>Time then begin
       TimeIndices[1]:=InputTimeArrayIndex;
       break;
      end;
     end;
+
+    AnimationChannel^.Last:=TimeIndices[1];
 
     if TimeIndices[1]>=0 then begin
 
