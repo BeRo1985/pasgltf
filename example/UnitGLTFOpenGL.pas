@@ -2053,8 +2053,7 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
    end;
   end;
  var Index:TPasGLTFSizeInt;
-     Matrix,ModelMatrix,ModelViewMatrix,ModelViewProjectionMatrix,
-     InverseMatrix:TPasGLTF.TMatrix4x4;
+     Matrix,ModelMatrix,InverseMatrix:TPasGLTF.TMatrix4x4;
      Node:TPasGLTF.TNode;
      Skin:PSkin;
      SkinUniformBufferObject:PSkinUniformBufferObject;
@@ -2063,8 +2062,6 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
   Matrix:=fNodes[aNodeIndex].Matrix;
   if (Node.Mesh>=0) and (Node.Mesh<length(fMeshes)) then begin
    ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
-   ModelViewMatrix:=MatrixMul(ModelMatrix,aViewMatrix);
-   ModelViewProjectionMatrix:=MatrixMul(ModelViewMatrix,aProjectionMatrix);
    if (aAnimationIndex>=0) and
       ((Node.Skin>=0) and (Node.Skin<length(fSkins))) and
       (fSkins[Node.Skin].SkinUniformBufferObjectIndex>=0) then begin
@@ -2078,9 +2075,9 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     enD;
     PBRShader:=SkinnedPBRShader;
     UseShader(PBRShader);
-    glUniform1i(PBRShader.uJointOffset,Skin^.SkinUniformBufferObjectOffset);
     InverseMatrix:=MatrixInverse(Matrix);
     glUniformMatrix4fv(PBRShader.uInverseGlobalTransform,1,false,@InverseMatrix);
+    glUniform1i(PBRShader.uJointOffset,Skin^.SkinUniformBufferObjectOffset);
    end else begin
     PBRShader:=NonSkinnedPBRShader;
     UseShader(PBRShader);
