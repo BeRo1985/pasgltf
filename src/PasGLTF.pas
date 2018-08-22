@@ -3816,7 +3816,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
        raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
       end;
       ProcessExtensionsAndExtras(TPasJSONItemObject(JSONItem),result.fPerspective);
-      result.fPerspective.fAspectRatio:=TPasJSON.GetNumber(Required(TPasJSONItemObject(JSONItem).Properties['aspectRatio'],'aspectRatio'),result.fPerspective.fAspectRatio);
+      result.fPerspective.fAspectRatio:=TPasJSON.GetNumber(TPasJSONItemObject(JSONItem).Properties['aspectRatio'],result.fPerspective.fAspectRatio);
       result.fPerspective.fYFov:=TPasJSON.GetNumber(Required(TPasJSONItemObject(JSONItem).Properties['yfov'],'yfov'),result.fPerspective.fYFov);
       result.fPerspective.fZNear:=TPasJSON.GetNumber(Required(TPasJSONItemObject(JSONItem).Properties['znear'],'znear'),result.fPerspective.fZNear);
       result.fPerspective.fZFar:=TPasJSON.GetNumber(Required(TPasJSONItemObject(JSONItem).Properties['zfar'],'zfar'),result.fPerspective.fZFar);

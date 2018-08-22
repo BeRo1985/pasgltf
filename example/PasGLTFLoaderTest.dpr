@@ -350,10 +350,8 @@ begin
   ScreenHeight:=Temp;
  end;
 
- Resize(ScreenWidth,ScreenHeight);
-
  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION,4);
- SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,3);
+ SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION,1);
  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,SDL_GL_CONTEXT_PROFILE_CORE);
  SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS,0);
  SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,0);
@@ -361,6 +359,9 @@ begin
  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER,1);
  SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE,0);
  SDL_GL_SetSwapInterval(1);
+
+ Resize(ScreenWidth,ScreenHeight);
+
  VideoFlags:=0;
  if paramstr(1)='f' then begin
   VideoFlags:=VideoFlags or SDL_WINDOW_FULLSCREEN_DESKTOP;
@@ -423,7 +424,9 @@ begin
  glGetIntegerv(GL_MINOR_VERSION,@Minor);
 
  if ((Major>4) or ((Major=4) and (Minor>=5))) or
-    (GL_ARB_clip_control and ((Major>4) or ((Major=4) and (Minor>=3)))) then begin
+    (GL_ARB_clip_control and
+     GL_ARB_shader_storage_buffer_object and
+     ((Major>4) or ((Major=4) and (Minor>=1)))) then begin
 
   SDL_GL_SetSwapInterval(1);
 
@@ -790,7 +793,7 @@ begin
   SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR or
                            SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT,
                            PAnsiChar('Fatal error'),
-                           PAnsiChar('Too old OpenGL version! You do need at least OpenGL version 4.5 or alternatively at least OpenGL 4.3 with the GL_ARB_clip_control extension'),
+                           PAnsiChar('Too old OpenGL version! You do need at least OpenGL version 4.5 or alternatively at least OpenGL 4.1 with the GL_ARB_clip_control and GL_ARB_shader_storage_buffer_object extensions'),
                            SurfaceWindow);
 
  end;
