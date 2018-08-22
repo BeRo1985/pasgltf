@@ -126,6 +126,7 @@ type EGLTFOpenGL=class(Exception);
             PMesh=^TMesh;
             TMeshes=array of TMesh;
             TSkin=record
+             Used:boolean;
              Skeleton:TPasGLTFSizeInt;
              InverseBindMatrices:TPasGLTF.TMatrix4x4DynamicArray;
              Matrices:TPasGLTF.TMatrix4x4DynamicArray;
@@ -157,6 +158,15 @@ type EGLTFOpenGL=class(Exception);
             end;
             PTexture=^TTexture;
             TTextures=array of TTexture;
+            TSkeletalUniformBufferObject=record
+             Count:TPasGLTFSizeInt;
+             Size:TPasGLTFSizeInt;
+             UniformBufferObjectHandle:glUInt;
+             Skins:TPasGLTFSizeIntDynamicArray;
+             CountSkins:TPasGLTFSizeInt;
+            end;
+            PSkeletalUniformBufferObject=^TSkeletalUniformBufferObject;
+            TSkeletalUniformBufferObjects=array of TSkeletalUniformBufferObject;
             TMorphTargetVertex=packed record
              Position:TPasGLTF.TVector4;
              Normal:TPasGLTF.TVector4;
@@ -178,6 +188,7 @@ type EGLTFOpenGL=class(Exception);
        fSkins:TSkins;
        fNodes:TNodes;
        fTextures:TTextures;
+       fSkeletalUniformBufferObjects:TSkeletalUniformBufferObjects;
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
        fVertexArrayHandle:glInt;
@@ -646,6 +657,7 @@ begin
  fSkins:=nil;
  fNodes:=nil;
  fTextures:=nil;
+ fSkeletalUniformBufferObjects:=nil;
 end;
 
 destructor TGLTFOpenGL.Destroy;
@@ -1230,6 +1242,40 @@ procedure TGLTFOpenGL.InitializeResources;
  begin
   SetLength(fTextures,fDocument.Textures.Count);
  end;
+ procedure InitializeSkeletalUniformBufferObjects;
+ var Index,CountMatrices,CountSkeletalUniformBufferObjects:TPasGLTFSizeInt;
+     SourceSkin:TPasGLTF.TSkin;
+     SkeletalUniformBufferObject:PSkeletalUniformBufferObject;
+ begin
+  CountSkeletalUniformBufferObjects:=0;
+  for Index:=0 to fDocument.Skins.Count-1 do begin
+   SourceSkin:=fDocument.Skins[Index];
+   CountMatrices:=SourceSkin.Joints.Count;
+   if (CountSkeletalUniformBufferObjects=0) or
+      ((fSkeletalUniformBufferObjects[CountSkeletalUniformBufferObjects-1].Size+(CountMatrices*SizeOf(TPasGLTF.TMatrix4x4)))>16384) then begin
+    if length(fSkeletalUniformBufferObjects)<=CountSkeletalUniformBufferObjects then begin
+     SetLength(fSkeletalUniformBufferObjects,(CountSkeletalUniformBufferObjects+1)*2);
+    end;
+    SkeletalUniformBufferObject:=@fSkeletalUniformBufferObjects[CountSkeletalUniformBufferObjects];
+    inc(CountSkeletalUniformBufferObjects);
+    SkeletalUniformBufferObject^.Count:=CountMatrices;
+    SkeletalUniformBufferObject^.Size:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
+    SkeletalUniformBufferObject^.CountSkins:=1;
+    SetLength(SkeletalUniformBufferObject^.Skins,1);
+    SkeletalUniformBufferObject^.Skins[0]:=Index;
+   end else begin
+    SkeletalUniformBufferObject:=@fSkeletalUniformBufferObjects[CountSkeletalUniformBufferObjects-1];
+    inc(SkeletalUniformBufferObject^.Count,CountMatrices);
+    inc(SkeletalUniformBufferObject^.Size,CountMatrices*SizeOf(TPasGLTF.TMatrix4x4));
+    if length(SkeletalUniformBufferObject^.Skins)<=SkeletalUniformBufferObject^.CountSkins then begin
+     SetLength(SkeletalUniformBufferObject^.Skins,(SkeletalUniformBufferObject^.CountSkins+1)*2);
+    end;
+    SkeletalUniformBufferObject^.Skins[SkeletalUniformBufferObject^.CountSkins]:=Index;
+    inc(SkeletalUniformBufferObject^.CountSkins);
+   end;
+  end;
+  SetLength(fSkeletalUniformBufferObjects,CountSkeletalUniformBufferObjects);
+ end;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
  var Index:TPasGLTFSizeInt;
      Matrix:TPasGLTF.TMatrix4x4;
@@ -1278,6 +1324,7 @@ begin
   InitializeSkins;
   InitializeNodes;
   InitializeTextures;
+  InitializeSkeletalUniformBufferObjects;
   begin
    fStaticMinPosition[0]:=Infinity;
    fStaticMinPosition[1]:=Infinity;
@@ -1305,6 +1352,7 @@ begin
   fSkins:=nil;
   fNodes:=nil;
   fTextures:=nil;
+  fSkeletalUniformBufferObjects:=nil;
  end;
 end;
 
@@ -1724,15 +1772,12 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
 
  end;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
- var Index,JointIndex:TPasGLTFSizeInt;
-     Matrix,InverseMatrix:TPasGLTF.TMatrix4x4;
+ var Index:TPasGLTFSizeInt;
+     Matrix:TPasGLTF.TMatrix4x4;
      Node:TPasGLTF.TNode;
      ExtraNode:PNode;
      Translation,Scale:TVector3;
      Rotation:TVector4;
-     Skin:PSkin;
-     p:pointer;
-     pm:TPasGLTF.PMatrix4x4;
  begin
   Node:=fDocument.Nodes[aNodeIndex];
   ExtraNode:=@fNodes[aNodeIndex];
@@ -1763,29 +1808,40 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
   fNodes[aNodeIndex].Matrix:=Matrix;
   if (Node.Mesh>=0) and (Node.Mesh<length(fMeshes)) then begin
    if (aAnimationIndex>=0) and (Node.Skin>=0) and (Node.Skin<length(fSkins)) then begin
-    Skin:=@fSkins[Node.Skin];
-    InverseMatrix:=MatrixInverse(Matrix);
-    glBindBuffer(GL_UNIFORM_BUFFER,Skin^.UniformBufferObjectHandle);
-    p:=glMapBufferRange(GL_UNIFORM_BUFFER,0,length(Skin^.Matrices)*SizeOf(TPasGLTF.TMatrix4x4),GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
-    if assigned(p) then begin
-     pm:=p;
-     for JointIndex:=0 to length(Skin^.Joints)-1 do begin
-      pm^:=MatrixMul(
-            MatrixMul(
-             Skin^.InverseBindMatrices[JointIndex],
-             fNodes[Skin^.Joints[JointIndex]].Matrix),
-            InverseMatrix
-           );
-      inc(pm);
-     end;
-     glUnmapBuffer(GL_UNIFORM_BUFFER);
-    end;
-    glBindBuffer(GL_UNIFORM_BUFFER,0);
+    fSkins[Node.Skin].Used:=true;
    end;
   end;
   for Index:=0 to Node.Children.Count-1 do begin
    ProcessNode(Node.Children.Items[Index],Matrix);
   end;
+ end;
+ procedure ProcessSkins;
+  procedure ProcessSkin(const aSkinIndex:TPasGLTFSizeInt);
+  var JointIndex:TPasGLTFSizeInt;
+      Skin:PSkin;
+      p:pointer;
+      pm:TPasGLTF.PMatrix4x4;
+  begin
+   Skin:=@fSkins[aSkinIndex];
+   if Skin^.Used then begin
+    glBindBuffer(GL_UNIFORM_BUFFER,Skin^.UniformBufferObjectHandle);
+    p:=glMapBufferRange(GL_UNIFORM_BUFFER,0,length(Skin^.Matrices)*SizeOf(TPasGLTF.TMatrix4x4),GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
+    if assigned(p) then begin
+     pm:=p;
+     for JointIndex:=0 to length(Skin^.Joints)-1 do begin
+      pm^:=MatrixMul(Skin^.InverseBindMatrices[JointIndex],fNodes[Skin^.Joints[JointIndex]].Matrix);
+      inc(pm);
+     end;
+     glUnmapBuffer(GL_UNIFORM_BUFFER);
+    end;
+   end;
+  end;
+ var Index:TPasGLTFSizeInt;
+ begin
+  for Index:=0 to length(fSkins)-1 do begin
+   ProcessSkin(Index);
+  end;
+  glBindBuffer(GL_UNIFORM_BUFFER,0);
  end;
  procedure DrawNode(const aNodeIndex:TPasGLTFSizeInt;const aAlphaMode:TPasGLTF.TMaterial.TAlphaMode);
  var PBRShader:TPBRShader;
@@ -1911,7 +1967,7 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
   end;
  var Index:TPasGLTFSizeInt;
      Matrix,ModelMatrix,ModelViewMatrix,ModelViewProjectionMatrix,
-     JointMatrix:TPasGLTF.TMatrix4x4;
+     InverseMatrix:TPasGLTF.TMatrix4x4;
      Node:TPasGLTF.TNode;
      Skin:PSkin;
  begin
@@ -1926,6 +1982,8 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     PBRShader:=SkinnedPBRShader;
     UseShader(PBRShader);
     glBindBufferBase(GL_UNIFORM_BUFFER,PBRShader.uJointMatrices,Skin^.UniformBufferObjectHandle);
+    InverseMatrix:=MatrixInverse(Matrix);
+    glUniformMatrix4fv(PBRShader.uInverseGlobalTransform,1,false,@InverseMatrix);
    end else begin
     PBRShader:=NonSkinnedPBRShader;
     UseShader(PBRShader);
@@ -1958,12 +2016,16 @@ begin
  for Index:=0 to Scene.Nodes.Count-1 do begin
   ResetNode(Scene.Nodes.Items[Index]);
  end;
+ for Index:=0 to length(fSkins)-1 do begin
+  fSkins[Index].Used:=false;
+ end;
  if (aAnimationIndex>=0) and (aAnimationIndex<fDocument.Animations.Count) then begin
   ProcessAnimation(aAnimationIndex);
  end;
  for Index:=0 to Scene.Nodes.Count-1 do begin
   ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
  end;
+ ProcessSkins;
  CurrentShader:=nil;
  for AlphaMode:=TPasGLTF.TMaterial.TAlphaMode.Opaque to TPasGLTF.TMaterial.TAlphaMode.Blend do begin
   case AlphaMode of
