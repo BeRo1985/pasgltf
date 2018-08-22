@@ -113,7 +113,9 @@ uses SysUtils,Classes,dglOpenGL,UnitOpenGLShader;
 
 type TPBRShader=class(TShader)
       public
-       const uboJointMatrices=2;
+       const uboFrameGlobals=0;
+             uboMaterial=1;
+             uboJointMatrices=2;
       public
        uBaseColorFactor:glInt;
        uBaseColorTexture:glInt;
@@ -123,11 +125,9 @@ type TPBRShader=class(TShader)
        uOcclusionTexture:glInt;
        uEmissiveTexture:glInt;
        uFlags:glInt;
+       uModelMatrix:glInt;
        uMetallicRoughnessNormalScaleOcclusionStrengthFactor:glInt;
        uEmissiveFactor:glInt;
-       uModelMatrix:glInt;
-       uModelViewMatrix:glInt;
-       uModelViewProjectionMatrix:glInt;
        uLightDirection:glInt;
        uBRDFLUTTexture:glInt;
        uEnvMapTexture:glInt;
@@ -162,8 +162,8 @@ begin
       '                  ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.z)]) * aWeights1.z) +'+#13#10+
       '                  ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.w)]) * aWeights1.w);'+#13#10+
       '  }'+#13#10;
-  f2:=' * transpose(inverse(mat3(skinMatrix)))';
-  f3:=' * skinMatrix';
+  f2:=' * skinMatrix';
+  f3:=' * transpose(inverse(mat3(skinMatrix)))';
  end else begin
   f0:='';
   f1:='';
@@ -188,22 +188,25 @@ begin
     'out vec3 vTangent;'+#13#10+
     'out vec3 vBitangent;'+#13#10+
     'out vec4 vColor;'+#13#10+
+    'layout(std140, binding = '+IntToStr(uboFrameGlobals)+') uniform uboFrameGlobals {'+#13#10+
+    '  mat4 viewMatrix;'+#13#10+
+    '  mat4 projectionMatrix;'+#13#10+
+    '} uFrameGlobals;'+#13#10+
     'uniform mat4 uModelMatrix;'+#13#10+
-    'uniform mat4 uModelViewMatrix;'+#13#10+
-    'uniform mat4 uModelViewProjectionMatrix;'+#13#10+
     f0+
     'void main(){'+#13#10+
-      f1+
-      'mat3 baseMatrix = transpose(inverse(mat3(uModelMatrix)))'+f2+';'+#13#10+
-      'vNormal = baseMatrix * aNormal;'+#13#10+
-      'vTangent = baseMatrix * aTangent.xyz;'+#13#10+
-      'vBitangent = cross(vNormal, vTangent) * aTangent.w;'+#13#10+
-      'vTexCoord0 = aTexCoord0;'+#13#10+
-      'vTexCoord1 = aTexCoord1;'+#13#10+
-      'vColor = aColor0;'+#13#10+
-      'vec4 viewSpacePosition = uModelViewMatrix'+f3+' * vec4(aPosition, 1.0);'+#13#10+
-      'vViewSpacePosition = viewSpacePosition.xyz / viewSpacePosition.w;'+#13#10+
-      'gl_Position = uModelViewProjectionMatrix'+f3+' * vec4(aPosition, 1.0);'+#13#10+
+    f1+
+    '  mat4 modelMatrix = uModelMatrix'+f2+';'+#13#10+
+    '  mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));'+#13#10+
+    '  vNormal = normalMatrix * aNormal;'+#13#10+
+    '  vTangent = normalMatrix * aTangent.xyz;'+#13#10+
+    '  vBitangent = cross(vNormal, vTangent) * aTangent.w;'+#13#10+
+    '  vTexCoord0 = aTexCoord0;'+#13#10+
+    '  vTexCoord1 = aTexCoord1;'+#13#10+
+    '  vColor = aColor0;'+#13#10+
+    '  vec4 viewSpacePosition = uFrameGlobals.viewMatrix * modelMatrix * vec4(aPosition, 1.0);'+#13#10+
+    '  vViewSpacePosition = viewSpacePosition.xyz / viewSpacePosition.w;'+#13#10+
+    '  gl_Position = uFrameGlobals.projectionMatrix * viewSpacePosition;'+#13#10+
     '}'+#13#10;
  f:='#version 330'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
@@ -481,8 +484,6 @@ begin
  uMetallicRoughnessNormalScaleOcclusionStrengthFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMetallicRoughnessNormalScaleOcclusionStrengthFactor')));
  uFlags:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uFlags')));
  uModelMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelMatrix')));
- uModelViewMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewMatrix')));
- uModelViewProjectionMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewProjectionMatrix')));
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
  uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));

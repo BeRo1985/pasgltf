@@ -198,6 +198,11 @@ type EGLTFOpenGL=class(Exception);
              Weights:array[0..MaxMorphTargets-1] of TPasGLTFFloat;
             end;
             PMorphTargetUniformBuffer=^TMorphTargetUniformBuffer;
+            TFrameGlobalsUniformBufferObjectData=packed record
+             ViewMatrix:TPasGLTF.TMatrix4x4;
+             ProjectionMatrix:TPasGLTF.TMatrix4x4;
+            end;
+            PFrameGlobalsUniformBufferObjectData=^TFrameGlobalsUniformBufferObjectData;
       private
        fDocument:TPasGLTF.TDocument;
        fReady:boolean;
@@ -214,6 +219,7 @@ type EGLTFOpenGL=class(Exception);
        fVertexArrayHandle:glInt;
        fStaticMinPosition:TPasGLTF.TVector3;
        fStaticMaxPosition:TPasGLTF.TVector3;
+       fFrameGlobalsUniformBufferObjectHandle:gLUInt;
       public
        constructor Create(const aDocument:TPasGLTF.TDocument); reintroduce;
        destructor Destroy; override;
@@ -1534,18 +1540,6 @@ var AllVertices:TAllVertices;
   end;
   glBindTexture(GL_TEXTURE_2D,0);
  end;
-{procedure CreateSkinUniformBufferObjectsOld;
- var Index:TPasGLTFSizeInt;
-     Skin:PSkin;
- begin
-  for Index:=0 to length(fSkins)-1 do begin
-   Skin:=@fSkins[Index];
-   glGenBuffers(1,@Skin^.UniformBufferObjectHandle);
-   glBindBuffer(GL_UNIFORM_BUFFER,Skin^.UniformBufferObjectHandle);
-   glBufferData(GL_UNIFORM_BUFFER,length(Skin^.Joints)*SizeOf(TPasGLTF.TMatrix4x4),nil,GL_DYNAMIC_DRAW);
-   glBindBuffer(GL_UNIFORM_BUFFER,0);
-  end;
- end;}
  procedure CreateSkinUniformBufferObjects;
  var Index:TPasGLTFSizeInt;
      SkinUniformBufferObject:PSkinUniformBufferObject;
@@ -1558,6 +1552,13 @@ var AllVertices:TAllVertices;
    glBindBuffer(GL_UNIFORM_BUFFER,0);
   end;
  end;
+ procedure CreateFrameGlobalsUniformBufferObject;
+ begin
+  glGenBuffers(1,@fFrameGlobalsUniformBufferObjectHandle);
+  glBindBuffer(GL_UNIFORM_BUFFER,fFrameGlobalsUniformBufferObjectHandle);
+  glBufferData(GL_UNIFORM_BUFFER,SizeOf(TFrameGlobalsUniformBufferObjectData),nil,GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_UNIFORM_BUFFER,0);
+ end;
 begin
  if not fUploaded then begin
   fUploaded:=true;
@@ -1568,8 +1569,8 @@ begin
     CollectVerticesAndIndicesFromMeshes;
     CreateOpenGLObjects;
     LoadTextures;
-//  CreateSkinUniformBufferObjectsOld;
     CreateSkinUniformBufferObjects;
+    CreateFrameGlobalsUniformBufferObject;
    finally
     FreeAndNil(AllIndices);
    end;
@@ -1598,17 +1599,6 @@ procedure TGLTFOpenGL.UnloadResources;
    end;
   end;
  end;
-{procedure DeleteSkinUniformBufferObjects;
- var Index:TPasGLTFSizeInt;
-     Skin:PSkin;
- begin
-  for Index:=0 to length(fSkins)-1 do begin
-   Skin:=@fSkins[Index];
-   if Skin^.UniformBufferObjectHandle>0 then begin
-    glDeleteBuffers(1,@Skin^.UniformBufferObjectHandle);
-   end;
-  end;
- end;}
  procedure DestroySkinUniformBufferObjects;
  var Index:TPasGLTFSizeInt;
      SkinUniformBufferObject:PSkinUniformBufferObject;
@@ -1620,13 +1610,17 @@ procedure TGLTFOpenGL.UnloadResources;
    end;
   end;
  end;
+ procedure DestroyFrameGlobalsUniformBufferObject;
+ begin
+  glDeleteBuffers(1,@fFrameGlobalsUniformBufferObjectHandle);
+ end;
 begin
  if fUploaded then begin
   fUploaded:=false;
   DeleteOpenGLObjects;
   UnloadTextures;
-//DeleteSkinUniformBufferObjects;
   DestroySkinUniformBufferObjects;
+  DestroyFrameGlobalsUniformBufferObject;
  end;
 end;
 
@@ -2092,13 +2086,25 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     UseShader(PBRShader);
    end;
    glUniformMatrix4fv(PBRShader.uModelMatrix,1,false,@ModelMatrix);
-   glUniformMatrix4fv(PBRShader.uModelViewMatrix,1,false,@ModelViewMatrix);
-   glUniformMatrix4fv(PBRShader.uModelViewProjectionMatrix,1,false,@ModelViewProjectionMatrix);
    DrawMesh(fMeshes[Node.Mesh]);
   end;
   for Index:=0 to Node.Children.Count-1 do begin
    DrawNode(Node.Children.Items[Index],aAlphaMode);
   end;
+ end;
+ procedure UpdateFrameGlobalsUniformBufferObject;
+ var p:PFrameGlobalsUniformBufferObjectData;
+ begin
+  glBindBuffer(GL_UNIFORM_BUFFER,fFrameGlobalsUniformBufferObjectHandle);
+  p:=glMapBufferRange(GL_UNIFORM_BUFFER,0,SizeOf(TFrameGlobalsUniformBufferObjectData),GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
+  if assigned(p) then begin
+   p^.ViewMatrix:=aViewMatrix;
+   p^.ProjectionMatrix:=aProjectionMatrix;
+   glUnmapBuffer(GL_UNIFORM_BUFFER);
+  end;
+  glBindBufferBase(GL_UNIFORM_BUFFER,
+                   TPBRShader.uboFrameGlobals,
+                   fFrameGlobalsUniformBufferObjectHandle);
  end;
 var Index:TPasGLTFSizeInt;
     Scene:TPasGLTF.TScene;
@@ -2114,6 +2120,7 @@ begin
   Scene:=fDocument.Scenes[aScene];
  end;
  CurrentSkinUniformBufferObjectUniformBufferObjectHandle:=0;
+ UpdateFrameGlobalsUniformBufferObject;
  glBindVertexArray(fVertexArrayHandle);
  glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fIndexBufferObjectHandle);
