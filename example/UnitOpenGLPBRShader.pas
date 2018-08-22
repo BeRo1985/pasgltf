@@ -155,11 +155,13 @@ begin
   f1:='  mat4 skinMatrix = ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.x)]) * aWeights0.x) +'+#13#10+
       '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.y)]) * aWeights0.y) +'+#13#10+
       '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.z)]) * aWeights0.z) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.w)]) * aWeights0.w) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.x)]) * aWeights1.x) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.y)]) * aWeights1.y) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.z)]) * aWeights1.z) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.w)]) * aWeights1.w);'+#13#10;
+      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.w)]) * aWeights0.w);'+#13#10+
+      '  if(any(not(equal(aWeights1, vec4(0.0))))){'+#13#10+
+      '    skinMatrix += ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.x)]) * aWeights1.x) +'+#13#10+
+      '                  ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.y)]) * aWeights1.y) +'+#13#10+
+      '                  ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.z)]) * aWeights1.z) +'+#13#10+
+      '                  ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.w)]) * aWeights1.w);'+#13#10+
+      '  }'+#13#10;
   f2:=' * transpose(inverse(mat3(skinMatrix)))';
   f3:=' * skinMatrix';
  end else begin
