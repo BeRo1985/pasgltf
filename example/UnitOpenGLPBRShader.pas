@@ -133,6 +133,7 @@ type TPBRShader=class(TShader)
        uAlphaCutOff:glInt;
        uJointMatrices:glInt;
        uInverseGlobalTransform:glInt;
+       uJointOffset:glInt;
        constructor Create(const aSkinned,aAlphaTest:boolean);
        destructor Destroy; override;
        procedure BindAttributes; override;
@@ -149,14 +150,15 @@ begin
       '  mat4 matrices[65];'+#13#10+
       '} uJointMatrices;'+#13#10+
       'uniform mat4 uInverseGlobalTransform;'+#13#10;
-  f1:='  mat4 skinMatrix = ((uInverseGlobalTransform * uJointMatrices.matrices[int(aJoints0.x)]) * aWeights0.x) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[int(aJoints0.y)]) * aWeights0.y) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[int(aJoints0.z)]) * aWeights0.z) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[int(aJoints0.w)]) * aWeights0.w) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[int(aJoints1.x)]) * aWeights1.x) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[int(aJoints1.y)]) * aWeights1.y) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[int(aJoints1.z)]) * aWeights1.z) +'+#13#10+
-      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[int(aJoints1.w)]) * aWeights1.w);'+#13#10;
+      'uniform int uJointOffset;'+#13#10;
+  f1:='  mat4 skinMatrix = ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.x)]) * aWeights0.x) +'+#13#10+
+      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.y)]) * aWeights0.y) +'+#13#10+
+      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.z)]) * aWeights0.z) +'+#13#10+
+      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints0.w)]) * aWeights0.w) +'+#13#10+
+      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.x)]) * aWeights1.x) +'+#13#10+
+      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.y)]) * aWeights1.y) +'+#13#10+
+      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.z)]) * aWeights1.z) +'+#13#10+
+      '                    ((uInverseGlobalTransform * uJointMatrices.matrices[uJointOffset + int(aJoints1.w)]) * aWeights1.w);'+#13#10;
   f2:=' * transpose(inverse(mat3(skinMatrix)))';
   f3:=' * skinMatrix';
  end else begin
@@ -485,6 +487,7 @@ begin
  uAlphaCutOff:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uAlphaCutOff')));
  uJointMatrices:=glGetUniformBlockIndex(ProgramHandle,pointer(pansichar('JointMatrices')));
  uInverseGlobalTransform:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uInverseGlobalTransform')));
+ uJointOffset:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uJointOffset')));
 end;
 
 end.

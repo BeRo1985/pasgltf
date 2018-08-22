@@ -434,7 +434,7 @@ begin
 
   SDL_GL_SetSwapInterval(1);
 
-  SDL_ShowCursor(0);
+  SDL_ShowCursor(ord(not FullScreen) and 1);
 
   StartPerformanceCounter:=SDL_GetPerformanceCounter;
 
@@ -660,6 +660,7 @@ begin
                         end else begin
                          SDL_SetWindowFullscreen(SurfaceWindow,0);
                         end;
+                        SDL_ShowCursor(ord(not FullScreen) and 1);
                        end;
                       end;
                       SDLK_F4:begin
