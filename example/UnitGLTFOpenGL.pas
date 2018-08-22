@@ -100,23 +100,34 @@ type EGLTFOpenGL=class(Exception);
                    end;
                    PPBRSpecularGlossiness=^TPBRSpecularGlossiness;
                    TUniformBufferObjectData=packed record // 128 bytes
-                    uBaseColorFactor:TPasGLTF.TVector4;
-                    uSpecularFactor:TPasGLTF.TVector4; // actually TVector3, but for easier and more convenient alignment reasons a TVector4
-                    uEmissiveFactor:TPasGLTF.TVector4; // actually TVector3, but for easier and more convenient alignment reasons a TVector4
-                    uMetallicRoughnessNormalScaleOcclusionStrengthFactor:TPasGLTF.TVector4;
-                    // uvec4 uAlphaCutOffFlags begin
-                     uAlphaCutOff:TPasGLTFFloat;
-                     uFlags:TPasGLTFUInt32;
-                     uReversed0:TPasGLTFUInt32;
-                     uReversed1:TPasGLTFUInt32;
+                    BaseColorFactor:TPasGLTF.TVector4;
+                    SpecularFactor:TPasGLTF.TVector4; // actually TVector3, but for easier and more convenient alignment reasons a TVector4
+                    EmissiveFactor:TPasGLTF.TVector4; // actually TVector3, but for easier and more convenient alignment reasons a TVector4
+                    MetallicRoughnessNormalScaleOcclusionStrengthFactor:TPasGLTF.TVector4;
+                    // uvec4 AlphaCutOffFlags begin
+                     AlphaCutOff:TPasGLTFFloat; // for with uintBitsToFloat on GLSL code side
+                     Flags:TPasGLTFUInt32;
+                     Reversed0:TPasGLTFUInt32;
+                     Reversed1:TPasGLTFUInt32;
                     // uvec4 uAlphaCutOffFlags end
-                    uReversed2:TPasGLTF.TInt32Vector4;
-                    uReversed3:TPasGLTF.TInt32Vector4;
-                    uReversed4:TPasGLTF.TInt32Vector4;
                    end;
                    PUniformBufferObjectData=^TUniformBufferObjectData;
+              const EmptyMaterialUniformBufferObjectData:TUniformBufferObjectData=
+                     (
+                      BaseColorFactor:(1.0,1.0,1.0,1.0);
+                      SpecularFactor:(1.0,1.0,1.0,0.0);
+                      EmissiveFactor:(0.0,0.0,0.0,0.0);
+                      MetallicRoughnessNormalScaleOcclusionStrengthFactor:(1.0,1.0,1.0,1.0);
+                      AlphaCutOff:1.0;
+                      Flags:0;
+                      Reversed0:0;
+                      Reversed1:0;
+                     );
              public
               PBRSpecularGlossiness:TPBRSpecularGlossiness;
+              UniformBufferObjectData:TUniformBufferObjectData;
+              UniformBufferObjectIndex:TPasGLTFSizeInt;
+              UniformBufferObjectOffset:TPasGLTFSizeInt;
             end;
             PMaterial=^TMaterial;
             TMaterials=array of TMaterial;
@@ -203,6 +214,14 @@ type EGLTFOpenGL=class(Exception);
              ProjectionMatrix:TPasGLTF.TMatrix4x4;
             end;
             PFrameGlobalsUniformBufferObjectData=^TFrameGlobalsUniformBufferObjectData;
+            TMaterialUniformBufferObject=record
+             UniformBufferObjectHandle:glUInt;
+             Size:TPasGLTFSizeInt;
+             Materials:TPasGLTFSizeIntDynamicArray;
+             Count:TPasGLTFSizeInt;
+            end;
+            PMaterialUniformBufferObject=^TMaterialUniformBufferObject;
+            TMaterialUniformBufferObjects=array of TMaterialUniformBufferObject;
       private
        fDocument:TPasGLTF.TDocument;
        fReady:boolean;
@@ -214,12 +233,15 @@ type EGLTFOpenGL=class(Exception);
        fNodes:TNodes;
        fTextures:TTextures;
        fSkinUniformBufferObjects:TSkinUniformBufferObjects;
+       fMaterialUniformBufferObjects:TMaterialUniformBufferObjects;
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
        fVertexArrayHandle:glInt;
        fStaticMinPosition:TPasGLTF.TVector3;
        fStaticMaxPosition:TPasGLTF.TVector3;
-       fFrameGlobalsUniformBufferObjectHandle:gLUInt;
+       fFrameGlobalsUniformBufferObjectHandle:glUInt;
+       fUniformBufferOffsetAlignment:glInt;
+       fMaximumUniformBufferBlockSize:glInt;
       public
        constructor Create(const aDocument:TPasGLTF.TDocument); reintroduce;
        destructor Destroy; override;
@@ -685,6 +707,7 @@ begin
  fNodes:=nil;
  fTextures:=nil;
  fSkinUniformBufferObjects:=nil;
+ fMaterialUniformBufferObjects:=nil;
 end;
 
 destructor TGLTFOpenGL.Destroy;
@@ -783,6 +806,7 @@ procedure TGLTFOpenGL.InitializeResources;
      DestinationMaterial:PMaterial;
      JSONItem:TPasJSONItem;
      JSONObject:TPasJSONItemObject;
+     UniformBufferObjectData:TMaterial.PUniformBufferObjectData;
  begin
 
   SetLength(fMaterials,fDocument.Materials.Count);
@@ -796,42 +820,112 @@ procedure TGLTFOpenGL.InitializeResources;
    JSONItem:=SourceMaterial.Extensions.Properties['KHR_materials_pbrSpecularGlossiness'];
    if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
     JSONObject:=TPasJSONItemObject(JSONItem);
-    DestinationMaterial.PBRSpecularGlossiness.Used:=true;
-    DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor:=TPasGLTF.TDefaults.IdentityVector4;
-    DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.Index:=-1;
-    DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.TexCoord:=0;
-    DestinationMaterial.PBRSpecularGlossiness.GlossinessFactor:=TPasGLTF.TDefaults.IdentityScalar;
-    DestinationMaterial.PBRSpecularGlossiness.SpecularFactor:=TPasGLTF.TDefaults.IdentityVector3;
-    DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.Index:=-1;
-    DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord:=0;
+    DestinationMaterial^.PBRSpecularGlossiness.Used:=true;
+    DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor:=TPasGLTF.TDefaults.IdentityVector4;
+    DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index:=-1;
+    DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord:=0;
+    DestinationMaterial^.PBRSpecularGlossiness.GlossinessFactor:=TPasGLTF.TDefaults.IdentityScalar;
+    DestinationMaterial^.PBRSpecularGlossiness.SpecularFactor:=TPasGLTF.TDefaults.IdentityVector3;
+    DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index:=-1;
+    DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord:=0;
     begin
      JSONItem:=JSONObject.Properties['diffuseFactor'];
      if assigned(JSONItem) and (JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=4) then begin
-      DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[0]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[0]);
-      DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[1]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[1],DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[1]);
-      DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[2]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[2],DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[2]);
-      DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[3]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[3],DestinationMaterial.PBRSpecularGlossiness.DiffuseFactor[3]);
+      DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor[0]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor[0]);
+      DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor[1]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[1],DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor[1]);
+      DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor[2]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[2],DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor[2]);
+      DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor[3]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[3],DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor[3]);
      end;
      JSONItem:=JSONObject.Properties['diffuseTexture'];
      if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
-      DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.Index);
-      DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],DestinationMaterial.PBRSpecularGlossiness.DiffuseTexture.TexCoord);
+      DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index);
+      DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord);
      end;
-     DestinationMaterial.PBRSpecularGlossiness.GlossinessFactor:=TPasJSON.GetNumber(JSONObject.Properties['glossinessFactor'],DestinationMaterial.PBRSpecularGlossiness.GlossinessFactor);
+     DestinationMaterial^.PBRSpecularGlossiness.GlossinessFactor:=TPasJSON.GetNumber(JSONObject.Properties['glossinessFactor'],DestinationMaterial^.PBRSpecularGlossiness.GlossinessFactor);
      JSONItem:=JSONObject.Properties['specularFactor'];
      if assigned(JSONItem) and (JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=3) then begin
-      DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[0]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[0]);
-      DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[1]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[1],DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[1]);
-      DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[2]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[2],DestinationMaterial.PBRSpecularGlossiness.SpecularFactor[2]);
+      DestinationMaterial^.PBRSpecularGlossiness.SpecularFactor[0]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],DestinationMaterial^.PBRSpecularGlossiness.SpecularFactor[0]);
+      DestinationMaterial^.PBRSpecularGlossiness.SpecularFactor[1]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[1],DestinationMaterial^.PBRSpecularGlossiness.SpecularFactor[1]);
+      DestinationMaterial^.PBRSpecularGlossiness.SpecularFactor[2]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[2],DestinationMaterial^.PBRSpecularGlossiness.SpecularFactor[2]);
      end;
      JSONItem:=JSONObject.Properties['specularGlossinessTexture'];
      if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
-      DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.Index);
-      DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],DestinationMaterial.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord);
+      DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index);
+      DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord);
      end;
     end;
    end else begin
-    DestinationMaterial.PBRSpecularGlossiness.Used:=false;
+    DestinationMaterial^.PBRSpecularGlossiness.Used:=false;
+   end;
+
+   begin
+    UniformBufferObjectData:=@DestinationMaterial^.UniformBufferObjectData;
+    UniformBufferObjectData^.Flags:=0;
+    case SourceMaterial.AlphaMode of
+     TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
+      UniformBufferObjectData^.AlphaCutOff:=0.0;
+     end;
+     TPasGLTF.TMaterial.TAlphaMode.Mask:begin
+      UniformBufferObjectData^.AlphaCutOff:=SourceMaterial.AlphaCutOff;
+     end;
+     TPasGLTF.TMaterial.TAlphaMode.Blend:begin
+      UniformBufferObjectData^.AlphaCutOff:=0.0;
+      UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or $10000000;
+     end;
+     else begin
+      Assert(false);
+     end;
+    end;
+    if SourceMaterial.DoubleSided then begin
+     UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or $20000000;
+    end;
+    if DestinationMaterial^.PBRSpecularGlossiness.Used then begin
+     UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or $40000000;
+     if (DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fTextures)) then begin
+      UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (1 or (2*ord(DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord=1)));
+     end;
+     if (DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fTextures)) then begin
+      UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (4 or (8*ord(DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord=1)));
+     end;
+    end else begin
+     if (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
+      UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (1 or (2*ord(SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord=1)));
+     end;
+     if (SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
+      UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (4 or (8*ord(SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord=1)));
+     end;
+    end;
+    if (SourceMaterial.NormalTexture.Index>=0) and (SourceMaterial.NormalTexture.Index<length(fTextures)) then begin
+     UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (16 or (32*ord(SourceMaterial.NormalTexture.TexCoord=1)));
+    end;
+    if (SourceMaterial.OcclusionTexture.Index>=0) and (SourceMaterial.OcclusionTexture.Index<length(fTextures)) then begin
+     UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (64 or (128*ord(SourceMaterial.OcclusionTexture.TexCoord=1)));
+    end;
+    if (SourceMaterial.EmissiveTexture.Index>=0) and (SourceMaterial.EmissiveTexture.Index<length(fTextures)) then begin
+     UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (256 or (512*ord(SourceMaterial.EmissiveTexture.TexCoord=1)));
+    end;
+    if DestinationMaterial^.PBRSpecularGlossiness.Used then begin
+     UniformBufferObjectData^.BaseColorFactor:=DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor;
+     UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[0]:=1.0;
+     UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[1]:=DestinationMaterial^.PBRSpecularGlossiness.GlossinessFactor;
+     UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[2]:=SourceMaterial.NormalTexture.Scale;
+     UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[3]:=SourceMaterial.OcclusionTexture.Strength;
+     UniformBufferObjectData^.SpecularFactor[0]:=DestinationMaterial^.PBRSpecularGlossiness.SpecularFactor[0];
+     UniformBufferObjectData^.SpecularFactor[1]:=DestinationMaterial^.PBRSpecularGlossiness.SpecularFactor[1];
+     UniformBufferObjectData^.SpecularFactor[2]:=DestinationMaterial^.PBRSpecularGlossiness.SpecularFactor[2];
+     UniformBufferObjectData^.SpecularFactor[3]:=0.0;
+    end else begin
+     UniformBufferObjectData^.BaseColorFactor:=SourceMaterial.PBRMetallicRoughness.BaseColorFactor;
+     UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[0]:=SourceMaterial.PBRMetallicRoughness.MetallicFactor;
+     UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[1]:=SourceMaterial.PBRMetallicRoughness.RoughnessFactor;
+     UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[2]:=SourceMaterial.NormalTexture.Scale;
+     UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[3]:=SourceMaterial.OcclusionTexture.Strength;
+    end;
+    UniformBufferObjectData^.EmissiveFactor[0]:=SourceMaterial.EmissiveFactor[0];
+    UniformBufferObjectData^.EmissiveFactor[1]:=SourceMaterial.EmissiveFactor[1];
+    UniformBufferObjectData^.EmissiveFactor[2]:=SourceMaterial.EmissiveFactor[2];
+    UniformBufferObjectData^.EmissiveFactor[3]:=0.0;
+
    end;
 
   end;
@@ -1560,6 +1654,82 @@ var AllVertices:TAllVertices;
   glBufferData(GL_UNIFORM_BUFFER,SizeOf(TFrameGlobalsUniformBufferObjectData),nil,GL_DYNAMIC_DRAW);
   glBindBuffer(GL_UNIFORM_BUFFER,0);
  end;
+ procedure CreateMaterialUniformBufferObjects;
+ var Index,MaterialIndex,Count,MaterialDataSize:TPasGLTFSizeInt;
+     UniformBufferObjectData:TMaterial.PUniformBufferObjectData;
+     Material:PMaterial;
+     MaterialUniformBufferObject:PMaterialUniformBufferObject;
+     p:PPasGLTFUInt8Array;
+ begin
+  fMaterialUniformBufferObjects:=nil;
+  Count:=0;
+  try
+   MaterialDataSize:=SizeOf(TMaterial.TUniformBufferObjectData);
+   if (MaterialDataSize mod fUniformBufferOffsetAlignment)<>0 then begin
+    inc(MaterialDataSize,fUniformBufferOffsetAlignment-(MaterialDataSize mod fUniformBufferOffsetAlignment));
+   end;
+   for MaterialIndex:=-1 to length(fMaterials)-1 do begin
+    if MaterialIndex<0 then begin
+     Material:=nil;
+    end else begin
+     Material:=@fMaterials[MaterialIndex];
+    end;
+    if (Count=0) or
+       ((fMaterialUniformBufferObjects[Count-1].Size+MaterialDataSize)>fMaximumUniformBufferBlockSize) then begin
+     if length(fMaterialUniformBufferObjects)<=Count then begin
+      SetLength(fMaterialUniformBufferObjects,(Count+1)*2);
+     end;
+     if assigned(Material) then begin
+      Material^.UniformBufferObjectIndex:=Count;
+      Material^.UniformBufferObjectOffset:=0;
+     end;
+     MaterialUniformBufferObject:=@fMaterialUniformBufferObjects[Count];
+     inc(Count);
+     MaterialUniformBufferObject^.Size:=MaterialDataSize;
+     MaterialUniformBufferObject^.Count:=1;
+     SetLength(MaterialUniformBufferObject^.Materials,1);
+     MaterialUniformBufferObject^.Materials[0]:=MaterialIndex;
+    end else begin
+     MaterialUniformBufferObject:=@fMaterialUniformBufferObjects[Count-1];
+     if assigned(Material) then begin
+      Material^.UniformBufferObjectIndex:=Count-1;
+      Material^.UniformBufferObjectOffset:=MaterialUniformBufferObject^.Size;
+     end;
+     inc(MaterialUniformBufferObject^.Size,MaterialDataSize);
+     if length(MaterialUniformBufferObject^.Materials)<=MaterialUniformBufferObject^.Count then begin
+      SetLength(MaterialUniformBufferObject^.Materials,(MaterialUniformBufferObject^.Count+1)*2);
+     end;
+     MaterialUniformBufferObject^.Materials[MaterialUniformBufferObject^.Count]:=MaterialIndex;
+     inc(MaterialUniformBufferObject^.Count);
+    end;
+   end;
+  finally
+   SetLength(fMaterialUniformBufferObjects,Count);
+   for Index:=0 to length(fMaterialUniformBufferObjects)-1 do begin
+    MaterialUniformBufferObject:=@fMaterialUniformBufferObjects[Index];
+    SetLength(MaterialUniformBufferObject^.Materials,MaterialUniformBufferObject^.Count);
+   end;
+  end;
+  for Index:=0 to length(fMaterialUniformBufferObjects)-1 do begin
+   MaterialUniformBufferObject:=@fMaterialUniformBufferObjects[Index];
+   glGenBuffers(1,@MaterialUniformBufferObject^.UniformBufferObjectHandle);
+   glBindBuffer(GL_UNIFORM_BUFFER,MaterialUniformBufferObject^.UniformBufferObjectHandle);
+   glBufferData(GL_UNIFORM_BUFFER,MaterialUniformBufferObject^.Size,nil,GL_STATIC_DRAW);
+   p:=glMapBuffer(GL_UNIFORM_BUFFER,GL_WRITE_ONLY);
+   if assigned(p) then begin
+    for MaterialIndex:=0 to length(MaterialUniformBufferObject^.Materials)-1 do begin
+     if MaterialUniformBufferObject^.Materials[MaterialIndex]<0 then begin
+      TMaterial.PUniformBufferObjectData(@p^[0])^:=TMaterial.EmptyMaterialUniformBufferObjectData;
+     end else begin
+      Material:=@fMaterials[MaterialUniformBufferObject^.Materials[MaterialIndex]];
+      TMaterial.PUniformBufferObjectData(@p^[Material^.UniformBufferObjectOffset])^:=Material^.UniformBufferObjectData;
+     end;
+    end;
+    glUnmapBuffer(GL_UNIFORM_BUFFER);
+   end;
+   glBindBuffer(GL_UNIFORM_BUFFER,0);
+  end;
+ end;
 begin
  if not fUploaded then begin
   fUploaded:=true;
@@ -1567,11 +1737,14 @@ begin
   try
    AllIndices:=TAllIndices.Create;
    try
+    glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT,@fUniformBufferOffsetAlignment);
+    glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE,@fMaximumUniformBufferBlockSize);
     CollectVerticesAndIndicesFromMeshes;
     CreateOpenGLObjects;
     LoadTextures;
     CreateSkinUniformBufferObjects;
     CreateFrameGlobalsUniformBufferObject;
+    CreateMaterialUniformBufferObjects;
    finally
     FreeAndNil(AllIndices);
    end;
@@ -1615,6 +1788,16 @@ procedure TGLTFOpenGL.UnloadResources;
  begin
   glDeleteBuffers(1,@fFrameGlobalsUniformBufferObjectHandle);
  end;
+ procedure DestroyMaterialUniformBufferObjects;
+ var Index:TPasGLTFSizeInt;
+ begin
+  for Index:=0 to length(fMaterialUniformBufferObjects)-1 do begin
+   if fMaterialUniformBufferObjects[Index].UniformBufferObjectHandle>0 then begin
+    glDeleteBuffers(1,@fMaterialUniformBufferObjects[Index].UniformBufferObjectHandle);
+   end;
+  end;
+  fMaterialUniformBufferObjects:=nil;
+ end;
 begin
  if fUploaded then begin
   fUploaded:=false;
@@ -1622,6 +1805,7 @@ begin
   UnloadTextures;
   DestroySkinUniformBufferObjects;
   DestroyFrameGlobalsUniformBufferObject;
+  DestroyMaterialUniformBufferObjects;
  end;
 end;
 
