@@ -1456,11 +1456,11 @@ var Index:TPasGLTFSizeInt;
 begin
  if not fReady then begin
   InitializeAnimations;
+  InitializeTextures;
   InitializeMaterials;
   InitializeMeshes;
   InitializeSkins;
   InitializeNodes;
-  InitializeTextures;
   InitializeSkinUniformBufferObjects;
   begin
    fStaticMinPosition[0]:=Infinity;
@@ -1714,7 +1714,7 @@ var AllVertices:TAllVertices;
    MaterialUniformBufferObject:=@fMaterialUniformBufferObjects[Index];
    glGenBuffers(1,@MaterialUniformBufferObject^.UniformBufferObjectHandle);
    glBindBuffer(GL_UNIFORM_BUFFER,MaterialUniformBufferObject^.UniformBufferObjectHandle);
-   glBufferData(GL_UNIFORM_BUFFER,MaterialUniformBufferObject^.Size,nil,GL_STATIC_DRAW);
+   glBufferData(GL_UNIFORM_BUFFER,MaterialUniformBufferObject^.Size,nil,GL_DYNAMIC_DRAW);
    p:=glMapBuffer(GL_UNIFORM_BUFFER,GL_WRITE_ONLY);
    if assigned(p) then begin
     for MaterialIndex:=0 to length(MaterialUniformBufferObject^.Materials)-1 do begin
@@ -2115,118 +2115,66 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
       Primitive:TMesh.PPrimitive;
       Material:TPasGLTF.TMaterial;
       ExtraMaterial:PMaterial;
-      Flags:TPasGLTFUInt32;
       DoDraw:boolean;
   begin
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
     DoDraw:=false;
     if (Primitive^.Material>=0) and (Primitive^.Material<fDocument.Materials.Count) then begin
-     Flags:=0;
      Material:=fDocument.Materials[Primitive^.Material];
      ExtraMaterial:=@fMaterials[Primitive^.Material];
+     glBindBufferRange(GL_UNIFORM_BUFFER,
+                       TPBRShader.uboMaterial,
+                       fMaterialUniformBufferObjects[ExtraMaterial^.UniformBufferObjectIndex].UniformBufferObjectHandle,
+                       ExtraMaterial^.UniformBufferObjectOffset,
+                       SizeOf(TMaterial.TUniformBufferObjectData));
      if Material.AlphaMode=aAlphaMode then begin
-      case Material.AlphaMode of
-       TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
-        // Nothing
-       end;
-       TPasGLTF.TMaterial.TAlphaMode.Mask:begin
-        glUniform1f(PBRShader.uAlphaCutOff,Material.AlphaCutOff);
-       end;
-       TPasGLTF.TMaterial.TAlphaMode.Blend:begin
-        Flags:=Flags or $10000000;
-       end;
-       else begin
-        Assert(false);
-       end;
-      end;
       if Material.DoubleSided then begin
-       Flags:=Flags or $20000000;
        glDisable(GL_CULL_FACE);
       end else begin
        glEnable(GL_CULL_FACE);
        glCullFace(GL_BACK);
       end;
       if ExtraMaterial^.PBRSpecularGlossiness.Used then begin
-       Flags:=Flags or $40000000;
        if (ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fTextures)) then begin
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D,fTextures[ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index].Handle);
-        Flags:=Flags or (1 or (2*ord(ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord=1)));
        end;
        if (ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fTextures)) then begin
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D,fTextures[ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index].Handle);
-        Flags:=Flags or (4 or (8*ord(ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord=1)));
        end;
       end else begin
        if (Material.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
-        Flags:=Flags or (1 or (2*ord(Material.PBRMetallicRoughness.BaseColorTexture.TexCoord=1)));
        end;
        if (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index].Handle);
-        Flags:=Flags or (4 or (8*ord(Material.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord=1)));
        end;
       end;
       if (Material.NormalTexture.Index>=0) and (Material.NormalTexture.Index<length(fTextures)) then begin
        glActiveTexture(GL_TEXTURE2);
        glBindTexture(GL_TEXTURE_2D,fTextures[Material.NormalTexture.Index].Handle);
-       Flags:=Flags or (16 or (32*ord(Material.NormalTexture.TexCoord=1)));
       end;
       if (Material.OcclusionTexture.Index>=0) and (Material.OcclusionTexture.Index<length(fTextures)) then begin
        glActiveTexture(GL_TEXTURE3);
        glBindTexture(GL_TEXTURE_2D,fTextures[Material.OcclusionTexture.Index].Handle);
-       Flags:=Flags or (64 or (128*ord(Material.OcclusionTexture.TexCoord=1)));
       end;
       if (Material.EmissiveTexture.Index>=0) and (Material.EmissiveTexture.Index<length(fTextures)) then begin
        glActiveTexture(GL_TEXTURE4);
        glBindTexture(GL_TEXTURE_2D,fTextures[Material.EmissiveTexture.Index].Handle);
-       Flags:=Flags or (256 or (512*ord(Material.EmissiveTexture.TexCoord=1)));
       end;
-      glUniform1ui(PBRShader.uFlags,Flags);
-      if ExtraMaterial^.PBRSpecularGlossiness.Used then begin
-       glUniform4f(PBRShader.uBaseColorFactor,
-                   ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[0],
-                   ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[1],
-                   ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[2],
-                   ExtraMaterial^.PBRSpecularGlossiness.DiffuseFactor[3]);
-       glUniform4f(PBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,
-                   1.0,
-                   ExtraMaterial^.PBRSpecularGlossiness.GlossinessFactor,
-                   Material.NormalTexture.Scale,
-                   Material.OcclusionTexture.Strength);
-       glUniform3f(PBRShader.uSpecularFactor,
-                   ExtraMaterial^.PBRSpecularGlossiness.SpecularFactor[0],
-                   ExtraMaterial^.PBRSpecularGlossiness.SpecularFactor[1],
-                   ExtraMaterial^.PBRSpecularGlossiness.SpecularFactor[2]);
-      end else begin
-       glUniform4f(PBRShader.uBaseColorFactor,
-                   Material.PBRMetallicRoughness.BaseColorFactor[0],
-                   Material.PBRMetallicRoughness.BaseColorFactor[1],
-                   Material.PBRMetallicRoughness.BaseColorFactor[2],
-                   Material.PBRMetallicRoughness.BaseColorFactor[3]);
-       glUniform4f(PBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,
-                   Material.PBRMetallicRoughness.MetallicFactor,
-                   Material.PBRMetallicRoughness.RoughnessFactor,
-                   Material.NormalTexture.Scale,
-                   Material.OcclusionTexture.Strength);
-      end;
-      glUniform3f(PBRShader.uEmissiveFactor,
-                  Material.EmissiveFactor[0],
-                  Material.EmissiveFactor[1],
-                  Material.EmissiveFactor[2]);
       DoDraw:=true;
      end;
     end else begin
      if aAlphaMode=TPasGLTF.TMaterial.TAlphaMode.Opaque then begin
-      Flags:=0;
-      glUniform1ui(PBRShader.uFlags,Flags);
-      glUniform4f(PBRShader.uBaseColorFactor,1.0,1.0,1.0,1.0);
-      glUniform4f(PBRShader.uMetallicRoughnessNormalScaleOcclusionStrengthFactor,0.0,1.0,1.0,1.0);
-      glUniform3f(PBRShader.uEmissiveFactor,1.0,1.0,1.0);
+      glBindBufferRange(GL_UNIFORM_BUFFER,
+                        TPBRShader.uboMaterial,
+                        fMaterialUniformBufferObjects[0].UniformBufferObjectHandle,
+                        0,
+                        SizeOf(TMaterial.TUniformBufferObjectData));
       DoDraw:=true;
      end;
     end;

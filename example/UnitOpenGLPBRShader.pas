@@ -117,22 +117,16 @@ type TPBRShader=class(TShader)
              uboMaterial=1;
              uboJointMatrices=2;
       public
-       uBaseColorFactor:glInt;
        uBaseColorTexture:glInt;
        uMetallicRoughnessTexture:glInt;
-       uSpecularFactor:glInt;
        uNormalTexture:glInt;
        uOcclusionTexture:glInt;
        uEmissiveTexture:glInt;
-       uFlags:glInt;
        uModelMatrix:glInt;
-       uMetallicRoughnessNormalScaleOcclusionStrengthFactor:glInt;
-       uEmissiveFactor:glInt;
        uLightDirection:glInt;
        uBRDFLUTTexture:glInt;
        uEnvMapTexture:glInt;
        uEnvMapMaxLevel:glInt;
-       uAlphaCutOff:glInt;
        uInverseGlobalTransform:glInt;
        uJointOffset:glInt;
        constructor Create(const aSkinned,aAlphaTest:boolean);
@@ -225,13 +219,14 @@ begin
     'uniform sampler2D uBRDFLUTTexture;'+#13#10+
     'uniform samplerCube uEnvMapTexture;'+#13#10+
     'uniform int uEnvMapMaxLevel;'+#13#10+
-    'uniform uint uFlags;'+#13#10+
-    'uniform vec4 uBaseColorFactor;'+#13#10+
-    'uniform vec3 uSpecularFactor;'+#13#10+
-    'uniform vec3 uEmissiveFactor;'+#13#10+
-    'uniform vec4 uMetallicRoughnessNormalScaleOcclusionStrengthFactor;'+#13#10+
     'uniform vec3 uLightDirection;'+#13#10+
-    'uniform float uAlphaCutOff;'+#13#10+
+    'layout(std140, binding = '+IntToStr(uboMaterial)+') uniform uboMaterial {'+#13#10+
+    '  vec4 baseColorFactor;'+#13#10+
+    '  vec4 specularFactor;'+#13#10+
+    '  vec4 emissiveFactor;'+#13#10+
+    '  vec4 metallicRoughnessNormalScaleOcclusionStrengthFactor;'+#13#10+
+    '  uvec4 alphaCutOffFlags;'+#13#10+
+    '} uMaterial;'+#13#10+
     'vec3 convertLinearRGBToSRGB(vec3 c){'+#13#10+
     '  return mix((pow(c, vec3(1.0 / 2.4)) * vec3(1.055)) - vec3(5.5e-2),'+#13#10+
     '             c * vec3(12.92),'+#13#10+
@@ -332,58 +327,59 @@ begin
     'void main(){'+#13#10+
     '  vec4 occlusionTexture, emissiveTexture;'+#13#10+
     '  PBRMetallicRoughness pbrMetallicRoughness;'+#13#10+
-    '  if((uFlags & 0x40000000u) != 0u){'+#13#10+
+    '  uint flags = uMaterial.alphaCutOffFlags.y;'+#13#10+
+    '  if((flags & 0x40000000u) != 0u){'+#13#10+
     '    PBRSpecularGlossiness pbrSpecularGlossiness;'+#13#10+
-    '    if((uFlags & 1u) != 0u){'+#13#10+
-    '      pbrSpecularGlossiness.diffuseColor = texture(uBaseColorTexture, ((uFlags & 2u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '    if((flags & 1u) != 0u){'+#13#10+
+    '      pbrSpecularGlossiness.diffuseColor = texture(uBaseColorTexture, ((flags & 2u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '    }else{'+#13#10+
     '      pbrSpecularGlossiness.diffuseColor = vec4(1.0);'+#13#10+
     '    }'+#13#10+
-    '    if((uFlags & 4u) != 0u){'+#13#10+
-    '      pbrSpecularGlossiness.specularGlossiness = texture(uMetallicRoughnessTexture, ((uFlags & 8u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '    if((flags & 4u) != 0u){'+#13#10+
+    '      pbrSpecularGlossiness.specularGlossiness = texture(uMetallicRoughnessTexture, ((flags & 8u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '    }else{'+#13#10+
     '      pbrSpecularGlossiness.specularGlossiness = vec4(1.0);'+#13#10+
     '    }'+#13#10+
-    '    pbrSpecularGlossiness.diffuseColor *= uBaseColorFactor;'+#13#10+
-    '    pbrSpecularGlossiness.specularGlossiness *= vec4(uSpecularFactor.xyz, uMetallicRoughnessNormalScaleOcclusionStrengthFactor.y);'+#13#10+
+    '    pbrSpecularGlossiness.diffuseColor *= uMaterial.baseColorFactor;'+#13#10+
+    '    pbrSpecularGlossiness.specularGlossiness *= vec4(uMaterial.specularFactor.xyz, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.y);'+#13#10+
     '    convertPBRSpecularGlossinessToPBRMetallicRoughness(pbrSpecularGlossiness, pbrMetallicRoughness);'+#13#10+
     '  }else{'+#13#10+
-    '    if((uFlags & 1u) != 0u){'+#13#10+
-    '      pbrMetallicRoughness.baseColor = texture(uBaseColorTexture, ((uFlags & 2u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '    if((flags & 1u) != 0u){'+#13#10+
+    '      pbrMetallicRoughness.baseColor = texture(uBaseColorTexture, ((flags & 2u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '    }else{'+#13#10+
     '      pbrMetallicRoughness.baseColor = vec4(1.0);'+#13#10+
     '    }'+#13#10+
-    '    if((uFlags & 4u) != 0u){'+#13#10+
-    '      pbrMetallicRoughness.metallicRoughness = texture(uMetallicRoughnessTexture, ((uFlags & 8u) != 0u) ? vTexCoord1 : vTexCoord0).zy;'+#13#10+
+    '    if((flags & 4u) != 0u){'+#13#10+
+    '      pbrMetallicRoughness.metallicRoughness = texture(uMetallicRoughnessTexture, ((flags & 8u) != 0u) ? vTexCoord1 : vTexCoord0).zy;'+#13#10+
     '    }else{'+#13#10+
     '      pbrMetallicRoughness.metallicRoughness = vec2(1.0);'+#13#10+
     '    }'+#13#10+
-    '    pbrMetallicRoughness.baseColor = vec4(convertSRGBToLinearRGB(pbrMetallicRoughness.baseColor.xyz), pbrMetallicRoughness.baseColor.w) * uBaseColorFactor;'+#13#10+
-    '    pbrMetallicRoughness.metallicRoughness *= uMetallicRoughnessNormalScaleOcclusionStrengthFactor.xy;'+#13#10+
+    '    pbrMetallicRoughness.baseColor = vec4(convertSRGBToLinearRGB(pbrMetallicRoughness.baseColor.xyz), pbrMetallicRoughness.baseColor.w) * uMaterial.baseColorFactor;'+#13#10+
+    '    pbrMetallicRoughness.metallicRoughness *= uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.xy;'+#13#10+
     '  }'+#13#10+
     '  vec3 normal;'+#13#10+
-    '  if((uFlags & 16u) != 0u){'+#13#10+
+    '  if((flags & 16u) != 0u){'+#13#10+
     '    mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
-    '    vec4 normalTexture = texture(uNormalTexture, ((uFlags & 32u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '    vec4 normalTexture = texture(uNormalTexture, ((flags & 32u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '    normal = normalize(tangentSpace * normalize(normalTexture.xyz - vec3(0.5)));'+#13#10+
     '  }else{'+#13#10+
     '    normal = normalize(vNormal);'+#13#10+
     '  }'+#13#10+
-    '  normal *= (((uFlags & 0x20000000u) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
-    '  if((uFlags & 64u) != 0u){'+#13#10+
-    '    occlusionTexture = texture(uOcclusionTexture, ((uFlags & 128u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '  normal *= (((flags & 0x20000000u) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
+    '  if((flags & 64u) != 0u){'+#13#10+
+    '    occlusionTexture = texture(uOcclusionTexture, ((flags & 128u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
     '    occlusionTexture = vec4(1.0);'+#13#10+
     '  }'+#13#10+
-    '  if((uFlags & 256u) != 0u){'+#13#10+
-    '    emissiveTexture = texture(uEmissiveTexture, ((uFlags & 512u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
+    '  if((flags & 256u) != 0u){'+#13#10+
+    '    emissiveTexture = texture(uEmissiveTexture, ((flags & 512u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
     '  }else{'+#13#10+
     '    emissiveTexture = vec4(0.0);'+#13#10+
     '  }'+#13#10+
     '  vec4 materialAlbedo = pbrMetallicRoughness.baseColor;'+#13#10+
     '  float materialMetallic = clamp(pbrMetallicRoughness.metallicRoughness.x, 0.0, 1.0),'+#13#10+
     '        materialRoughness = clamp(pbrMetallicRoughness.metallicRoughness.y, 1e-3, 1.0),'+#13#10+
-    '        materialCavity = clamp(mix(1.0, occlusionTexture.x, uMetallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
+    '        materialCavity = clamp(mix(1.0, occlusionTexture.x, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
     '        materialTransparency = 0.0,'+#13#10+
     '        refractiveAngle = 0.0,'+#13#10+
     '        ambientOcclusion = 1.0,'+#13#10+
@@ -439,10 +435,10 @@ begin
     '    color += textureLod(uEnvMapTexture, normal.xyz, float(uEnvMapMaxLevel)).xyz * diffuseColor * ao;'+#13#10+
     '  }'+#13#10+
     '  float alpha = materialAlbedo.w * vColor.w;'+#13#10+
-    '  oOutput = vec4(vec3((color + convertSRGBToLinearRGB(emissiveTexture.xyz)) * vColor.xyz), mix(1.0, alpha, float(int(uint((uFlags >> 28u) & 1u)))));'+#13#10;
+    '  oOutput = vec4(vec3((color + (convertSRGBToLinearRGB(emissiveTexture.xyz) * uMaterial.emissiveFactor.xyz)) * vColor.xyz), mix(1.0, alpha, float(int(uint((flags >> 28u) & 1u)))));'+#13#10;
 ///    '  oOutput = vec4(vec3(vNormal.xyz * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10;
  if aAlphaTest then begin
-  f:=f+'  if(alpha < uAlphaCutOff){'+#13#10+
+  f:=f+'  if(alpha < uintBitsToFloat(uMaterial.alphaCutOffFlags.x)){'+#13#10+
        '    discard;'+#13#10+
        '  }'+#13#10;
  end;
@@ -473,22 +469,16 @@ end;
 procedure TPBRShader.BindVariables;
 begin
  inherited BindVariables;
- uBaseColorFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBaseColorFactor')));
  uBaseColorTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBaseColorTexture')));
  uMetallicRoughnessTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMetallicRoughnessTexture')));
- uSpecularFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uSpecularFactor')));
  uNormalTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uNormalTexture')));
  uOcclusionTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uOcclusionTexture')));
  uEmissiveTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveTexture')));
- uEmissiveFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveFactor')));
- uMetallicRoughnessNormalScaleOcclusionStrengthFactor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMetallicRoughnessNormalScaleOcclusionStrengthFactor')));
- uFlags:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uFlags')));
  uModelMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelMatrix')));
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
  uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
  uEnvMapMaxLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapMaxLevel')));
- uAlphaCutOff:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uAlphaCutOff')));
 //uboJointMatrices:=glGetUniformBlockIndex(ProgramHandle,pointer(pansichar('uboJointMatrices')));
  uInverseGlobalTransform:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uInverseGlobalTransform')));
  uJointOffset:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uJointOffset')));
