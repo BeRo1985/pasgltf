@@ -1584,10 +1584,17 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     Time:=AnimationChannel^.InputTimeArray[TimeIndices[1]];
     Time:=aTime-(floor(aTime/Time)*Time);
 
-    if (AnimationChannel^.Last<0) or (Time<AnimationChannel^.InputTimeArray[AnimationChannel.Last]) then begin
+    if (AnimationChannel^.Last<=0) or (Time<AnimationChannel^.InputTimeArray[AnimationChannel.Last-1]) then begin
      l:=0;
     end else begin
-     l:=AnimationChannel^.Last;
+     l:=AnimationChannel^.Last-1;
+    end;
+
+    for InputTimeArrayIndex:=Min(Max(l,0),length(AnimationChannel^.InputTimeArray)-1) to Min(Max(l+3,0),length(AnimationChannel^.InputTimeArray)-1) do begin
+     if AnimationChannel^.InputTimeArray[InputTimeArrayIndex]>Time then begin
+      l:=InputTimeArrayIndex-1;
+      break;
+     end;
     end;
 
     r:=length(AnimationChannel^.InputTimeArray);
