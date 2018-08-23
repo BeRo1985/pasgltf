@@ -361,7 +361,7 @@ begin
     '      vec3 normal;'+#13#10+
     '      if((texCoordIndices.x & 0x00000f00u) != 0x00000f00u){'+#13#10+
     '        vec4 normalTexture = textureFetch(uNormalTexture, 2, vec2(0.0, 1.0).xxyx);'+#13#10+
-    '        normal = normalize(mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal)) * normalize(normalTexture.xyz - vec3(0.5)));'+#13#10+
+    '        normal = normalize(mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal)) * normalize((normalTexture.xyz - vec3(0.5)) * (vec2(uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.z, 1.0).xxy * 2.0)));'+#13#10+
     '      }else{'+#13#10+
     '        normal = normalize(vNormal);'+#13#10+
     '      }'+#13#10+
