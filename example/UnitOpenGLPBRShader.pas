@@ -190,15 +190,15 @@ begin
     f0+
     'void main(){'+#13#10+
     f1+
-    '  mat4 modelMatrix = uModelMatrix'+f2+';'+#13#10+
-    '  mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));'+#13#10+
-    '  vNormal = normalMatrix * aNormal;'+#13#10+
-    '  vTangent = normalMatrix * aTangent.xyz;'+#13#10+
+    '  mat4 modelViewMatrix = uFrameGlobals.viewMatrix * uModelMatrix'+f2+';'+#13#10+
+    '  mat3 normalMatrix = transpose(inverse(mat3(modelViewMatrix)));'+#13#10+
+    '  vNormal = normalize(normalMatrix * aNormal);'+#13#10+
+    '  vTangent = normalize(normalMatrix * aTangent.xyz);'+#13#10+
     '  vBitangent = cross(vNormal, vTangent) * aTangent.w;'+#13#10+
     '  vTexCoord0 = aTexCoord0;'+#13#10+
     '  vTexCoord1 = aTexCoord1;'+#13#10+
     '  vColor = aColor0;'+#13#10+
-    '  vec4 viewSpacePosition = (uFrameGlobals.viewMatrix * modelMatrix) * vec4(aPosition, 1.0);'+#13#10+
+    '  vec4 viewSpacePosition = modelViewMatrix * vec4(aPosition, 1.0);'+#13#10+
     '  vViewSpacePosition = viewSpacePosition.xyz / viewSpacePosition.w;'+#13#10+
     '  gl_Position = uFrameGlobals.projectionMatrix * viewSpacePosition;'+#13#10+
     '}'+#13#10;
@@ -403,7 +403,7 @@ begin
     '                     // Bounce light'+#13#10+
     '                     (clamp(-normal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
     '                    ) * diffuseLambert(diffuseColor) * materialCavity));'+#13#10+ (*{}
-(*  '      color.xyz += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
+(*) '      color.xyz += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
     '                                 pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
     '                                 -uLightDirection,'+#13#10+
     '                                 normal.xyz,'+#13#10+
