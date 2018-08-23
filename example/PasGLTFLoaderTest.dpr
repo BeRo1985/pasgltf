@@ -110,15 +110,30 @@ var fs:TFileStream;
     SceneFBOWidth:Int32=1280;
     SceneFBOHeight:Int32=720;
 
-    CubeMapFileNames:array[0..5] of string=
-     (
-      'posx',
-      'negx',
-      'posy',
-      'negy',
-      'posz',
-      'negz'
-     );
+    Fullscreen:boolean=false;
+
+    WrapCursor:boolean=false;
+
+    FirstTime:boolean=true;
+
+    AutomaticRotate:boolean=false;
+
+    ButtonLeftPressed:boolean=false;
+
+    ZoomLevel:TPasGLTFFloat=1.0;
+
+    CameraRotationX:TPasGLTFFloat=0.0;
+    CameraRotationY:TPasGLTFFloat=0.0;
+
+const CubeMapFileNames:array[0..5] of string=
+       (
+        'posx',
+        'negx',
+        'posy',
+        'negy',
+        'posz',
+        'negz'
+       );
 
 function Matrix4x4ProjectionReversedZ(const aFOV,aAspectRatio,aZNear:single):TMatrix4x4;
 var f:single;
@@ -154,10 +169,9 @@ var Event:TSDL_Event;
     SDLWaveFormat:TSDL_AudioSpec;
     BufPosition:integer;
     ScreenWidth,ScreenHeight,BestWidth,BestHeight,ViewPortWidth,ViewPortHeight,ViewPortX,ViewPortY:int32;
-    Fullscreen:boolean;
     ShowCursor:boolean;
     SDLRunning,OldShowCursor:boolean;
-    Time:double;
+    Time,LastTime,DeltaTime:double;
  procedure Draw;
  var ModelMatrix,
      ViewMatrix,
@@ -165,7 +179,7 @@ var Event:TSDL_Event;
      SkyBoxViewProjectionMatrix:UnitMath3D.TMatrix4x4;
      LightDirection,Bounds,Center:UnitMath3D.TVector3;
      t:double;
-     v:TPasGLTFFloat;
+     v,Zoom:TPasGLTFFloat;
      ShadingShader:TShadingShader;
      t0,t1:int64;
  begin
@@ -184,12 +198,22 @@ var Event:TSDL_Event;
    Bounds.x:=(GLTFOpenGL.StaticMaxPosition[0]-GLTFOpenGL.StaticMinPosition[0])*0.5;
    Bounds.y:=(GLTFOpenGL.StaticMaxPosition[1]-GLTFOpenGL.StaticMinPosition[1])*0.5;
    Bounds.z:=(GLTFOpenGL.StaticMaxPosition[2]-GLTFOpenGL.StaticMinPosition[2])*0.5;
+   Zoom:=ZoomLevel;
    ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
-                                          Vector3(sin(t)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*3.0,
-                                                  sin(t*0.25)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*0.0,
-                                                  cos(t)*Max(Max(Bounds.x,Bounds.y),Bounds.z)*3.0)),
-                                       Center,
-                                       Vector3YAxis);
+                                          Vector3ScalarMul(Vector3Norm(Vector3(sin(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0),
+                                                                               sin(-CameraRotationY*PI*2.0),
+                                                                               cos(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0))),
+                                                           Max(Max(Bounds.x,Bounds.y),Bounds.z)*3.0*Zoom)),
+                                Center,
+                                Vector3YAxis);
+{  ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
+                                          Vector3TermMatrixMul(Vector3(0.0,
+                                                                       0.0,
+                                                                       Max(Max(Bounds.x,Bounds.y),Bounds.z)*3.0*Zoom),
+                                                               Matrix4x4TermMul(Matrix4x4RotateY(CameraRotationX*PI*2.0),
+                                                                                Matrix4x4RotateX(CameraRotationY*PI*2.0)))),
+                                Center,
+                                Vector3YAxis);}
    ProjectionMatrix:=Matrix4x4ProjectionReversedZ(45.0,ViewPortWidth/ViewPortHeight,0.1);
    glClipControl(GL_LOWER_LEFT,GL_ZERO_TO_ONE);
    glDepthFunc(GL_GEQUAL);
@@ -371,6 +395,7 @@ begin
  if paramstr(1)='f' then begin
   VideoFlags:=VideoFlags or SDL_WINDOW_FULLSCREEN_DESKTOP;
   Fullscreen:=true;
+  WrapCursor:=true;
   ScreenWidth:=1280;
   ScreenHeight:=720;
  end;
@@ -436,6 +461,8 @@ begin
   SDL_GL_SetSwapInterval(1);
 
   SDL_ShowCursor(ord(not FullScreen) and 1);
+
+  SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
 
   StartPerformanceCounter:=SDL_GetPerformanceCounter;
 
@@ -674,7 +701,6 @@ begin
                 ShadingShaders[true,true]:=TShadingShader.Create(true,true);
                 try
 
-                 FullScreen:=false;
                  SDLRunning:=true;
                  while SDLRunning do begin
 
@@ -699,6 +725,13 @@ begin
                        SDLRunning:=false;
                        break;
                       end;
+                      SDLK_M:begin
+                       WrapCursor:=not WrapCursor;
+                       SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
+                      end;
+                      SDLK_SPACE:begin
+                       AutomaticRotate:=not AutomaticRotate;
+                      end;
                       SDLK_RETURN:begin
                        if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
                         FullScreen:=not FullScreen;
@@ -708,6 +741,7 @@ begin
                          SDL_SetWindowFullscreen(SurfaceWindow,0);
                         end;
                         SDL_ShowCursor(ord(not FullScreen) and 1);
+                        SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
                        end;
                       end;
                       SDLK_F4:begin
@@ -730,12 +764,20 @@ begin
                      end;
                     end;
                     SDL_MOUSEMOTION:begin
-                     if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
+                     if ButtonLeftPressed then begin
+                      if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
+                       CameraRotationX:=frac(CameraRotationX+(1.0-(event.motion.xrel*(1.0/ScreenWidth))));
+                       CameraRotationY:=frac(CameraRotationY+(1.0-(event.motion.yrel*(1.0/ScreenHeight))));
+                      end;
                      end;
+                    end;
+                    SDL_MOUSEWHEEL:begin
+                     ZoomLevel:=Max(1e-4,ZoomLevel+((event.wheel.x+event.wheel.y)*0.1));
                     end;
                     SDL_MOUSEBUTTONDOWN:begin
                      case event.button.button of
                       SDL_BUTTON_LEFT:begin
+                       ButtonLeftPressed:=true;
                       end;
                       SDL_BUTTON_RIGHT:begin
                       end;
@@ -744,6 +786,7 @@ begin
                     SDL_MOUSEBUTTONUP:begin
                      case event.button.button of
                       SDL_BUTTON_LEFT:begin
+                       ButtonLeftPressed:=false;
                       end;
                       SDL_BUTTON_RIGHT:begin
                       end;
@@ -752,6 +795,13 @@ begin
                    end;
                   end;
                   Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
+                  if FirstTime then begin
+                   FirstTime:=false;
+                   DeltaTime:=0.0;
+                  end else begin
+                   DeltaTime:=Min(Max(Time-LastTime,0.0),1.0);
+                  end;
+                  LastTime:=Time;
                   begin
                    // 1 1/3 % (quadratically total-pixel-count-wise) super-sampling on top on FXAA
                    TempScale:=sqrt(1.33333333);
@@ -771,6 +821,10 @@ begin
                     LDRSceneFBO.Height:=SceneFBOHeight;
                     CreateFrameBuffer(LDRSceneFBO);
                    end;
+                  end;
+                  if AutomaticRotate then begin
+                   CameraRotationX:=frac(CameraRotationX+(1.0-(DeltaTime*0.1)));
+//                 CameraRotationY:=frac(CameraRotationY+(1.0-(DeltaTime*0.015625)));
                   end;
                   Draw;
                   SDL_GL_SwapWindow(SurfaceWindow);
