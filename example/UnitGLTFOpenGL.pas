@@ -15,7 +15,7 @@ unit UnitGLTFOpenGL;
 interface
 
 uses SysUtils,Classes,Math,PasJSON,PasGLTF,dglOpenGL,UnitOpenGLImage,
-     UnitOpenGLShader,UnitOpenGLPBRShader;
+     UnitOpenGLShader,UnitOpenGLShadingShader;
 
 type EGLTFOpenGL=class(Exception);
 
@@ -257,10 +257,10 @@ type EGLTFOpenGL=class(Exception);
        procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                       const aViewMatrix:TPasGLTF.TMatrix4x4;
                       const aProjectionMatrix:TPasGLTF.TMatrix4x4;
-                      const aNonSkinnedNormalPBRShader:TPBRShader;
-                      const aNonSkinnedAlphaTestPBRShader:TPBRShader;
-                      const aSkinnedNormalPBRShader:TPBRShader;
-                      const aSkinnedAlphaTestPBRShader:TPBRShader;
+                      const aNonSkinnedNormalShadingShader:TShadingShader;
+                      const aNonSkinnedAlphaTestShadingShader:TShadingShader;
+                      const aSkinnedNormalShadingShader:TShadingShader;
+                      const aSkinnedAlphaTestShadingShader:TShadingShader;
                       const aAnimationIndex:TPasGLTFSizeInt=0;
                       const aTime:TPasGLTFFloat=0.0;
                       const aScene:TPasGLTFSizeInt=-1;
@@ -1899,15 +1899,15 @@ end;
 procedure TGLTFOpenGL.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                            const aViewMatrix:TPasGLTF.TMatrix4x4;
                            const aProjectionMatrix:TPasGLTF.TMatrix4x4;
-                           const aNonSkinnedNormalPBRShader:TPBRShader;
-                           const aNonSkinnedAlphaTestPBRShader:TPBRShader;
-                           const aSkinnedNormalPBRShader:TPBRShader;
-                           const aSkinnedAlphaTestPBRShader:TPBRShader;
+                           const aNonSkinnedNormalShadingShader:TShadingShader;
+                           const aNonSkinnedAlphaTestShadingShader:TShadingShader;
+                           const aSkinnedNormalShadingShader:TShadingShader;
+                           const aSkinnedAlphaTestShadingShader:TShadingShader;
                            const aAnimationIndex:TPasGLTFSizeInt=0;
                            const aTime:TPasGLTFFloat=0.0;
                            const aScene:TPasGLTFSizeInt=-1;
                            const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
-var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
+var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     CurrentShader:TShader;
     CurrentSkinShaderStorageBufferObjectHandle:glUInt;
     CullFace,Blend:TPasGLTFInt32;
@@ -2197,7 +2197,7 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
   ProcessSkinShaderStorageBufferObjects;
  end;
  procedure DrawNode(const aNodeIndex:TPasGLTFSizeInt;const aAlphaMode:TPasGLTF.TMaterial.TAlphaMode);
- var PBRShader:TPBRShader;
+ var ShadingShader:TShadingShader;
   procedure DrawMesh(const aMesh:TMesh);
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
@@ -2212,7 +2212,7 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
      Material:=fDocument.Materials[Primitive^.Material];
      ExtraMaterial:=@fMaterials[Primitive^.Material];
      glBindBufferRange(GL_UNIFORM_BUFFER,
-                       TPBRShader.uboMaterial,
+                       TShadingShader.uboMaterial,
                        fMaterialUniformBufferObjects[ExtraMaterial^.UniformBufferObjectIndex].UniformBufferObjectHandle,
                        ExtraMaterial^.UniformBufferObjectOffset,
                        SizeOf(TMaterial.TUniformBufferObjectData));
@@ -2308,7 +2308,7 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
        glEnable(GL_CULL_FACE);
       end;
       glBindBufferRange(GL_UNIFORM_BUFFER,
-                        TPBRShader.uboMaterial,
+                        TShadingShader.uboMaterial,
                         fMaterialUniformBufferObjects[0].UniformBufferObjectHandle,
                         0,
                         SizeOf(TMaterial.TUniformBufferObjectData));
@@ -2341,19 +2341,19 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
     if CurrentSkinShaderStorageBufferObjectHandle<>SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle then begin
      CurrentSkinShaderStorageBufferObjectHandle:=SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle;
      glBindBufferBase(GL_SHADER_STORAGE_BUFFER,
-                      TPBRShader.ssboJointMatrices,
+                      TShadingShader.ssboJointMatrices,
                       SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
     enD;
-    PBRShader:=SkinnedPBRShader;
-    UseShader(PBRShader);
+    ShadingShader:=SkinnedShadingShader;
+    UseShader(ShadingShader);
     InverseMatrix:=MatrixInverse(Matrix);
-    glUniformMatrix4fv(PBRShader.uInverseGlobalTransform,1,false,@InverseMatrix);
-    glUniform1i(PBRShader.uJointOffset,Skin^.SkinShaderStorageBufferObjectOffset);
+    glUniformMatrix4fv(ShadingShader.uInverseGlobalTransform,1,false,@InverseMatrix);
+    glUniform1i(ShadingShader.uJointOffset,Skin^.SkinShaderStorageBufferObjectOffset);
    end else begin
-    PBRShader:=NonSkinnedPBRShader;
-    UseShader(PBRShader);
+    ShadingShader:=NonSkinnedShadingShader;
+    UseShader(ShadingShader);
    end;
-   glUniformMatrix4fv(PBRShader.uModelMatrix,1,false,@ModelMatrix);
+   glUniformMatrix4fv(ShadingShader.uModelMatrix,1,false,@ModelMatrix);
    DrawMesh(fMeshes[Node.Mesh]);
   end;
   for Index:=0 to Node.Children.Count-1 do begin
@@ -2371,7 +2371,7 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
    glUnmapBuffer(GL_UNIFORM_BUFFER);
   end;
   glBindBufferBase(GL_UNIFORM_BUFFER,
-                   TPBRShader.uboFrameGlobals,
+                   TShadingShader.uboFrameGlobals,
                    fFrameGlobalsUniformBufferObjectHandle);
  end;
 var Index:TPasGLTFSizeInt;
@@ -2413,19 +2413,19 @@ begin
   if (aAlphaModes=[]) or (AlphaMode in aAlphaModes) then begin
    case AlphaMode of
     TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
-     NonSkinnedPBRShader:=aNonSkinnedNormalPBRShader;
-     SkinnedPBRShader:=aSkinnedNormalPBRShader;
+     NonSkinnedShadingShader:=aNonSkinnedNormalShadingShader;
+     SkinnedShadingShader:=aSkinnedNormalShadingShader;
     end;
     TPasGLTF.TMaterial.TAlphaMode.Mask:begin
-     NonSkinnedPBRShader:=aNonSkinnedAlphaTestPBRShader;
-     SkinnedPBRShader:=aSkinnedAlphaTestPBRShader;
+     NonSkinnedShadingShader:=aNonSkinnedAlphaTestShadingShader;
+     SkinnedShadingShader:=aSkinnedAlphaTestShadingShader;
     end;
     TPasGLTF.TMaterial.TAlphaMode.Blend:begin
-     NonSkinnedPBRShader:=aNonSkinnedNormalPBRShader;
-     SkinnedPBRShader:=aSkinnedNormalPBRShader;
+     NonSkinnedShadingShader:=aNonSkinnedNormalShadingShader;
+     SkinnedShadingShader:=aSkinnedNormalShadingShader;
     end;
     else begin
-     NonSkinnedPBRShader:=nil;
+     NonSkinnedShadingShader:=nil;
      Assert(false);
     end;
    end;

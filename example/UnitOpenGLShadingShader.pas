@@ -1,4 +1,4 @@
-unit UnitOpenGLPBRShader;
+unit UnitOpenGLShadingShader;
 {$ifdef fpc}
  {$mode delphi}
  {$ifdef cpui386}
@@ -111,7 +111,7 @@ interface
 
 uses SysUtils,Classes,dglOpenGL,UnitOpenGLShader;
 
-type TPBRShader=class(TShader)
+type TShadingShader=class(TShader)
       public
        const uboFrameGlobals=0;
              uboMaterial=1;
@@ -137,7 +137,7 @@ type TPBRShader=class(TShader)
 
 implementation
 
-constructor TPBRShader.Create(const aSkinned,aAlphaTest:boolean);
+constructor TShadingShader.Create(const aSkinned,aAlphaTest:boolean);
 var f0,f1,f2,f3,f,v:ansistring;
 begin
  if aSkinned then begin
@@ -443,12 +443,12 @@ begin
  inherited Create(f,v);
 end;
 
-destructor TPBRShader.Destroy;
+destructor TShadingShader.Destroy;
 begin
  inherited Destroy;
 end;
 
-procedure TPBRShader.BindAttributes;
+procedure TShadingShader.BindAttributes;
 begin
  inherited BindAttributes;
  glBindAttribLocation(ProgramHandle,0,'aPosition');
@@ -463,7 +463,7 @@ begin
  glBindAttribLocation(ProgramHandle,9,'aWeights1');
 end;
 
-procedure TPBRShader.BindVariables;
+procedure TShadingShader.BindVariables;
 begin
  inherited BindVariables;
  uBaseColorTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBaseColorTexture')));

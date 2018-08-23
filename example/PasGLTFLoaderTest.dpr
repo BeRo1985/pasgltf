@@ -28,7 +28,7 @@ uses
   UnitOpenGLImagePNG in 'UnitOpenGLImagePNG.pas',
   UnitMath3D in 'UnitMath3D.pas',
   UnitOpenGLShader in 'UnitOpenGLShader.pas',
-  UnitOpenGLPBRShader in 'UnitOpenGLPBRShader.pas',
+  UnitOpenGLShadingShader in 'UnitOpenGLShadingShader.pas',
   UnitOpenGLFrameBufferObject in 'UnitOpenGLFrameBufferObject.pas',
   UnitOpenGLBRDFLUTShader in 'UnitOpenGLBRDFLUTShader.pas',
   UnitOpenGLEnvMapFilterShader in 'UnitOpenGLEnvMapFilterShader.pas',
@@ -81,7 +81,7 @@ var fs:TFileStream;
 
     GLTFOpenGL:TGLTFOpenGL;
 
-    PBRShaders:array[boolean,boolean] of TPBRShader;
+    ShadingShaders:array[boolean,boolean] of TShadingShader;
 
     BRDFLUTShader:TBRDFLUTShader;
 
@@ -166,7 +166,7 @@ var Event:TSDL_Event;
      LightDirection,Bounds,Center:UnitMath3D.TVector3;
      t:double;
      v:TPasGLTFFloat;
-     PBRShader:TPBRShader;
+     ShadingShader:TShadingShader;
      t0,t1:int64;
  begin
   begin
@@ -219,20 +219,20 @@ var Event:TSDL_Event;
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    for PBRShader in PBRShaders do begin
-     PBRShader.Bind;
-     glUniform3fv(PBRShader.uLightDirection,1,@LightDirection);
-     glUniform1i(PBRShader.uEnvMapMaxLevel,Min(EnvMapFBO.WorkMaxLevel,16));
-     PBRShader.Unbind;
+    for ShadingShader in ShadingShaders do begin
+     ShadingShader.Bind;
+     glUniform3fv(ShadingShader.uLightDirection,1,@LightDirection);
+     glUniform1i(ShadingShader.uEnvMapMaxLevel,Min(EnvMapFBO.WorkMaxLevel,16));
+     ShadingShader.Unbind;
     end;
     t0:=SDL_GetPerformanceCounter;
     GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
                     TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
                     TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
-                    PBRShaders[false,false],
-                    PBRShaders[false,true],
-                    PBRShaders[true,false],
-                    PBRShaders[true,true],
+                    ShadingShaders[false,false],
+                    ShadingShaders[false,true],
+                    ShadingShaders[true,false],
+                    ShadingShaders[true,true],
                     0,
                     Time);
     t1:=SDL_GetPerformanceCounter;
@@ -485,7 +485,7 @@ begin
     EnvMapGenShader:=TEnvMapGenShader.Create;
     try
 
-     if false then begin
+     if true then begin
       ImageWidth:=1024;
       ImageHeight:=1024;
       EnvMapFBO.Width:=ImageWidth;
@@ -662,16 +662,16 @@ begin
             GLTFOpenGL.UploadResources;
             try
 
-             PBRShaders[false,false]:=TPBRShader.Create(false,false);
+             ShadingShaders[false,false]:=TShadingShader.Create(false,false);
              try
 
-              PBRShaders[false,true]:=TPBRShader.Create(false,true);
+              ShadingShaders[false,true]:=TShadingShader.Create(false,true);
               try
 
-               PBRShaders[true,false]:=TPBRShader.Create(true,false);
+               ShadingShaders[true,false]:=TShadingShader.Create(true,false);
                try
 
-                PBRShaders[true,true]:=TPBRShader.Create(true,true);
+                ShadingShaders[true,true]:=TShadingShader.Create(true,true);
                 try
 
                  FullScreen:=false;
@@ -777,19 +777,19 @@ begin
                  end;
 
                 finally
-                 FreeAndNil(PBRShaders[true,true]);
+                 FreeAndNil(ShadingShaders[true,true]);
                 end;
 
                finally
-                FreeAndNil(PBRShaders[true,false]);
+                FreeAndNil(ShadingShaders[true,false]);
                end;
 
               finally
-               FreeAndNil(PBRShaders[false,true]);
+               FreeAndNil(ShadingShaders[false,true]);
               end;
 
              finally
-              FreeAndNil(PBRShaders[false,false]);
+              FreeAndNil(ShadingShaders[false,false]);
              end;
 
             finally
