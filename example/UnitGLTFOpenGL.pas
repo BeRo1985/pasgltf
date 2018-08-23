@@ -1659,6 +1659,9 @@ var AllVertices:TAllVertices;
          end;
         end;
         case SourceSampler.MinFilter of
+         TPasGLTF.TSampler.TMinFilter.None:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+         end;
          TPasGLTF.TSampler.TMinFilter.Nearest:begin
           glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
          end;
@@ -1682,6 +1685,9 @@ var AllVertices:TAllVertices;
          end;
         end;
         case SourceSampler.MagFilter of
+         TPasGLTF.TSampler.TMagFilter.None:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+         end;
          TPasGLTF.TSampler.TMagFilter.Nearest:begin
           glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
          end;
