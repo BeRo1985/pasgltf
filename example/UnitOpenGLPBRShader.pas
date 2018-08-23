@@ -337,7 +337,7 @@ begin
     'void main(){'+#13#10+
     '  vec4 color = vec4(0.0);'+#13#10+
     '  uint flags = uMaterial.alphaCutOffFlagsTex0Tex1.y,'+#13#10+
-    '       shadingModel = (flags >> 24u) & 0xfu;'+#13#10+
+    '       shadingModel = (flags >> 0u) & 0xfu;'+#13#10+
     '  switch(shadingModel){'+#13#10+
     '    case smPBRMetallicRoughness:'+#13#10+
     '    case smPBRSpecularGlossiness:{'+#13#10+
@@ -365,7 +365,7 @@ begin
     '      }else{'+#13#10+
     '        normal = normalize(vNormal);'+#13#10+
     '      }'+#13#10+
-    '      normal *= (((flags & 0x20000000u) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
+    '      normal *= (((flags & (1u << 5u)) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
     '      occlusionTexture = textureFetch(uOcclusionTexture, 3, vec4(1.0));'+#13#10+
     '      emissiveTexture = textureFetch(uEmissiveTexture, 4, vec4(0.0));'+#13#10+
     '      float materialMetallic = clamp(pbrMetallicRoughness.metallicRoughness.x, 0.0, 1.0),'+#13#10+
@@ -434,7 +434,7 @@ begin
     '    }'+#13#10+
     '  }'+#13#10+
     '  float alpha = color.w * vColor.w;'+#13#10+
-    '  oOutput = vec4(color.xyz * vColor.xyz, mix(1.0, alpha, float(int(uint((flags >> 28u) & 1u)))));'+#13#10;
+    '  oOutput = vec4(color.xyz * vColor.xyz, mix(1.0, alpha, float(int(uint((flags >> 4u) & 1u)))));'+#13#10;
  if aAlphaTest then begin
   f:=f+'  if(alpha < uintBitsToFloat(uMaterial.alphaCutOffFlagsTex0Tex1.x)){'+#13#10+
        '    discard;'+#13#10+
