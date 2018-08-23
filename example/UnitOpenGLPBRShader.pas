@@ -175,7 +175,7 @@ begin
     'layout(location = 7) in vec4 aJoints1;'+#13#10+
     'layout(location = 8) in vec4 aWeights0;'+#13#10+
     'layout(location = 9) in vec4 aWeights1;'+#13#10+
-    'out vec3 vViewSpacePosition;'+#13#10+
+    'out vec3 vCameraRelativePosition;'+#13#10+
     'out vec2 vTexCoord0;'+#13#10+
     'out vec2 vTexCoord1;'+#13#10+
     'out vec3 vNormal;'+#13#10+
@@ -183,28 +183,28 @@ begin
     'out vec3 vBitangent;'+#13#10+
     'out vec4 vColor;'+#13#10+
     'layout(std140, binding = '+IntToStr(uboFrameGlobals)+') uniform uboFrameGlobals {'+#13#10+
-    '  mat4 viewMatrix;'+#13#10+
-    '  mat4 projectionMatrix;'+#13#10+
+    '  mat4 inverseViewMatrix;'+#13#10+
+    '  mat4 viewProjectionMatrix;'+#13#10+
     '} uFrameGlobals;'+#13#10+
     'uniform mat4 uModelMatrix;'+#13#10+
     f0+
     'void main(){'+#13#10+
     f1+
-    '  mat4 modelViewMatrix = uFrameGlobals.viewMatrix * uModelMatrix'+f2+';'+#13#10+
-    '  mat3 normalMatrix = transpose(inverse(mat3(modelViewMatrix)));'+#13#10+
+    '  mat4 modelMatrix = uModelMatrix'+f2+';'+#13#10+
+    '  mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));'+#13#10+
     '  vNormal = normalize(normalMatrix * aNormal);'+#13#10+
     '  vTangent = normalize(normalMatrix * aTangent.xyz);'+#13#10+
     '  vBitangent = cross(vNormal, vTangent) * aTangent.w;'+#13#10+
     '  vTexCoord0 = aTexCoord0;'+#13#10+
     '  vTexCoord1 = aTexCoord1;'+#13#10+
     '  vColor = aColor0;'+#13#10+
-    '  vec4 viewSpacePosition = modelViewMatrix * vec4(aPosition, 1.0);'+#13#10+
-    '  vViewSpacePosition = viewSpacePosition.xyz / viewSpacePosition.w;'+#13#10+
-    '  gl_Position = uFrameGlobals.projectionMatrix * viewSpacePosition;'+#13#10+
+    '  vec4 worldSpacePosition = modelMatrix * vec4(aPosition, 1.0);'+#13#10+
+    '  vCameraRelativePosition = (worldSpacePosition.xyz / worldSpacePosition.w) - uFrameGlobals.inverseViewMatrix[3].xyz;'+#13#10+
+    '  gl_Position = uFrameGlobals.viewProjectionMatrix * worldSpacePosition;'+#13#10+
     '}'+#13#10;
  f:='#version 430'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
-    'in vec3 vViewSpacePosition;'+#13#10+
+    'in vec3 vCameraRelativePosition;'+#13#10+
     'in vec2 vTexCoord0;'+#13#10+
     'in vec2 vTexCoord1;'+#13#10+
     'in vec3 vNormal;'+#13#10+
@@ -376,7 +376,7 @@ begin
     '            ambientOcclusion = 1.0,'+#13#10+
     '            shadow = 1.0;'+#13#10+
     '      vec3 f0 = vec3(0.04),'+#13#10+
-    '           viewDirection = normalize(vViewSpacePosition),'+#13#10+
+    '           viewDirection = normalize(vCameraRelativePosition),'+#13#10+
     '           diffuseColor = pbrMetallicRoughness.baseColor.xyz * (vec3(1.0) - f0) * (1.0 - materialMetallic) * PI,'+#13#10+
     '           specularColor = mix(f0, pbrMetallicRoughness.baseColor.xyz, materialMetallic) * PI;'+#13#10+
     '      float reflectance = max(max(specularColor.x, specularColor.y), specularColor.z);'+#13#10+

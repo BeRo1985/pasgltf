@@ -215,8 +215,8 @@ type EGLTFOpenGL=class(Exception);
             end;
             PMorphTargetUniformBuffer=^TMorphTargetUniformBuffer;
             TFrameGlobalsUniformBufferObjectData=packed record
-             ViewMatrix:TPasGLTF.TMatrix4x4;
-             ProjectionMatrix:TPasGLTF.TMatrix4x4;
+             InverseViewMatrix:TPasGLTF.TMatrix4x4;
+             ViewProjectionMatrix:TPasGLTF.TMatrix4x4;
             end;
             PFrameGlobalsUniformBufferObjectData=^TFrameGlobalsUniformBufferObjectData;
             TMaterialUniformBufferObject=record
@@ -2366,8 +2366,8 @@ var NonSkinnedPBRShader,SkinnedPBRShader:TPBRShader;
   glBindBuffer(GL_UNIFORM_BUFFER,fFrameGlobalsUniformBufferObjectHandle);
   p:=glMapBufferRange(GL_UNIFORM_BUFFER,0,SizeOf(TFrameGlobalsUniformBufferObjectData),GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
   if assigned(p) then begin
-   p^.ViewMatrix:=aViewMatrix;
-   p^.ProjectionMatrix:=aProjectionMatrix;
+   p^.InverseViewMatrix:=MatrixInverse(aViewMatrix);
+   p^.ViewProjectionMatrix:=MatrixMul(aViewMatrix,aProjectionMatrix);
    glUnmapBuffer(GL_UNIFORM_BUFFER);
   end;
   glBindBufferBase(GL_UNIFORM_BUFFER,
