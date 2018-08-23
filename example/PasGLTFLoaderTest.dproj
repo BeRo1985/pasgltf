@@ -214,7 +214,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
-        <Debugger_RunParams>models\littlest_tokyo\scene.gltf</Debugger_RunParams>
+        <Debugger_RunParams>models\buster_drone\scene.gltf</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
