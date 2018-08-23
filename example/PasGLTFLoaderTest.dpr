@@ -485,7 +485,7 @@ begin
     EnvMapGenShader:=TEnvMapGenShader.Create;
     try
 
-     begin
+     if false then begin
       ImageWidth:=1024;
       ImageHeight:=1024;
       EnvMapFBO.Width:=ImageWidth;
@@ -519,9 +519,8 @@ begin
       EnvMapFBO.TextureHandles[0]:=0;
       DestroyFrameBuffer(EnvMapFBO);
       EnvMapGenShader.Unbind;
-     end;
-
-     if EnvMapTextureHandle=0 then begin
+     end else begin
+      EnvMapTextureHandle:=0;
       glGenTextures(1,@EnvMapTextureHandle);
       glBindTexture(GL_TEXTURE_CUBE_MAP,EnvMapTextureHandle);
       glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_WRAP_S,GL_REPEAT);

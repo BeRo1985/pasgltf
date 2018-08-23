@@ -347,7 +347,7 @@ begin
     '        case smPBRMetallicRoughness:{'+#13#10+
     '          pbrMetallicRoughness.baseColor = textureFetch(uBaseColorTexture, 0, vec4(1.0));'+#13#10+
     '          pbrMetallicRoughness.baseColor = vec4(convertSRGBToLinearRGB(pbrMetallicRoughness.baseColor.xyz), pbrMetallicRoughness.baseColor.w) * uMaterial.baseColorFactor;'+#13#10+
-    '          pbrMetallicRoughness.metallicRoughness = textureFetch(uMetallicRoughnessTexture, 1, vec4(1.0)).xy * uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.xy;'+#13#10+
+    '          pbrMetallicRoughness.metallicRoughness = textureFetch(uMetallicRoughnessTexture, 1, vec4(1.0)).zy * uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.xy;'+#13#10+
     '          break;'+#13#10+
     '        }'+#13#10+
     '        case smPBRSpecularGlossiness:{'+#13#10+
