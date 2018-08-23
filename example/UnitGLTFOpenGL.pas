@@ -1606,10 +1606,68 @@ var AllVertices:TAllVertices;
        glBindTexture(GL_TEXTURE_2D,Handle);
        if (SourceTexture.Sampler>=0) and (SourceTexture.Sampler<fDocument.Samplers.Count) then begin
         SourceSampler:=fDocument.Samplers[SourceTexture.Sampler];
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,glEnum(SourceSampler.WrapS));
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,glEnum(SourceSampler.WrapT));
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,glEnum(SourceSampler.MinFilter));
-        glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,glEnum(SourceSampler.MagFilter));
+        case SourceSampler.WrapS of
+         TPasGLTF.TSampler.TWrappingMode.Repeat_:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
+         end;
+         TPasGLTF.TSampler.TWrappingMode.ClampToEdge:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+         end;
+         TPasGLTF.TSampler.TWrappingMode.MirroredRepeat:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_MIRRORED_REPEAT);
+         end;
+         else begin
+          Assert(false);
+         end;
+        end;
+        case SourceSampler.WrapT of
+         TPasGLTF.TSampler.TWrappingMode.Repeat_:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
+         end;
+         TPasGLTF.TSampler.TWrappingMode.ClampToEdge:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+         end;
+         TPasGLTF.TSampler.TWrappingMode.MirroredRepeat:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_MIRRORED_REPEAT);
+         end;
+         else begin
+          Assert(false);
+         end;
+        end;
+        case SourceSampler.MinFilter of
+         TPasGLTF.TSampler.TMinFilter.Nearest:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST);
+         end;
+         TPasGLTF.TSampler.TMinFilter.Linear:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+         end;
+         TPasGLTF.TSampler.TMinFilter.NearestMipMapNearest:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST_MIPMAP_NEAREST);
+         end;
+         TPasGLTF.TSampler.TMinFilter.LinearMipMapNearest:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_NEAREST);
+         end;
+         TPasGLTF.TSampler.TMinFilter.NearestMipMapLinear:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_NEAREST_MIPMAP_LINEAR);
+         end;
+         TPasGLTF.TSampler.TMinFilter.LinearMipMapLinear:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
+         end;
+         else begin
+          Assert(false);
+         end;
+        end;
+        case SourceSampler.MagFilter of
+         TPasGLTF.TSampler.TMagFilter.Nearest:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_NEAREST);
+         end;
+         TPasGLTF.TSampler.TMagFilter.Linear:begin
+          glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+         end;
+         else begin
+          Assert(false);
+         end;
+        end;
        end else begin
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
