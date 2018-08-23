@@ -330,7 +330,7 @@ begin
     'uvec2 texCoordIndices = uMaterial.alphaCutOffFlagsTex0Tex1.zw;'+#13#10+
     'vec2 texCoords[2] = vec2[2](vTexCoord0, vTexCoord1);'+#13#10+
     'vec4 textureFetch(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
-    '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 4u)) & 0xfu;'+#13#10+
+    '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
     '  return (which < 0x2u) ? texture(tex, texCoords[int(which)]) : defaultValue;'+#13#10+
 //  '  return (which < 0xfu) ? texture(tex, texCoords[int(which)]) : defaultValue;'+#13#10+
     '}'+#13#10+

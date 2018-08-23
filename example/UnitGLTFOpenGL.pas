@@ -927,7 +927,7 @@ procedure TGLTFOpenGL.InitializeResources;
      TMaterial.TShadingModel.Unlit:begin
       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or ((2 and $f) shl 0);
       if (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
-       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (0 shl 4))) or ((SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord and $f) shl (0 shl 4));
+       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (0 shl 2))) or ((SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord and $f) shl (0 shl 2));
       end;
       UniformBufferObjectData^.BaseColorFactor:=SourceMaterial.PBRMetallicRoughness.BaseColorFactor;
      end;
@@ -936,13 +936,13 @@ procedure TGLTFOpenGL.InitializeResources;
      end;
     end;
     if (SourceMaterial.NormalTexture.Index>=0) and (SourceMaterial.NormalTexture.Index<length(fTextures)) then begin
-     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (2 shl 4))) or ((SourceMaterial.NormalTexture.TexCoord and $f) shl (2 shl 4));
+     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (2 shl 2))) or ((SourceMaterial.NormalTexture.TexCoord and $f) shl (2 shl 2));
     end;
     if (SourceMaterial.OcclusionTexture.Index>=0) and (SourceMaterial.OcclusionTexture.Index<length(fTextures)) then begin
-     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (3 shl 4))) or ((SourceMaterial.OcclusionTexture.TexCoord and $f) shl (3 shl 4));
+     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (3 shl 2))) or ((SourceMaterial.OcclusionTexture.TexCoord and $f) shl (3 shl 2));
     end;
     if (SourceMaterial.EmissiveTexture.Index>=0) and (SourceMaterial.EmissiveTexture.Index<length(fTextures)) then begin
-     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (4 shl 4))) or ((SourceMaterial.EmissiveTexture.TexCoord and $f) shl (4 shl 4));
+     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (4 shl 2))) or ((SourceMaterial.EmissiveTexture.TexCoord and $f) shl (4 shl 2));
     end;
     UniformBufferObjectData^.EmissiveFactor[0]:=SourceMaterial.EmissiveFactor[0];
     UniformBufferObjectData^.EmissiveFactor[1]:=SourceMaterial.EmissiveFactor[1];
