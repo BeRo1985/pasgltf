@@ -225,7 +225,7 @@ begin
     '  vec4 specularFactor;'+#13#10+
     '  vec4 emissiveFactor;'+#13#10+
     '  vec4 metallicRoughnessNormalScaleOcclusionStrengthFactor;'+#13#10+
-    '  uvec4 alphaCutOffFlags;'+#13#10+
+    '  uvec4 alphaCutOffFlagsTex0Tex1;'+#13#10+
     '} uMaterial;'+#13#10+
     'vec3 convertLinearRGBToSRGB(vec3 c){'+#13#10+
     '  return mix((pow(c, vec3(1.0 / 2.4)) * vec3(1.055)) - vec3(5.5e-2),'+#13#10+
@@ -327,10 +327,17 @@ begin
     'const uint smPBRMetallicRoughness = 0u,'+#13#10+
     '           smPBRSpecularGlossiness = 1u,'+#13#10+
     '           smUnlit = 2u;'+#13#10+
+    'uvec2 texCoordIndices = uMaterial.alphaCutOffFlagsTex0Tex1.zw;'+#13#10+
+    'vec2 texCoords[2] = vec2[2](vTexCoord0, vTexCoord1);'+#13#10+
+    'vec4 textureFetch(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
+    '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 4u)) & 0xfu;'+#13#10+
+    '  return (which < 0x2u) ? texture(tex, texCoords[int(which)]) : defaultValue;'+#13#10+
+//  '  return (which < 0xfu) ? texture(tex, texCoords[int(which)]) : defaultValue;'+#13#10+
+    '}'+#13#10+
     'void main(){'+#13#10+
     '  vec4 color = vec4(0.0);'+#13#10+
-    '  uint flags = uMaterial.alphaCutOffFlags.y;'+#13#10+
-    '  uint shadingModel = (flags >> 24u) & 0xfu;'+#13#10+
+    '  uint flags = uMaterial.alphaCutOffFlagsTex0Tex1.y,'+#13#10+
+    '       shadingModel = (flags >> 24u) & 0xfu;'+#13#10+
     '  switch(shadingModel){'+#13#10+
     '    case smPBRMetallicRoughness:'+#13#10+
     '    case smPBRSpecularGlossiness:{'+#13#10+
@@ -338,58 +345,29 @@ begin
     '      PBRMetallicRoughness pbrMetallicRoughness;'+#13#10+
     '      switch(shadingModel){'+#13#10+
     '        case smPBRMetallicRoughness:{'+#13#10+
-    '          if((flags & 1u) != 0u){'+#13#10+
-    '            pbrMetallicRoughness.baseColor = texture(uBaseColorTexture, ((flags & 2u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
-    '          }else{'+#13#10+
-    '            pbrMetallicRoughness.baseColor = vec4(1.0);'+#13#10+
-    '          }'+#13#10+
-    '          if((flags & 4u) != 0u){'+#13#10+
-    '            pbrMetallicRoughness.metallicRoughness = texture(uMetallicRoughnessTexture, ((flags & 8u) != 0u) ? vTexCoord1 : vTexCoord0).zy;'+#13#10+
-    '          }else{'+#13#10+
-    '            pbrMetallicRoughness.metallicRoughness = vec2(1.0);'+#13#10+
-    '          }'+#13#10+
+    '          pbrMetallicRoughness.baseColor = textureFetch(uBaseColorTexture, 0, vec4(1.0));'+#13#10+
     '          pbrMetallicRoughness.baseColor = vec4(convertSRGBToLinearRGB(pbrMetallicRoughness.baseColor.xyz), pbrMetallicRoughness.baseColor.w) * uMaterial.baseColorFactor;'+#13#10+
-    '          pbrMetallicRoughness.metallicRoughness *= uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.xy;'+#13#10+
+    '          pbrMetallicRoughness.metallicRoughness = textureFetch(uMetallicRoughnessTexture, 1, vec4(1.0)).xy * uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.xy;'+#13#10+
     '          break;'+#13#10+
     '        }'+#13#10+
     '        case smPBRSpecularGlossiness:{'+#13#10+
     '          PBRSpecularGlossiness pbrSpecularGlossiness;'+#13#10+
-    '          if((flags & 1u) != 0u){'+#13#10+
-    '            pbrSpecularGlossiness.diffuseColor = texture(uBaseColorTexture, ((flags & 2u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
-    '          }else{'+#13#10+
-    '            pbrSpecularGlossiness.diffuseColor = vec4(1.0);'+#13#10+
-    '          }'+#13#10+
-    '          if((flags & 4u) != 0u){'+#13#10+
-    '            pbrSpecularGlossiness.specularGlossiness = texture(uMetallicRoughnessTexture, ((flags & 8u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
-    '          }else{'+#13#10+
-    '            pbrSpecularGlossiness.specularGlossiness = vec4(1.0);'+#13#10+
-    '          }'+#13#10+
-    '          pbrSpecularGlossiness.diffuseColor *= uMaterial.baseColorFactor;'+#13#10+
-    '          pbrSpecularGlossiness.specularGlossiness *= vec4(uMaterial.specularFactor.xyz, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.y);'+#13#10+
+    '          pbrSpecularGlossiness.diffuseColor = textureFetch(uBaseColorTexture, 0, vec4(1.0)) * uMaterial.baseColorFactor;'+#13#10+
+    '          pbrSpecularGlossiness.specularGlossiness = textureFetch(uMetallicRoughnessTexture, 1, vec4(1.0)) * vec4(uMaterial.specularFactor.xyz, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.y);'+#13#10+
     '          convertPBRSpecularGlossinessToPBRMetallicRoughness(pbrSpecularGlossiness, pbrMetallicRoughness);'+#13#10+
     '          break;'+#13#10+
     '        }'+#13#10+
     '      }'+#13#10+
     '      vec3 normal;'+#13#10+
-    '      if((flags & 16u) != 0u){'+#13#10+
-    '        mat3 tangentSpace = mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal));'+#13#10+
-    '        vec4 normalTexture = texture(uNormalTexture, ((flags & 32u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
-    '        normal = normalize(tangentSpace * normalize(normalTexture.xyz - vec3(0.5)));'+#13#10+
+    '      if((texCoordIndices.x & 0x00000f00u) != 0x00000f00u){'+#13#10+
+    '        vec4 normalTexture = textureFetch(uNormalTexture, 2, vec2(0.0, 1.0).xxyx);'+#13#10+
+    '        normal = normalize(mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal)) * normalize(normalTexture.xyz - vec3(0.5)));'+#13#10+
     '      }else{'+#13#10+
     '        normal = normalize(vNormal);'+#13#10+
     '      }'+#13#10+
     '      normal *= (((flags & 0x20000000u) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
-    '      if((flags & 64u) != 0u){'+#13#10+
-    '        occlusionTexture = texture(uOcclusionTexture, ((flags & 128u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
-    '      }else{'+#13#10+
-    '        occlusionTexture = vec4(1.0);'+#13#10+
-    '      }'+#13#10+
-    '      if((flags & 256u) != 0u){'+#13#10+
-    '        emissiveTexture = texture(uEmissiveTexture, ((flags & 512u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
-    '      }else{'+#13#10+
-    '        emissiveTexture = vec4(0.0);'+#13#10+
-    '      }'+#13#10+
-    '      vec4 materialAlbedo = pbrMetallicRoughness.baseColor;'+#13#10+
+    '      occlusionTexture = textureFetch(uOcclusionTexture, 3, vec4(1.0));'+#13#10+
+    '      emissiveTexture = textureFetch(uEmissiveTexture, 4, vec4(0.0));'+#13#10+
     '      float materialMetallic = clamp(pbrMetallicRoughness.metallicRoughness.x, 0.0, 1.0),'+#13#10+
     '            materialRoughness = clamp(pbrMetallicRoughness.metallicRoughness.y, 1e-3, 1.0),'+#13#10+
     '            materialCavity = clamp(mix(1.0, occlusionTexture.x, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
@@ -399,8 +377,8 @@ begin
     '            shadow = 1.0;'+#13#10+
     '      vec3 f0 = vec3(0.04),'+#13#10+
     '           viewDirection = normalize(vViewSpacePosition),'+#13#10+
-    '           diffuseColor = materialAlbedo.xyz * (vec3(1.0) - f0) * (1.0 - materialMetallic) * PI,'+#13#10+
-    '           specularColor = mix(f0, materialAlbedo.xyz, materialMetallic) * PI;'+#13#10+
+    '           diffuseColor = pbrMetallicRoughness.baseColor.xyz * (vec3(1.0) - f0) * (1.0 - materialMetallic) * PI,'+#13#10+
+    '           specularColor = mix(f0, pbrMetallicRoughness.baseColor.xyz, materialMetallic) * PI;'+#13#10+
     '      float reflectance = max(max(specularColor.x, specularColor.y), specularColor.z);'+#13#10+
     '      vec3 r90 = vec3(clamp(reflectance * 25.0, 0.0, 1.0)),'+#13#10+
     '           r0 = specularColor;'+#13#10+
@@ -446,24 +424,19 @@ begin
     '        color.xyz += textureLod(uEnvMapTexture, rayDirection, clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(materialRoughness))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColor * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColor.x, specularColor.y), specularColor.z) * 50.0, 0.0, 1.0))) * specularOcclusion;'+#13#10+
     '        color.xyz += textureLod(uEnvMapTexture, normal.xyz, float(uEnvMapMaxLevel)).xyz * diffuseColor * ao;'+#13#10+
     '      }'+#13#10+
-    '      color = vec4(vec3(color.xyz + (convertSRGBToLinearRGB(emissiveTexture.xyz) * uMaterial.emissiveFactor.xyz)), materialAlbedo.w);'+#13#10+
+    '      color = vec4(vec3(color.xyz + (convertSRGBToLinearRGB(emissiveTexture.xyz) * uMaterial.emissiveFactor.xyz)), pbrMetallicRoughness.baseColor.w);'+#13#10+
     '      break;'+#13#10+
     '    }'+#13#10+
     '    case smUnlit:{'+#13#10+
-    '      if((flags & 1u) != 0u){'+#13#10+
-    '        color = texture(uBaseColorTexture, ((flags & 2u) != 0u) ? vTexCoord1 : vTexCoord0);'+#13#10+
-    '      }else{'+#13#10+
-    '        color = vec4(1.0);'+#13#10+
-    '      }'+#13#10+
+   '       color = textureFetch(uBaseColorTexture, 0, vec4(1.0));'+#13#10+
     '      color = vec4(convertSRGBToLinearRGB(color.xyz), color.w) * uMaterial.baseColorFactor;'+#13#10+
     '      break;'+#13#10+
     '    }'+#13#10+
     '  }'+#13#10+
     '  float alpha = color.w * vColor.w;'+#13#10+
     '  oOutput = vec4(color.xyz * vColor.xyz, mix(1.0, alpha, float(int(uint((flags >> 28u) & 1u)))));'+#13#10;
-///    '  oOutput = vec4(vec3(vNormal.xyz * vColor.xyz), materialAlbedo.w * vColor.w);'+#13#10;
  if aAlphaTest then begin
-  f:=f+'  if(alpha < uintBitsToFloat(uMaterial.alphaCutOffFlags.x)){'+#13#10+
+  f:=f+'  if(alpha < uintBitsToFloat(uMaterial.alphaCutOffFlagsTex0Tex1.x)){'+#13#10+
        '    discard;'+#13#10+
        '  }'+#13#10;
  end;

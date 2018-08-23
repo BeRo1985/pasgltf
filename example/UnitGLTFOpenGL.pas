@@ -889,14 +889,16 @@ procedure TGLTFOpenGL.InitializeResources;
     if SourceMaterial.DoubleSided then begin
      UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or $20000000;
     end;
+    UniformBufferObjectData.Reversed0:=$ffffffff;
+    UniformBufferObjectData.Reversed1:=$ffffffff;
     case DestinationMaterial^.ShadingModel of
      TMaterial.TShadingModel.PBRMetallicRoughness:begin
       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (0 shl 24);
       if (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
-       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (1 or (2*ord(SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord=1)));
+       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (0 shl 4))) or ((SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord and $f) shl (0 shl 4));
       end;
       if (SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
-       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (4 or (8*ord(SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord=1)));
+       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (1 shl 4))) or ((SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord and $f) shl (1 shl 4));
       end;
       UniformBufferObjectData^.BaseColorFactor:=SourceMaterial.PBRMetallicRoughness.BaseColorFactor;
       UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[0]:=SourceMaterial.PBRMetallicRoughness.MetallicFactor;
@@ -907,10 +909,10 @@ procedure TGLTFOpenGL.InitializeResources;
      TMaterial.TShadingModel.PBRSpecularGlossiness:begin
       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (1 shl 24);
       if (DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fTextures)) then begin
-       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (1 or (2*ord(DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord=1)));
+       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (0 shl 4))) or ((DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord and $f) shl (0 shl 4));
       end;
       if (DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fTextures)) then begin
-       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (4 or (8*ord(DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord=1)));
+       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (1 shl 4))) or ((DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord and $f) shl (1 shl 4));
       end;
       UniformBufferObjectData^.BaseColorFactor:=DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor;
       UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[0]:=1.0;
@@ -925,7 +927,7 @@ procedure TGLTFOpenGL.InitializeResources;
      TMaterial.TShadingModel.Unlit:begin
       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (2 shl 24);
       if (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
-       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (1 or (2*ord(SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord=1)));
+       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (0 shl 4))) or ((SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord and $f) shl (0 shl 4));
       end;
       UniformBufferObjectData^.BaseColorFactor:=SourceMaterial.PBRMetallicRoughness.BaseColorFactor;
      end;
@@ -934,13 +936,13 @@ procedure TGLTFOpenGL.InitializeResources;
      end;
     end;
     if (SourceMaterial.NormalTexture.Index>=0) and (SourceMaterial.NormalTexture.Index<length(fTextures)) then begin
-     UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (16 or (32*ord(SourceMaterial.NormalTexture.TexCoord=1)));
+     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (2 shl 4))) or ((SourceMaterial.NormalTexture.TexCoord and $f) shl (2 shl 4));
     end;
     if (SourceMaterial.OcclusionTexture.Index>=0) and (SourceMaterial.OcclusionTexture.Index<length(fTextures)) then begin
-     UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (64 or (128*ord(SourceMaterial.OcclusionTexture.TexCoord=1)));
+     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (3 shl 4))) or ((SourceMaterial.OcclusionTexture.TexCoord and $f) shl (3 shl 4));
     end;
     if (SourceMaterial.EmissiveTexture.Index>=0) and (SourceMaterial.EmissiveTexture.Index<length(fTextures)) then begin
-     UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (256 or (512*ord(SourceMaterial.EmissiveTexture.TexCoord=1)));
+     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (4 shl 4))) or ((SourceMaterial.EmissiveTexture.TexCoord and $f) shl (4 shl 4));
     end;
     UniformBufferObjectData^.EmissiveFactor[0]:=SourceMaterial.EmissiveFactor[0];
     UniformBufferObjectData^.EmissiveFactor[1]:=SourceMaterial.EmissiveFactor[1];
