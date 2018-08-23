@@ -214,7 +214,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
-        <Debugger_RunParams>models\buster_drone\scene.gltf</Debugger_RunParams>
+        <Debugger_RunParams>&quot;models\hero_dance_1\scene.gltf&quot;</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
@@ -239,6 +239,7 @@
         <DCCReference Include="UnitOpenGLEnvMapDrawShader.pas"/>
         <DCCReference Include="UnitOpenGLAntialiasingShader.pas"/>
         <DCCReference Include="UnitOpenGLHDRToLDRShader.pas"/>
+        <DCCReference Include="UnitOpenGLEnvMapGenShader.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
