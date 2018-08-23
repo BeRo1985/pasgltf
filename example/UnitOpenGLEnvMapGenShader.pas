@@ -160,14 +160,20 @@ begin
     '}'+#13#10+
     'void main(){'+#13#10+
     '  vec3 direction = getCubeMapDirection(vTexCoord, vFaceIndex);'+#13#10+
-    '  vec3 lightDirection = normalize(vec3(0.0, -1.0, 0.0));'+#13#10+
+    '  vec3 lightDirection = normalize(vec3(0.0, -1.0, -0.0));'+#13#10+
 //   '	 vec3 lightColor = vec3(0.25, 0.5, 1.0) * 1.64;'+#13#10+
-    '  vec3 lightColor = vec3(0.99, 1.27, 1.64);'+#13#10+
+    '  vec3 lightColor = vec3(1.70, 1.15, 0.70);'+#13#10+
+//  '  vec3 lightColor = vec3(0.99, 1.27, 1.64);'+#13#10+
     '	 float lightPower = 1.0;'+#13#10+
-    '	 float f = mix(0.0625, 0.5, smoothstep(-1.0, 1.0, dot(direction, lightDirection))) * mix(0.0, 1.0, lightPower);'+#13#10+
-    '  float f2 = max(f, mix(0.0, 4.0, smoothstep(0.9, 1.0, -dot(direction, lightDirection)))) * mix(2.0, 1.0, lightPower);'+#13#10+
+    '	 float f = mix(0.0625, 0.5, smoothstep(-1.0, 1.0, dot(direction, lightDirection)));'+#13#10+
+    '  float f2 = mix(0.0, 32.0, smoothstep(0.99, 1.0, -dot(direction, lightDirection)));'+#13#10+
 //  '  float f3 = max(f, mix(0.0, 16.0, smoothstep(0.99999, 1.0, -dot(direction, lightDirection))));'+#13#10+
-    '  oOutput = vec4(vec3(f2) * lightColor, 1.0);'+#13#10+
+    '  vec3 c = vec3(max(f, f2)) * lightColor;'+#13#10+
+    '  c += ('+#13#10+
+    '        (max(0.0, 0.6 + (0.4 * direction.y)) * vec3(0.05, 0.20, 0.45)) +'+#13#10+
+    '        (max(0.0, 0.2 + (0.8 * dot(direction.xyz, normalize(vec3(lightDirection.xz, 0.0).xzy)))) * vec3(0.20, 0.25, 0.25)) +'+#13#10+
+    '        (clamp(-direction.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24)));'+#13#10+
+    '  oOutput = vec4(c, 1.0);'+#13#10+
     '}'+#13#10;
  inherited Create(f,v);
 end;
