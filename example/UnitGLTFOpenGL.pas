@@ -227,18 +227,20 @@ type EGLTFOpenGL=class(Exception);
                     (
                      Translation,
                      Rotation,
-                     Scale
+                     Scale,
+                     Weights
                     );
                    TOverwriteFlags=set of TOverwriteFlag;
              public
               Name:TPasGLTFUTF8String;
               Children:TPasGLTFSizeUIntDynamicArray;
               Weights:TPasGLTFFloatDynamicArray;
+              WorkWeights:TPasGLTFFloatDynamicArray;
               Mesh:TPasGLTFSizeInt;
               Camera:TPasGLTFSizeInt;
               Skin:TPasGLTFSizeInt;
-              WorkMatrix:TPasGLTF.TMatrix4x4;
               Matrix:TPasGLTF.TMatrix4x4;
+              WorkMatrix:TPasGLTF.TMatrix4x4;
               Translation:TPasGLTF.TVector3;
               Rotation:TPasGLTF.TVector4;
               Scale:TPasGLTF.TVector3;
@@ -246,6 +248,7 @@ type EGLTFOpenGL=class(Exception);
               OverwriteTranslation:TPasGLTF.TVector3;
               OverwriteRotation:TPasGLTF.TVector4;
               OverwriteScale:TPasGLTF.TVector3;
+              OverwriteWeights:TPasGLTFFloatDynamicArray;
             end;
             PNode=^TNode;
             TNodes=array of TNode;
@@ -1572,6 +1575,8 @@ procedure TGLTFOpenGL.InitializeResources;
    DestinationNode^.Translation:=SourceNode.Translation;
    DestinationNode^.Rotation:=SourceNode.Rotation;
    DestinationNode^.Scale:=SourceNode.Scale;
+   SetLength(DestinationNode^.WorkWeights,SourceNode.Weights.Count);
+   SetLength(DestinationNode^.OverwriteWeights,SourceNode.Weights.Count);
    SetLength(DestinationNode^.Weights,SourceNode.Weights.Count);
    for WeightIndex:=0 to length(DestinationNode^.Weights)-1 do begin
     DestinationNode^.Weights[WeightIndex]:=SourceNode.Weights[WeightIndex];
@@ -2333,6 +2338,15 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
    Rotation:=Node^.OverwriteRotation;
   end else begin
    Rotation:=Node^.Rotation;
+  end;
+  if TNode.TOverwriteFlag.Weights in Node^.OverwriteFlags then begin
+   for Index:=0 to Min(length(Node^.WorkWeights),length(Node^.OverwriteWeights))-1 do begin
+    Node^.WorkWeights[Index]:=Node^.OverwriteWeights[Index];
+   end;
+  end else begin
+   for Index:=0 to Min(length(Node^.WorkWeights),length(Node^.Weights))-1 do begin
+    Node^.WorkWeights[Index]:=Node^.Weights[Index];
+   end;
   end;
   Matrix:=MatrixMul(
            MatrixMul(
