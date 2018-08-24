@@ -22,7 +22,18 @@ type EGLTFOpenGL=class(Exception);
      TGLTFOpenGL=class
       public
        const MaxMorphTargets=256;
-       type TAnimation=record
+       type TBoundingBox=record
+             case boolean of
+              false:(
+               Min:TPasGLTF.TVector3;
+               Max:TPasGLTF.TVector3;
+              );
+              true:(
+               MinMax:array[0..1] of TPasGLTF.TVector3;
+              );
+            end;
+            PBoundingBox=^TBoundingBox;
+            TAnimation=record
              public
               type TChannel=record
                     public
@@ -153,8 +164,7 @@ type EGLTFOpenGL=class(Exception);
                    TPrimitives=array of TPrimitive;
              public
               Primitives:TPrimitives;
-              MinPosition:TPasGLTF.TVector3;
-              MaxPosition:TPasGLTF.TVector3;
+              BoundingBox:TBoundingBox;
             end;
             PMesh=^TMesh;
             TMeshes=array of TMesh;
@@ -227,6 +237,7 @@ type EGLTFOpenGL=class(Exception);
             end;
             PMaterialUniformBufferObject=^TMaterialUniformBufferObject;
             TMaterialUniformBufferObjects=array of TMaterialUniformBufferObject;
+       const EmptyBoundingBox:TBoundingBox=(Min:(Infinity,Infinity,Infinity);Max:(NegInfinity,NegInfinity,NegInfinity));
       private
        fDocument:TPasGLTF.TDocument;
        fReady:boolean;
@@ -242,8 +253,7 @@ type EGLTFOpenGL=class(Exception);
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
        fVertexArrayHandle:glInt;
-       fStaticMinPosition:TPasGLTF.TVector3;
-       fStaticMaxPosition:TPasGLTF.TVector3;
+       fStaticBoundingBox:TBoundingBox;
        fFrameGlobalsUniformBufferObjectHandle:glUInt;
        fUniformBufferOffsetAlignment:glInt;
        fMaximumUniformBufferBlockSize:glInt;
@@ -265,8 +275,7 @@ type EGLTFOpenGL=class(Exception);
                       const aTime:TPasGLTFFloat=0.0;
                       const aScene:TPasGLTFSizeInt=-1;
                       const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
-       property StaticMinPosition:TPasGLTF.TVector3 read fStaticMinPosition;
-       property StaticMaxPosition:TPasGLTF.TVector3 read fStaticMaxPosition;
+       property StaticBoundingBox:TBoundingBox read fStaticBoundingBox;
       published
        property Document:TPasGLTF.TDocument read fDocument;
      end;
@@ -995,13 +1004,7 @@ procedure TGLTFOpenGL.InitializeResources;
 
    SetLength(DestinationMesh^.Primitives,SourceMesh.Primitives.Count);
 
-   DestinationMesh^.MinPosition[0]:=Infinity;
-   DestinationMesh^.MinPosition[1]:=Infinity;
-   DestinationMesh^.MinPosition[2]:=Infinity;
-
-   DestinationMesh^.MaxPosition[0]:=NegInfinity;
-   DestinationMesh^.MaxPosition[1]:=NegInfinity;
-   DestinationMesh^.MaxPosition[2]:=NegInfinity;
+   DestinationMesh^.BoundingBox:=EmptyBoundingBox;
 
    for PrimitiveIndex:=0 to SourceMesh.Primitives.Count-1 do begin
 
@@ -1017,12 +1020,14 @@ procedure TGLTFOpenGL.InitializeResources;
       AccessorIndex:=SourceMeshPrimitive.Attributes['POSITION'];
       if AccessorIndex>=0 then begin
        TemporaryPositions:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
-       DestinationMesh^.MinPosition[0]:=Min(DestinationMesh^.MinPosition[0],fDocument.Accessors[AccessorIndex].MinArray[0]);
-       DestinationMesh^.MinPosition[1]:=Min(DestinationMesh^.MinPosition[1],fDocument.Accessors[AccessorIndex].MinArray[1]);
-       DestinationMesh^.MinPosition[2]:=Min(DestinationMesh^.MinPosition[2],fDocument.Accessors[AccessorIndex].MinArray[2]);
-       DestinationMesh^.MaxPosition[0]:=Max(DestinationMesh^.MaxPosition[0],fDocument.Accessors[AccessorIndex].MaxArray[0]);
-       DestinationMesh^.MaxPosition[1]:=Max(DestinationMesh^.MaxPosition[1],fDocument.Accessors[AccessorIndex].MaxArray[1]);
-       DestinationMesh^.MaxPosition[2]:=Max(DestinationMesh^.MaxPosition[2],fDocument.Accessors[AccessorIndex].MaxArray[2]);
+       for VertexIndex:=0 to length(TemporaryPositions)-1 do begin
+        DestinationMesh^.BoundingBox.Min[0]:=Min(DestinationMesh^.BoundingBox.Min[0],TemporaryPositions[VertexIndex,0]);
+        DestinationMesh^.BoundingBox.Min[1]:=Min(DestinationMesh^.BoundingBox.Min[1],TemporaryPositions[VertexIndex,1]);
+        DestinationMesh^.BoundingBox.Min[2]:=Min(DestinationMesh^.BoundingBox.Min[2],TemporaryPositions[VertexIndex,2]);
+        DestinationMesh^.BoundingBox.Max[0]:=Max(DestinationMesh^.BoundingBox.Max[0],TemporaryPositions[VertexIndex,0]);
+        DestinationMesh^.BoundingBox.Max[1]:=Max(DestinationMesh^.BoundingBox.Max[1],TemporaryPositions[VertexIndex,1]);
+        DestinationMesh^.BoundingBox.Max[2]:=Max(DestinationMesh^.BoundingBox.Max[2],TemporaryPositions[VertexIndex,2]);
+       end;
       end else begin
        raise EGLTFOpenGL.Create('Missing position data');
       end;
@@ -1437,7 +1442,7 @@ procedure TGLTFOpenGL.InitializeResources;
   end;
  end;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
- var Index:TPasGLTFSizeInt;
+ var Index,SubIndex:TPasGLTFSizeInt;
      Matrix:TPasGLTF.TMatrix4x4;
      Node:TPasGLTF.TNode;
      TemporaryVector3:TPasGLTF.TVector3;
@@ -1455,20 +1460,15 @@ procedure TGLTFOpenGL.InitializeResources;
            aMatrix);
   if Node.Mesh>=0 then begin
    Mesh:=@fMeshes[Node.Mesh];
-   TemporaryVector3:=Vector3MatrixMul(Matrix,Mesh^.MinPosition);
-   fStaticMinPosition[0]:=Min(fStaticMinPosition[0],TemporaryVector3[0]);
-   fStaticMinPosition[1]:=Min(fStaticMinPosition[1],TemporaryVector3[1]);
-   fStaticMinPosition[2]:=Min(fStaticMinPosition[2],TemporaryVector3[2]);
-   fStaticMaxPosition[0]:=Max(fStaticMaxPosition[0],TemporaryVector3[0]);
-   fStaticMaxPosition[1]:=Max(fStaticMaxPosition[1],TemporaryVector3[1]);
-   fStaticMaxPosition[2]:=Max(fStaticMaxPosition[2],TemporaryVector3[2]);
-   TemporaryVector3:=Vector3MatrixMul(Matrix,Mesh^.MaxPosition);
-   fStaticMinPosition[0]:=Min(fStaticMinPosition[0],TemporaryVector3[0]);
-   fStaticMinPosition[1]:=Min(fStaticMinPosition[1],TemporaryVector3[1]);
-   fStaticMinPosition[2]:=Min(fStaticMinPosition[2],TemporaryVector3[2]);
-   fStaticMaxPosition[0]:=Max(fStaticMaxPosition[0],TemporaryVector3[0]);
-   fStaticMaxPosition[1]:=Max(fStaticMaxPosition[1],TemporaryVector3[1]);
-   fStaticMaxPosition[2]:=Max(fStaticMaxPosition[2],TemporaryVector3[2]);
+   for SubIndex:=0 to 1 do begin
+    TemporaryVector3:=Vector3MatrixMul(Matrix,Mesh^.BoundingBox.MinMax[SubIndex]);
+    fStaticBoundingBox.Min[0]:=Min(fStaticBoundingBox.Min[0],TemporaryVector3[0]);
+    fStaticBoundingBox.Min[1]:=Min(fStaticBoundingBox.Min[1],TemporaryVector3[1]);
+    fStaticBoundingBox.Min[2]:=Min(fStaticBoundingBox.Min[2],TemporaryVector3[2]);
+    fStaticBoundingBox.Max[0]:=Max(fStaticBoundingBox.Max[0],TemporaryVector3[0]);
+    fStaticBoundingBox.Max[1]:=Max(fStaticBoundingBox.Max[1],TemporaryVector3[1]);
+    fStaticBoundingBox.Max[2]:=Max(fStaticBoundingBox.Max[2],TemporaryVector3[2]);
+   end;
   end;
   for Index:=0 to Node.Children.Count-1 do begin
    ProcessNode(Node.Children.Items[Index],Matrix);
@@ -1486,12 +1486,7 @@ begin
   InitializeNodes;
   InitializeSkinShaderStorageBufferObjects;
   begin
-   fStaticMinPosition[0]:=Infinity;
-   fStaticMinPosition[1]:=Infinity;
-   fStaticMinPosition[2]:=Infinity;
-   fStaticMaxPosition[0]:=NegInfinity;
-   fStaticMaxPosition[1]:=NegInfinity;
-   fStaticMaxPosition[2]:=NegInfinity;
+   fStaticBoundingBox:=EmptyBoundingBox;
    for Scene in fDocument.Scenes do begin
     for Index:=0 to Scene.Nodes.Count-1 do begin
      ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);

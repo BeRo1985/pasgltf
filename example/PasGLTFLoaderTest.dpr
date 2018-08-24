@@ -192,12 +192,12 @@ var Event:TSDL_Event;
    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
    ModelMatrix:=Matrix4x4Identity;
    t:=Time*0.125;
-   Center.x:=(GLTFOpenGL.StaticMinPosition[0]+GLTFOpenGL.StaticMaxPosition[0])*0.5;
-   Center.y:=(GLTFOpenGL.StaticMinPosition[1]+GLTFOpenGL.StaticMaxPosition[1])*0.5;
-   Center.z:=(GLTFOpenGL.StaticMinPosition[2]+GLTFOpenGL.StaticMaxPosition[2])*0.5;
-   Bounds.x:=(GLTFOpenGL.StaticMaxPosition[0]-GLTFOpenGL.StaticMinPosition[0])*0.5;
-   Bounds.y:=(GLTFOpenGL.StaticMaxPosition[1]-GLTFOpenGL.StaticMinPosition[1])*0.5;
-   Bounds.z:=(GLTFOpenGL.StaticMaxPosition[2]-GLTFOpenGL.StaticMinPosition[2])*0.5;
+   Center.x:=(GLTFOpenGL.StaticBoundingBox.Min[0]+GLTFOpenGL.StaticBoundingBox.Max[0])*0.5;
+   Center.y:=(GLTFOpenGL.StaticBoundingBox.Min[1]+GLTFOpenGL.StaticBoundingBox.Max[1])*0.5;
+   Center.z:=(GLTFOpenGL.StaticBoundingBox.Min[2]+GLTFOpenGL.StaticBoundingBox.Max[2])*0.5;
+   Bounds.x:=(GLTFOpenGL.StaticBoundingBox.Max[0]-GLTFOpenGL.StaticBoundingBox.Min[0])*0.5;
+   Bounds.y:=(GLTFOpenGL.StaticBoundingBox.Max[1]-GLTFOpenGL.StaticBoundingBox.Min[1])*0.5;
+   Bounds.z:=(GLTFOpenGL.StaticBoundingBox.Max[2]-GLTFOpenGL.StaticBoundingBox.Min[2])*0.5;
    Zoom:=ZoomLevel;
    ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
                                           Vector3ScalarMul(Vector3Norm(Vector3(sin(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0),
