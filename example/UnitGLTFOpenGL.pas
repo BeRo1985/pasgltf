@@ -22,7 +22,8 @@ type EGLTFOpenGL=class(Exception);
      TGLTFOpenGL=class
       public
        const MaxMorphTargets=256;
-       type TBoundingBox=record
+       type TGetURI=function(const aURI:TPasGLTFUTF8String):TStream of object;
+            TBoundingBox=record
              case boolean of
               false:(
                Min:TPasGLTF.TVector3;
@@ -252,7 +253,18 @@ type EGLTFOpenGL=class(Exception);
             end;
             PNode=^TNode;
             TNodes=array of TNode;
+            TImage=record
+             Name:TPasGLTFUTF8String;
+             URI:TPasGLTFUTF8String;
+             MIMEType:TPasGLTFUTF8String;
+             Data:TBytes;
+            end;
+            PImage=^TImage;
+            TImages=array of TImage;
             TTexture=record
+             Name:TPasGLTFUTF8String;
+             Image:TPasGLTFSizeInt;
+             Sampler:TPasGLTFSizeInt;
              Handle:glUInt;
             end;
             PTexture=^TTexture;
@@ -306,6 +318,7 @@ type EGLTFOpenGL=class(Exception);
        fMeshes:TMeshes;
        fSkins:TSkins;
        fNodes:TNodes;
+       fImages:TImages;
        fTextures:TTextures;
        fScenes:TScenes;
        fScene:TPasGLTFSizeInt;
@@ -318,6 +331,9 @@ type EGLTFOpenGL=class(Exception);
        fFrameGlobalsUniformBufferObjectHandle:glUInt;
        fUniformBufferOffsetAlignment:glInt;
        fMaximumUniformBufferBlockSize:glInt;
+       fRootPath:String;
+       fGetURI:TGetURI;
+       function DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
       public
        constructor Create(const aDocument:TPasGLTF.TDocument); reintroduce;
        destructor Destroy; override;
@@ -338,6 +354,8 @@ type EGLTFOpenGL=class(Exception);
                       const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
        property StaticBoundingBox:TBoundingBox read fStaticBoundingBox;
       published
+       property GetURI:TGetURI read fGetURI write fGetURI;
+       property RootPath:String read fRootPath write fRootPath;
        property Document:TPasGLTF.TDocument read fDocument;
      end;
 
@@ -772,6 +790,8 @@ end;
 constructor TGLTFOpenGL.Create(const aDocument:TPasGLTF.TDocument);
 begin
  inherited Create;
+ fGetURI:=DefaultGetURI;
+ fRootPath:='';
  fDocument:=aDocument;
  fReady:=false;
  fUploaded:=false;
@@ -780,6 +800,7 @@ begin
  fMeshes:=nil;
  fSkins:=nil;
  fNodes:=nil;
+ fImages:=nil;
  fTextures:=nil;
  fScenes:=nil;
  fScene:=-1;
@@ -792,6 +813,13 @@ begin
  UnloadResources;
  FinalizeResources;
  inherited Destroy;
+end;
+
+function TGLTFOpenGL.DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
+var FileName:String;
+begin
+ FileName:=ExpandFileName(IncludeTrailingPathDelimiter(fRootPath)+String(TPasGLTF.ResolveURIToPath(aURI)));
+ result:=TFileStream.Create(FileName,fmOpenRead or fmShareDenyWrite);
 end;
 
 procedure TGLTFOpenGL.InitializeResources;
@@ -1612,9 +1640,45 @@ procedure TGLTFOpenGL.InitializeResources;
    end;
   end;
  end;
+ procedure InitializeImages;
+ var Index,NodeIndex:TPasGLTFSizeInt;
+     SourceImage:TPasGLTF.TImage;
+     DestinationImage:PImage;
+     Stream:TMemoryStream;
+ begin
+  SetLength(fImages,fDocument.Images.Count);
+  for Index:=0 to fDocument.Images.Count-1 do begin
+   SourceImage:=fDocument.Images[Index];
+   DestinationImage:=@fImages[Index];
+   DestinationImage^.Name:=SourceImage.Name;
+   DestinationImage^.URI:=SourceImage.URI;
+   DestinationImage^.MIMEType:=SourceImage.MIMEType;
+   DestinationImage^.Data:=nil;
+   if not SourceImage.IsExternalResource then begin
+    Stream:=TMemoryStream.Create;
+    try
+     SourceImage.GetResourceData(Stream);
+     SetLength(DestinationImage^.Data,Stream.Size);
+     Move(Stream.Memory^,DestinationImage^.Data[0],Stream.Size);
+    finally
+     FreeAndNil(Stream);
+    end;
+   end;
+  end;
+ end;
  procedure InitializeTextures;
+ var Index,NodeIndex:TPasGLTFSizeInt;
+     SourceTexture:TPasGLTF.TTexture;
+     DestinationTexture:PTexture;
  begin
   SetLength(fTextures,fDocument.Textures.Count);
+  for Index:=0 to fDocument.Textures.Count-1 do begin
+   SourceTexture:=fDocument.Textures[Index];
+   DestinationTexture:=@fTextures[Index];
+   DestinationTexture^.Name:=SourceTexture.Name;
+   DestinationTexture^.Image:=SourceTexture.Source;
+   DestinationTexture^.Sampler:=SourceTexture.Sampler;
+  end;
  end;
  procedure InitializeScenes;
  var Index,NodeIndex:TPasGLTFSizeInt;
@@ -1729,6 +1793,7 @@ procedure TGLTFOpenGL.InitializeResources;
 begin
  if not fReady then begin
   InitializeAnimations;
+  InitializeImages;
   InitializeTextures;
   InitializeMaterials;
   InitializeMeshes;
@@ -1750,6 +1815,7 @@ begin
   fMeshes:=nil;
   fSkins:=nil;
   fNodes:=nil;
+  fImages:=nil;
   fTextures:=nil;
   fScenes:=nil;
   fSkinShaderStorageBufferObjects:=nil;
@@ -1849,9 +1915,11 @@ var AllVertices:TAllVertices;
  end;
  procedure LoadTextures;
  var Index:TPasGLTFSizeInt;
-     SourceTexture:TPasGLTF.TTexture;
+     Texture:PTexture;
+     Image:PImage;
      SourceSampler:TPasGLTF.TSampler;
      MemoryStream:TMemoryStream;
+     Stream:TStream;
      ImageData:TPasGLTFPointer;
      ImageWidth,ImageHeight:TPasGLTFInt32;
      Handle:glUInt;
@@ -1859,17 +1927,29 @@ var AllVertices:TAllVertices;
  begin
   for Index:=0 to length(fTextures)-1 do begin
    Handle:=0;
-   SourceTexture:=fDocument.Textures[Index];
-   if (SourceTexture.Source>=0) and (SourceTexture.Source<fDocument.Images.Count) then begin
+   Texture:=@fTextures[Index];
+   if (Texture^.Image>=0) and (Texture^.Image<length(fImages)) then begin
+    Image:=@fImages[Texture^.Image];
     MemoryStream:=TMemoryStream.Create;
     try
-     fDocument.Images[SourceTexture.Source].GetResourceData(MemoryStream);
+     if length(Image^.Data)>0 then begin
+      MemoryStream.Write(Image^.Data[0],length(Image^.Data));
+     end else if assigned(fGetURI) then begin
+      Stream:=fGetURI(Image^.URI);
+      if assigned(Stream) then begin
+       try
+        MemoryStream.LoadFromStream(Stream);
+       finally
+        FreeAndNil(Stream);
+       end;
+      end;
+     end;
      if LoadImage(MemoryStream.Memory,MemoryStream.Size,ImageData,ImageWidth,ImageHeight) then begin
       try
        glGenTextures(1,@Handle);
        glBindTexture(GL_TEXTURE_2D,Handle);
-       if (SourceTexture.Sampler>=0) and (SourceTexture.Sampler<fDocument.Samplers.Count) then begin
-        SourceSampler:=fDocument.Samplers[SourceTexture.Sampler];
+       if (Texture^.Sampler>=0) and (Texture^.Sampler<fDocument.Samplers.Count) then begin
+        SourceSampler:=fDocument.Samplers[Texture^.Sampler];
         case SourceSampler.WrapS of
          TPasGLTF.TSampler.TWrappingMode.Repeat_:begin
           glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
@@ -1958,7 +2038,7 @@ var AllVertices:TAllVertices;
      FreeAndNil(MemoryStream);
     end;
    end;
-   fTextures[Index].Handle:=Handle;
+   Texture^.Handle:=Handle;
   end;
   glBindTexture(GL_TEXTURE_2D,0);
  end;
