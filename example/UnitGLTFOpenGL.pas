@@ -182,6 +182,7 @@ type EGLTFOpenGL=class(Exception);
              public
               Primitives:TPrimitives;
               BoundingBox:TBoundingBox;
+              Weights:TPasGLTFFloatDynamicArray;
             end;
             PMesh=^TMesh;
             TMeshes=array of TMesh;
@@ -986,7 +987,8 @@ procedure TGLTFOpenGL.InitializeResources;
      AccessorIndex,
      IndexIndex,
      VertexIndex,
-     TargetIndex:TPasGLTFSizeInt;
+     TargetIndex,
+     WeightIndex:TPasGLTFSizeInt;
      SourceMesh:TPasGLTF.TMesh;
      SourceMeshPrimitive:TPasGLTF.TMesh.TPrimitive;
      SourceMeshPrimitiveTarget:TPasGLTF.TAttributes;
@@ -1422,6 +1424,14 @@ procedure TGLTFOpenGL.InitializeResources;
 
     end;
 
+   end;
+
+   begin
+    // Copy morph target weights
+    SetLength(DestinationMesh^.Weights,SourceMesh.Weights.Count);
+    for WeightIndex:=0 to length(DestinationMesh^.Weights)-1 do begin
+     DestinationMesh^.Weights[WeightIndex]:=SourceMesh.Weights[WeightIndex]
+    end;
    end;
 
   end;
