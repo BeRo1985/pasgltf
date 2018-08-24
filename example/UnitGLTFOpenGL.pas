@@ -151,14 +151,29 @@ type EGLTFOpenGL=class(Exception);
             TMesh=record
              public
               type TPrimitive=record
-                    PrimitiveMode:glEnum;
-                    Vertices:TVertices;
-                    Indices:TPasGLTFUInt32DynamicArray;
-                    StartBufferVertexOffset:TPasGLTFSizeUInt;
-                    StartBufferIndexOffset:TPasGLTFSizeUInt;
-                    CountVertices:TPasGLTFSizeUInt;
-                    CountIndices:TPasGLTFSizeUInt;
-                    Material:TPasGLTFSizeInt;
+                    public
+                     type TTargetVertex=record
+                           Position:TPasGLTF.TVector3;
+                           Normal:TPasGLTF.TVector3;
+                           Tangent:TPasGLTF.TVector3;
+                          end;
+                          PTargetVertex=^TTargetVertex;
+                          TTargetVertices=array of TTargetVertex;
+                          TTarget=record
+                           Vertices:TTargetVertices;
+                          end;
+                          PTarget=^TTarget;
+                          TTargets=array of TTarget;
+                    public
+                     PrimitiveMode:glEnum;
+                     Vertices:TVertices;
+                     Indices:TPasGLTFUInt32DynamicArray;
+                     Targets:TTargets;
+                     StartBufferVertexOffset:TPasGLTFSizeUInt;
+                     StartBufferIndexOffset:TPasGLTFSizeUInt;
+                     CountVertices:TPasGLTFSizeUInt;
+                     CountIndices:TPasGLTFSizeUInt;
+                     Material:TPasGLTFSizeInt;
                    end;
                    PPrimitive=^TPrimitive;
                    TPrimitives=array of TPrimitive;
