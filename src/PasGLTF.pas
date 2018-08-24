@@ -1080,6 +1080,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               destructor Destroy; override;
               procedure SetEmbeddedResourceData(const aStream:TStream);
               procedure GetResourceData(const aStream:TStream);
+              function IsExternalResource:boolean;
              published
               property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView;
               property Name:TPasGLTFUTF8String read fName write fName;
@@ -3126,6 +3127,11 @@ begin
  end else begin
   fDocument.LoadURISource(fURI,aStream);
  end;
+end;
+
+function TPasGLTF.TImage.IsExternalResource:boolean;
+begin
+ result:=not ((fBufferView>=0) or (pos('data:',fURI)=1));
 end;
 
 { TPasGLTF.TMaterial.TTexture }
