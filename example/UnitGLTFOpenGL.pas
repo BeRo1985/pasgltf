@@ -2178,9 +2178,14 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
    n:=((y3-y2)-y0)+y1;
    result:=(n*t*t2)+(((y0-y1)-n)*t2)+((y2-y0)*t)+y1;
   end;
- var ChannelIndex,InputTimeArrayIndex,l,r,m:TPasGLTFSizeInt;
+ var ChannelIndex,
+     InputTimeArrayIndex,
+     WeightIndex,
+     CountWeights,
+     l,r,m:TPasGLTFSizeInt;
      Animation:PAnimation;
      AnimationChannel:TAnimation.PChannel;
+     Node:PNode;
      Time,Factor,Scalar,Value:TPasGLTFFloat;
      Vector3:TPasGLTF.TVector3;
      Vector4:TPasGLTF.TVector4;
@@ -2259,6 +2264,8 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
       end;
      end;
 
+     Node:=@fNodes[AnimationChannel^.Node];
+
      case AnimationChannel^.Target of
       TAnimation.TChannel.TTarget.Translation,
       TAnimation.TChannel.TTarget.Scale:begin
@@ -2288,12 +2295,12 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
        end;
        case AnimationChannel^.Target of
         TAnimation.TChannel.TTarget.Translation:begin
-         Include(fNodes[AnimationChannel^.Node].OverwriteFlags,TNode.TOverwriteFlag.Translation);
-         fNodes[AnimationChannel^.Node].OverwriteTranslation:=Vector3;
+         Include(Node^.OverwriteFlags,TNode.TOverwriteFlag.Translation);
+         Node^.OverwriteTranslation:=Vector3;
         end;
         TAnimation.TChannel.TTarget.Scale:begin
-         Include(fNodes[AnimationChannel^.Node].OverwriteFlags,TNode.TOverwriteFlag.Scale);
-         fNodes[AnimationChannel^.Node].OverwriteScale:=Vector3;
+         Include(Node^.OverwriteFlags,TNode.TOverwriteFlag.Scale);
+         Node^.OverwriteScale:=Vector3;
         end;
        end;
       end;
@@ -2325,10 +2332,37 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
          Assert(false);
         end;
        end;
-       Include(fNodes[AnimationChannel^.Node].OverwriteFlags,TNode.TOverwriteFlag.Rotation);
-       fNodes[AnimationChannel^.Node].OverwriteRotation:=Vector4;
+       Include(Node^.OverwriteFlags,TNode.TOverwriteFlag.Rotation);
+       Node^.OverwriteRotation:=Vector4;
       end;
       TAnimation.TChannel.TTarget.Weights:begin
+       Include(Node^.OverwriteFlags,TNode.TOverwriteFlag.Weights);
+       CountWeights:=length(Node^.WorkWeights);
+       case AnimationChannel^.Interpolation of
+        TAnimation.TChannel.TInterpolation.Linear:begin
+         for WeightIndex:=0 to CountWeights-1 do begin
+          Node^.OverwriteWeights[WeightIndex]:=(AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex]*(1.0-Factor))+
+                                               (AnimationChannel^.OutputScalarArray[(TimeIndices[1]*CountWeights)+WeightIndex]*Factor);
+         end;
+        end;
+        TAnimation.TChannel.TInterpolation.Step:begin
+         for WeightIndex:=0 to CountWeights-1 do begin
+          Node^.OverwriteWeights[WeightIndex]:=AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex];
+         end;
+        end;
+        TAnimation.TChannel.TInterpolation.CubicSpline:begin
+         for WeightIndex:=0 to CountWeights-1 do begin
+          Node^.OverwriteWeights[WeightIndex]:=CubicSplineInterpolate(Factor,
+                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[-1]*CountWeights)+WeightIndex],
+                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex],
+                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[1]*CountWeights)+WeightIndex],
+                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[2]*CountWeights)+WeightIndex]);
+         end;
+        end;
+        else begin
+         Assert(false);
+        end;
+       end;
 
       end;
      end;
