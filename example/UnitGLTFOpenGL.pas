@@ -2408,11 +2408,6 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     if (Primitive^.Material>=0) and (Primitive^.Material<length(fMaterials)) then begin
      Material:=@fMaterials[Primitive^.Material];
      if Material^.AlphaMode=aAlphaMode then begin
-      glBindBufferRange(GL_UNIFORM_BUFFER,
-                        TShadingShader.uboMaterial,
-                        fMaterialUniformBufferObjects[Material^.UniformBufferObjectIndex].UniformBufferObjectHandle,
-                        Material^.UniformBufferObjectOffset,
-                        SizeOf(TMaterial.TUniformBufferObjectData));
       case aAlphaMode of
        TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
         if Blend<>0 then begin
@@ -2491,6 +2486,11 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
        glActiveTexture(GL_TEXTURE4);
        glBindTexture(GL_TEXTURE_2D,fTextures[Material^.EmissiveTexture.Index].Handle);
       end;
+      glBindBufferRange(GL_UNIFORM_BUFFER,
+                        TShadingShader.uboMaterial,
+                        fMaterialUniformBufferObjects[Material^.UniformBufferObjectIndex].UniformBufferObjectHandle,
+                        Material^.UniformBufferObjectOffset,
+                        SizeOf(TMaterial.TUniformBufferObjectData));
       DoDraw:=true;
      end;
     end else begin
