@@ -209,11 +209,20 @@ type EGLTFOpenGL=class(Exception);
                     );
                    TOverwriteFlags=set of TOverwriteFlag;
              public
+              Children:TPasGLTFSizeUIntDynamicArray;
+              Weights:TPasGLTFFloatDynamicArray;
+              Mesh:TPasGLTFSizeInt;
+              Camera:TPasGLTFSizeInt;
+              Skin:TPasGLTFSizeInt;
+              WorkMatrix:TPasGLTF.TMatrix4x4;
               Matrix:TPasGLTF.TMatrix4x4;
-              OverwriteFlags:TOverwriteFlags;
               Translation:TPasGLTF.TVector3;
               Rotation:TPasGLTF.TVector4;
               Scale:TPasGLTF.TVector3;
+              OverwriteFlags:TOverwriteFlags;
+              OverwriteTranslation:TPasGLTF.TVector3;
+              OverwriteRotation:TPasGLTF.TVector4;
+              OverwriteScale:TPasGLTF.TVector3;
             end;
             PNode=^TNode;
             TNodes=array of TNode;
@@ -222,6 +231,11 @@ type EGLTFOpenGL=class(Exception);
             end;
             PTexture=^TTexture;
             TTextures=array of TTexture;
+            TScene=record
+             Nodes:TPasGLTFSizeUIntDynamicArray;
+            end;
+            PScene=^TScene;
+            TScenes=array of TScene;
             TSkinShaderStorageBufferObject=record
              Count:TPasGLTFSizeInt;
              Size:TPasGLTFSizeInt;
@@ -266,6 +280,8 @@ type EGLTFOpenGL=class(Exception);
        fSkins:TSkins;
        fNodes:TNodes;
        fTextures:TTextures;
+       fScenes:TScenes;
+       fScene:TPasGLTFSizeInt;
        fSkinShaderStorageBufferObjects:TSkinShaderStorageBufferObjects;
        fMaterialUniformBufferObjects:TMaterialUniformBufferObjects;
        fVertexBufferObjectHandle:glInt;
@@ -738,6 +754,7 @@ begin
  fSkins:=nil;
  fNodes:=nil;
  fTextures:=nil;
+ fScene:=-1;
  fSkinShaderStorageBufferObjects:=nil;
  fMaterialUniformBufferObjects:=nil;
 end;
@@ -1482,12 +1499,49 @@ procedure TGLTFOpenGL.InitializeResources;
 
  end;
  procedure InitializeNodes;
+ var Index,WeightIndex,ChildrenIndex:TPasGLTFSizeInt;
+     SourceNode:TPasGLTF.TNode;
+     DestinationNode:PNode;
  begin
   SetLength(fNodes,fDocument.Nodes.Count);
+  for Index:=0 to fDocument.Nodes.Count-1 do begin
+   SourceNode:=fDocument.Nodes[Index];
+   DestinationNode:=@fNodes[Index];
+   DestinationNode^.Mesh:=SourceNode.Mesh;
+   DestinationNode^.Camera:=SourceNode.Camera;
+   DestinationNode^.Skin:=SourceNode.Skin;
+   DestinationNode^.Matrix:=SourceNode.Matrix;
+   DestinationNode^.Translation:=SourceNode.Translation;
+   DestinationNode^.Rotation:=SourceNode.Rotation;
+   DestinationNode^.Scale:=SourceNode.Scale;
+   SetLength(DestinationNode^.Weights,SourceNode.Weights.Count);
+   for WeightIndex:=0 to length(DestinationNode^.Weights)-1 do begin
+    DestinationNode^.Weights[WeightIndex]:=SourceNode.Weights[WeightIndex];
+   end;
+   SetLength(DestinationNode^.Children,SourceNode.Children.Count);
+   for ChildrenIndex:=0 to length(DestinationNode^.Children)-1 do begin
+    DestinationNode^.Children[ChildrenIndex]:=SourceNode.Children[ChildrenIndex];
+   end;
+  end;
  end;
  procedure InitializeTextures;
  begin
   SetLength(fTextures,fDocument.Textures.Count);
+ end;
+ procedure InitializeScenes;
+ var Index,NodeIndex:TPasGLTFSizeInt;
+     SourceScene:TPasGLTF.TScene;
+     DestinationScene:PScene;
+ begin
+  SetLength(fScenes,fDocument.Scenes.Count);
+  for Index:=0 to fDocument.Scenes.Count-1 do begin
+   SourceScene:=fDocument.Scenes[Index];
+   DestinationScene:=@fScenes[Index];
+   SetLength(DestinationScene^.Nodes,SourceScene.Nodes.Count);
+   for NodeIndex:=0 to length(DestinationScene^.Nodes)-1 do begin
+    DestinationScene^.Nodes[NodeIndex]:=SourceScene.Nodes[NodeIndex];
+   end;
+  end;
  end;
  procedure InitializeSkinShaderStorageBufferObjects;
  var Index,CountMatrices,CountSkinShaderStorageBufferObjects:TPasGLTFSizeInt;
@@ -1540,22 +1594,22 @@ procedure TGLTFOpenGL.InitializeResources;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
  var Index,SubIndex:TPasGLTFSizeInt;
      Matrix:TPasGLTF.TMatrix4x4;
-     Node:TPasGLTF.TNode;
+     Node:PNode;
      TemporaryVector3:TPasGLTF.TVector3;
      Mesh:PMesh;
  begin
-  Node:=fDocument.Nodes[aNodeIndex];
+  Node:=@fNodes[aNodeIndex];
   Matrix:=MatrixMul(
            MatrixMul(
             MatrixMul(
-             MatrixFromScale(Node.Scale),
+             MatrixFromScale(Node^.Scale),
              MatrixMul(
-              MatrixFromRotation(Node.Rotation),
-              MatrixFromTranslation(Node.Translation))),
-            Node.Matrix),
+              MatrixFromRotation(Node^.Rotation),
+              MatrixFromTranslation(Node^.Translation))),
+            Node^.Matrix),
            aMatrix);
-  if Node.Mesh>=0 then begin
-   Mesh:=@fMeshes[Node.Mesh];
+  if Node^.Mesh>=0 then begin
+   Mesh:=@fMeshes[Node^.Mesh];
    for SubIndex:=0 to 1 do begin
     TemporaryVector3:=Vector3MatrixMul(Matrix,Mesh^.BoundingBox.MinMax[SubIndex]);
     fStaticBoundingBox.Min[0]:=Min(fStaticBoundingBox.Min[0],TemporaryVector3[0]);
@@ -1566,12 +1620,23 @@ procedure TGLTFOpenGL.InitializeResources;
     fStaticBoundingBox.Max[2]:=Max(fStaticBoundingBox.Max[2],TemporaryVector3[2]);
    end;
   end;
-  for Index:=0 to Node.Children.Count-1 do begin
-   ProcessNode(Node.Children.Items[Index],Matrix);
+  for Index:=0 to length(Node^.Children)-1 do begin
+   ProcessNode(Node^.Children[Index],Matrix);
   end;
  end;
-var Index:TPasGLTFSizeInt;
-    Scene:TPasGLTF.TScene;
+ procedure ProcessScenes;
+ var SceneIndex,Index:TPasGLTFSizeInt;
+     Scene:PScene;
+ begin
+  fScene:=fDocument.Scene;
+  fStaticBoundingBox:=EmptyBoundingBox;
+  for SceneIndex:=0 to length(fScenes)-1 do begin
+   Scene:=@fScenes[SceneIndex];
+   for Index:=0 to length(Scene^.Nodes)-1 do begin
+    ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
+   end;
+  end;
+ end;
 begin
  if not fReady then begin
   InitializeAnimations;
@@ -1580,15 +1645,9 @@ begin
   InitializeMeshes;
   InitializeSkins;
   InitializeNodes;
+  InitializeScenes;
   InitializeSkinShaderStorageBufferObjects;
-  begin
-   fStaticBoundingBox:=EmptyBoundingBox;
-   for Scene in fDocument.Scenes do begin
-    for Index:=0 to Scene.Nodes.Count-1 do begin
-     ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
-    end;
-   end;
-  end;
+  ProcessScenes;
   fReady:=true;
  end;
 end;
@@ -2013,12 +2072,12 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
  end;
  procedure ResetNode(const aNodeIndex:TPasGLTFSizeInt);
  var Index:TPasGLTFSizeInt;
-     Node:TPasGLTF.TNode;
+     Node:PNode;
  begin
-  Node:=fDocument.Nodes[aNodeIndex];
-  fNodes[aNodeIndex].OverwriteFlags:=[];
-  for Index:=0 to Node.Children.Count-1 do begin
-   ResetNode(Node.Children.Items[Index]);
+  Node:=@fNodes[aNodeIndex];
+  Node^.OverwriteFlags:=[];
+  for Index:=0 to length(Node^.Children)-1 do begin
+   ResetNode(Node^.Children[Index]);
   end;
  end;
  procedure ProcessAnimation(const aAnimationIndex:TPasGLTFSizeInt);
@@ -2140,11 +2199,11 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
        case AnimationChannel^.Target of
         TAnimation.TChannel.TTarget.Translation:begin
          Include(fNodes[AnimationChannel^.Node].OverwriteFlags,TNode.TOverwriteFlag.Translation);
-         fNodes[AnimationChannel^.Node].Translation:=Vector3;
+         fNodes[AnimationChannel^.Node].OverwriteTranslation:=Vector3;
         end;
         TAnimation.TChannel.TTarget.Scale:begin
          Include(fNodes[AnimationChannel^.Node].OverwriteFlags,TNode.TOverwriteFlag.Scale);
-         fNodes[AnimationChannel^.Node].Scale:=Vector3;
+         fNodes[AnimationChannel^.Node].OverwriteScale:=Vector3;
         end;
        end;
       end;
@@ -2177,7 +2236,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
         end;
        end;
        Include(fNodes[AnimationChannel^.Node].OverwriteFlags,TNode.TOverwriteFlag.Rotation);
-       fNodes[AnimationChannel^.Node].Rotation:=Vector4;
+       fNodes[AnimationChannel^.Node].OverwriteRotation:=Vector4;
       end;
       TAnimation.TChannel.TTarget.Weights:begin
 
@@ -2195,27 +2254,25 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
  var Index:TPasGLTFSizeInt;
      Matrix:TPasGLTF.TMatrix4x4;
-     Node:TPasGLTF.TNode;
-     ExtraNode:PNode;
+     Node:PNode;
      Translation,Scale:TVector3;
      Rotation:TVector4;
  begin
-  Node:=fDocument.Nodes[aNodeIndex];
-  ExtraNode:=@fNodes[aNodeIndex];
-  if TNode.TOverwriteFlag.Translation in ExtraNode^.OverwriteFlags then begin
-   Translation:=ExtraNode^.Translation;
+  Node:=@fNodes[aNodeIndex];
+  if TNode.TOverwriteFlag.Translation in Node^.OverwriteFlags then begin
+   Translation:=Node^.OverwriteTranslation;
   end else begin
-   Translation:=Node.Translation;
+   Translation:=Node^.Translation;
   end;
-  if TNode.TOverwriteFlag.Scale in ExtraNode^.OverwriteFlags then begin
-   Scale:=ExtraNode^.Scale;
+  if TNode.TOverwriteFlag.Scale in Node^.OverwriteFlags then begin
+   Scale:=Node^.OverwriteScale;
   end else begin
-   Scale:=Node.Scale;
+   Scale:=Node^.Scale;
   end;
-  if TNode.TOverwriteFlag.Rotation in ExtraNode^.OverwriteFlags then begin
-   Rotation:=ExtraNode^.Rotation;
+  if TNode.TOverwriteFlag.Rotation in Node^.OverwriteFlags then begin
+   Rotation:=Node^.OverwriteRotation;
   end else begin
-   Rotation:=Node.Rotation;
+   Rotation:=Node^.Rotation;
   end;
   Matrix:=MatrixMul(
            MatrixMul(
@@ -2226,14 +2283,14 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
               MatrixFromTranslation(Translation))),
             Node.Matrix),
            aMatrix);
-  fNodes[aNodeIndex].Matrix:=Matrix;
-  if (Node.Mesh>=0) and (Node.Mesh<length(fMeshes)) then begin
-   if (aAnimationIndex>=0) and (Node.Skin>=0) and (Node.Skin<length(fSkins)) then begin
-    fSkins[Node.Skin].Used:=true;
+  fNodes[aNodeIndex].WorkMatrix:=Matrix;
+  if (Node^.Mesh>=0) and (Node^.Mesh<length(fMeshes)) then begin
+   if (aAnimationIndex>=0) and (Node^.Skin>=0) and (Node^.Skin<length(fSkins)) then begin
+    fSkins[Node^.Skin].Used:=true;
    end;
   end;
-  for Index:=0 to Node.Children.Count-1 do begin
-   ProcessNode(Node.Children.Items[Index],Matrix);
+  for Index:=0 to length(Node^.Children)-1 do begin
+   ProcessNode(Node^.Children[Index],Matrix);
   end;
  end;
  procedure ProcessSkins;
@@ -2247,7 +2304,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     begin
      UniformBufferObjectMatrix:=aData;
      for JointIndex:=0 to length(aSkin^.Joints)-1 do begin
-      UniformBufferObjectMatrix^:=MatrixMul(aSkin^.InverseBindMatrices[JointIndex],fNodes[aSkin^.Joints[JointIndex]].Matrix);
+      UniformBufferObjectMatrix^:=MatrixMul(aSkin^.InverseBindMatrices[JointIndex],fNodes[aSkin^.Joints[JointIndex]].WorkMatrix);
       inc(UniformBufferObjectMatrix);
      end;
     end;
@@ -2299,7 +2356,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
     DoDraw:=false;
-    if (Primitive^.Material>=0) and (Primitive^.Material<fDocument.Materials.Count) then begin
+    if (Primitive^.Material>=0) and (Primitive^.Material<length(fMaterials)) then begin
      Material:=fDocument.Materials[Primitive^.Material];
      ExtraMaterial:=@fMaterials[Primitive^.Material];
      glBindBufferRange(GL_UNIFORM_BUFFER,
@@ -2416,18 +2473,18 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
   end;
  var Index:TPasGLTFSizeInt;
      Matrix,ModelMatrix,InverseMatrix:TPasGLTF.TMatrix4x4;
-     Node:TPasGLTF.TNode;
+     Node:PNode;
      Skin:PSkin;
      SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
  begin
-  Node:=fDocument.Nodes[aNodeIndex];
-  Matrix:=fNodes[aNodeIndex].Matrix;
-  if (Node.Mesh>=0) and (Node.Mesh<length(fMeshes)) then begin
+  Node:=@fNodes[aNodeIndex];
+  Matrix:=Node^.WorkMatrix;
+  if (Node^.Mesh>=0) and (Node^.Mesh<length(fMeshes)) then begin
    ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
    if (aAnimationIndex>=0) and
-      ((Node.Skin>=0) and (Node.Skin<length(fSkins))) and
-      (fSkins[Node.Skin].SkinShaderStorageBufferObjectIndex>=0) then begin
-    Skin:=@fSkins[Node.Skin];
+      ((Node^.Skin>=0) and (Node^.Skin<length(fSkins))) and
+      (fSkins[Node^.Skin].SkinShaderStorageBufferObjectIndex>=0) then begin
+    Skin:=@fSkins[Node^.Skin];
     SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[Skin^.SkinShaderStorageBufferObjectIndex];
     if CurrentSkinShaderStorageBufferObjectHandle<>SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle then begin
      CurrentSkinShaderStorageBufferObjectHandle:=SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle;
@@ -2445,10 +2502,10 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     UseShader(ShadingShader);
    end;
    glUniformMatrix4fv(ShadingShader.uModelMatrix,1,false,@ModelMatrix);
-   DrawMesh(fMeshes[Node.Mesh]);
+   DrawMesh(fMeshes[Node^.Mesh]);
   end;
-  for Index:=0 to Node.Children.Count-1 do begin
-   DrawNode(Node.Children.Items[Index],aAlphaMode);
+  for Index:=0 to length(Node^.Children)-1 do begin
+   DrawNode(Node^.Children[Index],aAlphaMode);
   end;
  end;
  procedure UpdateFrameGlobalsUniformBufferObject;
@@ -2466,34 +2523,34 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
                    fFrameGlobalsUniformBufferObjectHandle);
  end;
 var Index:TPasGLTFSizeInt;
-    Scene:TPasGLTF.TScene;
+    Scene:PScene;
     AlphaMode:TPasGLTF.TMaterial.TAlphaMode;
 begin
  if aScene<0 then begin
-  if fDocument.Scene<0 then begin
-   Scene:=fDocument.Scenes[0];
+  if fScene<0 then begin
+   Scene:=@fScenes[0];
   end else begin
-   Scene:=fDocument.Scenes[fDocument.Scene];
+   Scene:=@fScenes[fScene];
   end;
  end else begin
-  Scene:=fDocument.Scenes[aScene];
+  Scene:=@fScenes[aScene];
  end;
  CurrentSkinShaderStorageBufferObjectHandle:=0;
  UpdateFrameGlobalsUniformBufferObject;
  glBindVertexArray(fVertexArrayHandle);
  glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fIndexBufferObjectHandle);
- for Index:=0 to Scene.Nodes.Count-1 do begin
-  ResetNode(Scene.Nodes.Items[Index]);
+ for Index:=0 to length(Scene^.Nodes)-1 do begin
+  ResetNode(Scene^.Nodes[Index]);
  end;
  for Index:=0 to length(fSkins)-1 do begin
   fSkins[Index].Used:=false;
  end;
- if (aAnimationIndex>=0) and (aAnimationIndex<fDocument.Animations.Count) then begin
+ if (aAnimationIndex>=0) and (aAnimationIndex<length(fAnimations)) then begin
   ProcessAnimation(aAnimationIndex);
  end;
- for Index:=0 to Scene.Nodes.Count-1 do begin
-  ProcessNode(Scene.Nodes.Items[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
+ for Index:=0 to length(Scene^.Nodes)-1 do begin
+  ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
  end;
  ProcessSkins;
  glCullFace(GL_BACK);
@@ -2520,8 +2577,8 @@ begin
      Assert(false);
     end;
    end;
-   for Index:=0 to Scene.Nodes.Count-1 do begin
-    DrawNode(Scene.Nodes.Items[Index],AlphaMode);
+   for Index:=0 to length(Scene^.Nodes)-1 do begin
+    DrawNode(Scene^.Nodes[Index],AlphaMode);
    end;
   end;
  end;
