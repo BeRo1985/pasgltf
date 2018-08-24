@@ -1401,7 +1401,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property GetURI:TGetURI read fGetURI write fGetURI;
             end;
       public
-
+       class function ResolveURIToPath(const aURI:TPasGLTFUTF8String):TPasGLTFUTF8String; static;
      end;
 
 implementation
@@ -2217,6 +2217,13 @@ end;
 procedure TPasGLTFUTF8StringHashMap<TPasGLTFHashMapValue>.SetValue(const Key:TPasGLTFHashMapKey;const Value:TPasGLTFHashMapValue);
 begin
  Add(Key,Value);
+end;
+
+{ TPasGLTF }
+
+class function TPasGLTF.ResolveURIToPath(const aURI:TPasGLTFUTF8String):TPasGLTFUTF8String;
+begin
+ result:=TPasGLTFUTF8String(StringReplace(String(aURI),{$ifdef Windows}'/','\'{$else}'\','/'{$endif},[rfReplaceAll]));
 end;
 
 { TPasGLTF.TBase64 }
@@ -3404,13 +3411,7 @@ end;
 function TPasGLTF.TDocument.DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
 var FileName:String;
 begin
- FileName:=IncludeTrailingPathDelimiter(fRootPath)+aURI;
-{$ifdef Windows}
- FileName:=StringReplace(FileName,'/','\',[rfReplaceAll]);
-{$else}
- FileName:=StringReplace(FileName,'\','/',[rfReplaceAll]);
-{$endif}
- FileName:=ExpandFileName(FileName);
+ FileName:=ExpandFileName(IncludeTrailingPathDelimiter(fRootPath)+String(TPasGLTF.ResolveURIToPath(aURI)));
  result:=TFileStream.Create(FileName,fmOpenRead or fmShareDenyWrite);
 end;
 
