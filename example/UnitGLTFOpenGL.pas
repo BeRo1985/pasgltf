@@ -778,6 +778,7 @@ begin
  fSkins:=nil;
  fNodes:=nil;
  fTextures:=nil;
+ fScenes:=nil;
  fScene:=-1;
  fSkinShaderStorageBufferObjects:=nil;
  fMaterialUniformBufferObjects:=nil;
@@ -807,6 +808,8 @@ procedure TGLTFOpenGL.InitializeResources;
    SourceAnimation:=fDocument.Animations.Items[Index];
 
    DestinationAnimation:=@fAnimations[Index];
+
+   DestinationAnimation^.Name:=SourceAnimation.Name;
 
    SetLength(DestinationAnimation^.Channels,SourceAnimation.Channels.Count);
 
@@ -1092,6 +1095,8 @@ procedure TGLTFOpenGL.InitializeResources;
    SourceMesh:=fDocument.Meshes.Items[Index];
 
    DestinationMesh:=@fMeshes[Index];
+
+   DestinationMesh^.Name:=SourceMesh.Name;
 
    SetLength(DestinationMesh^.Primitives,SourceMesh.Primitives.Count);
 
@@ -1520,6 +1525,8 @@ procedure TGLTFOpenGL.InitializeResources;
 
    DestinationSkin:=@fSkins[Index];
 
+   DestinationSkin^.Name:=SourceSkin.Name;
+
    DestinationSkin^.Skeleton:=SourceSkin.Skeleton;
 
    DestinationSkin^.SkinShaderStorageBufferObjectIndex:=-1;
@@ -1557,6 +1564,7 @@ procedure TGLTFOpenGL.InitializeResources;
   for Index:=0 to fDocument.Nodes.Count-1 do begin
    SourceNode:=fDocument.Nodes[Index];
    DestinationNode:=@fNodes[Index];
+   DestinationNode^.Name:=SourceNode.Name;
    DestinationNode^.Mesh:=SourceNode.Mesh;
    DestinationNode^.Camera:=SourceNode.Camera;
    DestinationNode^.Skin:=SourceNode.Skin;
@@ -1587,6 +1595,7 @@ procedure TGLTFOpenGL.InitializeResources;
   for Index:=0 to fDocument.Scenes.Count-1 do begin
    SourceScene:=fDocument.Scenes[Index];
    DestinationScene:=@fScenes[Index];
+   DestinationScene^.Name:=SourceScene.Name;
    SetLength(DestinationScene^.Nodes,SourceScene.Nodes.Count);
    for NodeIndex:=0 to length(DestinationScene^.Nodes)-1 do begin
     DestinationScene^.Nodes[NodeIndex]:=SourceScene.Nodes[NodeIndex];
@@ -1641,40 +1650,40 @@ procedure TGLTFOpenGL.InitializeResources;
    SetLength(SkinShaderStorageBufferObject^.Skins,SkinShaderStorageBufferObject^.CountSkins);
   end;
  end;
- procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
- var Index,SubIndex:TPasGLTFSizeInt;
-     Matrix:TPasGLTF.TMatrix4x4;
-     Node:PNode;
-     TemporaryVector3:TPasGLTF.TVector3;
-     Mesh:PMesh;
- begin
-  Node:=@fNodes[aNodeIndex];
-  Matrix:=MatrixMul(
-           MatrixMul(
+ procedure ProcessScenes;
+  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
+  var Index,SubIndex:TPasGLTFSizeInt;
+      Matrix:TPasGLTF.TMatrix4x4;
+      Node:PNode;
+      TemporaryVector3:TPasGLTF.TVector3;
+      Mesh:PMesh;
+  begin
+   Node:=@fNodes[aNodeIndex];
+   Matrix:=MatrixMul(
             MatrixMul(
-             MatrixFromScale(Node^.Scale),
              MatrixMul(
-              MatrixFromRotation(Node^.Rotation),
-              MatrixFromTranslation(Node^.Translation))),
-            Node^.Matrix),
-           aMatrix);
-  if Node^.Mesh>=0 then begin
-   Mesh:=@fMeshes[Node^.Mesh];
-   for SubIndex:=0 to 1 do begin
-    TemporaryVector3:=Vector3MatrixMul(Matrix,Mesh^.BoundingBox.MinMax[SubIndex]);
-    fStaticBoundingBox.Min[0]:=Min(fStaticBoundingBox.Min[0],TemporaryVector3[0]);
-    fStaticBoundingBox.Min[1]:=Min(fStaticBoundingBox.Min[1],TemporaryVector3[1]);
-    fStaticBoundingBox.Min[2]:=Min(fStaticBoundingBox.Min[2],TemporaryVector3[2]);
-    fStaticBoundingBox.Max[0]:=Max(fStaticBoundingBox.Max[0],TemporaryVector3[0]);
-    fStaticBoundingBox.Max[1]:=Max(fStaticBoundingBox.Max[1],TemporaryVector3[1]);
-    fStaticBoundingBox.Max[2]:=Max(fStaticBoundingBox.Max[2],TemporaryVector3[2]);
+              MatrixFromScale(Node^.Scale),
+              MatrixMul(
+               MatrixFromRotation(Node^.Rotation),
+               MatrixFromTranslation(Node^.Translation))),
+             Node^.Matrix),
+            aMatrix);
+   if Node^.Mesh>=0 then begin
+    Mesh:=@fMeshes[Node^.Mesh];
+    for SubIndex:=0 to 1 do begin
+     TemporaryVector3:=Vector3MatrixMul(Matrix,Mesh^.BoundingBox.MinMax[SubIndex]);
+     fStaticBoundingBox.Min[0]:=Min(fStaticBoundingBox.Min[0],TemporaryVector3[0]);
+     fStaticBoundingBox.Min[1]:=Min(fStaticBoundingBox.Min[1],TemporaryVector3[1]);
+     fStaticBoundingBox.Min[2]:=Min(fStaticBoundingBox.Min[2],TemporaryVector3[2]);
+     fStaticBoundingBox.Max[0]:=Max(fStaticBoundingBox.Max[0],TemporaryVector3[0]);
+     fStaticBoundingBox.Max[1]:=Max(fStaticBoundingBox.Max[1],TemporaryVector3[1]);
+     fStaticBoundingBox.Max[2]:=Max(fStaticBoundingBox.Max[2],TemporaryVector3[2]);
+    end;
+   end;
+   for Index:=0 to length(Node^.Children)-1 do begin
+    ProcessNode(Node^.Children[Index],Matrix);
    end;
   end;
-  for Index:=0 to length(Node^.Children)-1 do begin
-   ProcessNode(Node^.Children[Index],Matrix);
-  end;
- end;
- procedure ProcessScenes;
  var SceneIndex,Index:TPasGLTFSizeInt;
      Scene:PScene;
  begin
@@ -1712,6 +1721,7 @@ begin
   fSkins:=nil;
   fNodes:=nil;
   fTextures:=nil;
+  fScenes:=nil;
   fSkinShaderStorageBufferObjects:=nil;
  end;
 end;
