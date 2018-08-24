@@ -152,15 +152,17 @@ type EGLTFOpenGL=class(Exception);
              public
               type TPrimitive=record
                     public
-                     type TTargetVertex=record
-                           Position:TPasGLTF.TVector3;
-                           Normal:TPasGLTF.TVector3;
-                           Tangent:TPasGLTF.TVector3;
-                          end;
-                          PTargetVertex=^TTargetVertex;
-                          TTargetVertices=array of TTargetVertex;
-                          TTarget=record
-                           Vertices:TTargetVertices;
+                     type TTarget=record
+                           public
+                            type TTargetVertex=record
+                                  Position:TPasGLTF.TVector3;
+                                  Normal:TPasGLTF.TVector3;
+                                  Tangent:TPasGLTF.TVector3;
+                                 end;
+                                 PTargetVertex=^TTargetVertex;
+                                 TTargetVertices=array of TTargetVertex;
+                           public
+                            Vertices:TTargetVertices;
                           end;
                           PTarget=^TTarget;
                           TTargets=array of TTarget;
@@ -983,14 +985,19 @@ procedure TGLTFOpenGL.InitializeResources;
      PrimitiveIndex,
      AccessorIndex,
      IndexIndex,
-     VertexIndex:TPasGLTFSizeInt;
+     VertexIndex,
+     TargetIndex:TPasGLTFSizeInt;
      SourceMesh:TPasGLTF.TMesh;
      SourceMeshPrimitive:TPasGLTF.TMesh.TPrimitive;
+     SourceMeshPrimitiveTarget:TPasGLTF.TAttributes;
      DestinationMesh:PMesh;
      DestinationMeshPrimitive:TMesh.PPrimitive;
+     DestinationMeshPrimitiveTarget:TMesh.TPrimitive.PTarget;
+     DestinationMeshPrimitiveTargetVertex:TMesh.TPrimitive.TTarget.PTargetVertex;
      TemporaryPositions,
      TemporaryNormals,
-     TemporaryBitangents:TPasGLTF.TVector3DynamicArray;
+     TemporaryBitangents,
+     TemporaryTargetTangents:TPasGLTF.TVector3DynamicArray;
      TemporaryTangents,
      TemporaryColor0,
      TemporaryWeights0,
@@ -1349,6 +1356,70 @@ procedure TGLTFOpenGL.InitializeResources;
     begin
      // Generate vertex index array buffer
      DestinationMeshPrimitive^.Indices:=copy(TemporaryIndices);
+    end;
+
+    begin
+
+     // Load morph target data
+
+     SetLength(DestinationMeshPrimitive^.Targets,SourceMeshPrimitive.Targets.Count);
+
+     for TargetIndex:=0 to length(DestinationMeshPrimitive^.Targets)-1 do begin
+
+      SourceMeshPrimitiveTarget:=SourceMeshPrimitive.Targets[TargetIndex];
+
+      DestinationMeshPrimitiveTarget:=@DestinationMeshPrimitive^.Targets[TargetIndex];
+
+      AccessorIndex:=SourceMeshPrimitiveTarget['POSITION'];
+      if AccessorIndex>=0 then begin
+       TemporaryPositions:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+       if length(TemporaryPositions)<>length(DestinationMeshPrimitive^.Vertices) then begin
+        raise EGLTFOpenGL.Create('Vertex count mismatch');
+       end;
+      end else begin
+       SetLength(TemporaryPositions,length(DestinationMeshPrimitive^.Vertices));
+       for VertexIndex:=0 to length(TemporaryPositions)-1 do begin
+        TemporaryPositions[VertexIndex]:=TPasGLTF.TDefaults.NullVector3;
+       end;
+      end;
+
+      AccessorIndex:=SourceMeshPrimitiveTarget['NORMAL'];
+      if AccessorIndex>=0 then begin
+       TemporaryNormals:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+       if length(TemporaryNormals)<>length(DestinationMeshPrimitive^.Vertices) then begin
+        raise EGLTFOpenGL.Create('Vertex count mismatch');
+       end;
+      end else begin
+       SetLength(TemporaryNormals,length(DestinationMeshPrimitive^.Vertices));
+       for VertexIndex:=0 to length(TemporaryNormals)-1 do begin
+        TemporaryNormals[VertexIndex]:=TPasGLTF.TDefaults.NullVector3;
+       end;
+      end;
+
+      AccessorIndex:=SourceMeshPrimitiveTarget['TANGENT'];
+      if AccessorIndex>=0 then begin
+       TemporaryTargetTangents:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+       if length(TemporaryTargetTangents)<>length(DestinationMeshPrimitive^.Vertices) then begin
+        raise EGLTFOpenGL.Create('Vertex count mismatch');
+       end;
+      end else begin
+       SetLength(TemporaryTargetTangents,length(DestinationMeshPrimitive^.Vertices));
+       for VertexIndex:=0 to length(TemporaryTargetTangents)-1 do begin
+        TemporaryTargetTangents[VertexIndex]:=TPasGLTF.TDefaults.NullVector3;
+       end;
+      end;
+
+      // Construct morph target vertex array
+      SetLength(DestinationMeshPrimitiveTarget^.Vertices,length(DestinationMeshPrimitive^.Vertices));
+      for VertexIndex:=0 to length(DestinationMeshPrimitiveTarget^.Vertices)-1 do begin
+       DestinationMeshPrimitiveTargetVertex:=@DestinationMeshPrimitiveTarget^.Vertices[VertexIndex];
+       DestinationMeshPrimitiveTargetVertex^.Position:=TemporaryPositions[VertexIndex];
+       DestinationMeshPrimitiveTargetVertex^.Normal:=TemporaryNormals[VertexIndex];
+       DestinationMeshPrimitiveTargetVertex^.Tangent:=TemporaryTargetTangents[VertexIndex];
+      end;
+
+     end;
+
     end;
 
    end;
