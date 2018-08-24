@@ -1061,7 +1061,9 @@ procedure TGLTFOpenGL.InitializeResources;
      IndexIndex,
      VertexIndex,
      TargetIndex,
-     WeightIndex:TPasGLTFSizeInt;
+     WeightIndex,
+     OldCount,
+     MaxCountTargets:TPasGLTFSizeInt;
      SourceMesh:TPasGLTF.TMesh;
      SourceMeshPrimitive:TPasGLTF.TMesh.TPrimitive;
      SourceMeshPrimitiveTarget:TPasGLTF.TAttributes;
@@ -1104,6 +1106,8 @@ procedure TGLTFOpenGL.InitializeResources;
    SetLength(DestinationMesh^.Primitives,SourceMesh.Primitives.Count);
 
    DestinationMesh^.BoundingBox:=EmptyBoundingBox;
+
+   MaxCountTargets:=0;
 
    for PrimitiveIndex:=0 to SourceMesh.Primitives.Count-1 do begin
 
@@ -1441,6 +1445,8 @@ procedure TGLTFOpenGL.InitializeResources;
 
      SetLength(DestinationMeshPrimitive^.Targets,SourceMeshPrimitive.Targets.Count);
 
+     MaxCountTargets:=Max(MaxCountTargets,length(DestinationMeshPrimitive^.Targets));
+
      for TargetIndex:=0 to length(DestinationMeshPrimitive^.Targets)-1 do begin
 
       SourceMeshPrimitiveTarget:=SourceMeshPrimitive.Targets[TargetIndex];
@@ -1502,10 +1508,17 @@ procedure TGLTFOpenGL.InitializeResources;
    end;
 
    begin
-    // Copy morph target weights
+    // Process morph target weights
     SetLength(DestinationMesh^.Weights,SourceMesh.Weights.Count);
     for WeightIndex:=0 to length(DestinationMesh^.Weights)-1 do begin
-     DestinationMesh^.Weights[WeightIndex]:=SourceMesh.Weights[WeightIndex]
+     DestinationMesh^.Weights[WeightIndex]:=SourceMesh.Weights[WeightIndex];
+    end;
+    OldCount:=length(DestinationMesh^.Weights);
+    if OldCount<MaxCountTargets then begin
+     SetLength(DestinationMesh^.Weights,MaxCountTargets);
+     for WeightIndex:=OldCount to length(DestinationMesh^.Weights)-1 do begin
+      DestinationMesh^.Weights[WeightIndex]:=0.0;
+     end;
     end;
    end;
 
@@ -1559,9 +1572,10 @@ procedure TGLTFOpenGL.InitializeResources;
 
  end;
  procedure InitializeNodes;
- var Index,WeightIndex,ChildrenIndex:TPasGLTFSizeInt;
+ var Index,WeightIndex,ChildrenIndex,Count:TPasGLTFSizeInt;
      SourceNode:TPasGLTF.TNode;
      DestinationNode:PNode;
+     Mesh:PMesh;
  begin
   SetLength(fNodes,fDocument.Nodes.Count);
   for Index:=0 to fDocument.Nodes.Count-1 do begin
@@ -1575,12 +1589,23 @@ procedure TGLTFOpenGL.InitializeResources;
    DestinationNode^.Translation:=SourceNode.Translation;
    DestinationNode^.Rotation:=SourceNode.Rotation;
    DestinationNode^.Scale:=SourceNode.Scale;
-   SetLength(DestinationNode^.WorkWeights,SourceNode.Weights.Count);
-   SetLength(DestinationNode^.OverwriteWeights,SourceNode.Weights.Count);
    SetLength(DestinationNode^.Weights,SourceNode.Weights.Count);
    for WeightIndex:=0 to length(DestinationNode^.Weights)-1 do begin
     DestinationNode^.Weights[WeightIndex]:=SourceNode.Weights[WeightIndex];
    end;
+   if (DestinationNode^.Mesh>=0) and
+      (DestinationNode^.Mesh<length(fMeshes)) then begin
+    Mesh:=@fMeshes[DestinationNode^.Mesh];
+    Count:=length(DestinationNode^.Weights);
+    if Count<length(Mesh^.Weights) then begin
+     SetLength(DestinationNode^.Weights,length(Mesh^.Weights));
+     for WeightIndex:=Count to length(Mesh^.Weights)-1 do begin
+      DestinationNode^.Weights[WeightIndex]:=Mesh^.Weights[WeightIndex];
+     end;
+    end;
+   end;
+   SetLength(DestinationNode^.WorkWeights,length(DestinationNode^.Weights));
+   SetLength(DestinationNode^.OverwriteWeights,length(DestinationNode^.Weights));
    SetLength(DestinationNode^.Children,SourceNode.Children.Count);
    for ChildrenIndex:=0 to length(DestinationNode^.Children)-1 do begin
     DestinationNode^.Children[ChildrenIndex]:=SourceNode.Children[ChildrenIndex];
