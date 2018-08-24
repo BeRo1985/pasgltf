@@ -51,6 +51,7 @@ type EGLTFOpenGL=class(Exception);
                             CubicSpline
                            );
                     public
+                     Name:TPasGLTFUTF8String;
                      Node:TPasGLTFSizeInt;
                      Target:TTarget;
                      Interpolation:TInterpolation;
@@ -64,6 +65,7 @@ type EGLTFOpenGL=class(Exception);
                    TChannels=array of TChannel;
              public
               Channels:TChannels;
+              Name:TPasGLTFUTF8String;
             end;
             PAnimation=^TAnimation;
             TAnimations=array of TAnimation;
@@ -101,6 +103,13 @@ type EGLTFOpenGL=class(Exception);
                     TexCoord:TPasGLTFSizeInt;
                    end;
                    PTexture=^TTexture;
+                   TPBRMetallicRoughness=record
+                    BaseColorFactor:TPasGLTF.TVector4;
+                    BaseColorTexture:TTexture;
+                    RoughnessFactor:TPasGLTFFloat;
+                    MetallicFactor:TPasGLTFFloat;
+                    MetallicRoughnessTexture:TTexture;
+                   end;
                    TPBRSpecularGlossiness=record
                     DiffuseFactor:TPasGLTF.TVector4;
                     DiffuseTexture:TTexture;
@@ -140,7 +149,18 @@ type EGLTFOpenGL=class(Exception);
                       Reversed1:0;
                      );
              public
+              Name:TPasGLTFUTF8String;
               ShadingModel:TShadingModel;
+              AlphaCutOff:TPasGLTFFloat;
+              AlphaMode:TPasGLTF.TMaterial.TAlphaMode;
+              DoubleSided:boolean;
+              NormalTexture:TTexture;
+              NormalTextureScale:TPasGLTFFloat;
+              OcclusionTexture:TTexture;
+              OcclusionTextureStrength:TPasGLTFFloat;
+              EmissiveFactor:TPasGLTF.TVector3;
+              EmissiveTexture:TTexture;
+              PBRMetallicRoughness:TPBRMetallicRoughness;
               PBRSpecularGlossiness:TPBRSpecularGlossiness;
               UniformBufferObjectData:TUniformBufferObjectData;
               UniformBufferObjectIndex:TPasGLTFSizeInt;
@@ -180,6 +200,7 @@ type EGLTFOpenGL=class(Exception);
                    PPrimitive=^TPrimitive;
                    TPrimitives=array of TPrimitive;
              public
+              Name:TPasGLTFUTF8String;
               Primitives:TPrimitives;
               BoundingBox:TBoundingBox;
               Weights:TPasGLTFFloatDynamicArray;
@@ -187,6 +208,7 @@ type EGLTFOpenGL=class(Exception);
             PMesh=^TMesh;
             TMeshes=array of TMesh;
             TSkin=record
+             Name:TPasGLTFUTF8String;
              Used:boolean;
              Skeleton:TPasGLTFSizeInt;
              InverseBindMatrices:TPasGLTF.TMatrix4x4DynamicArray;
@@ -209,6 +231,7 @@ type EGLTFOpenGL=class(Exception);
                     );
                    TOverwriteFlags=set of TOverwriteFlag;
              public
+              Name:TPasGLTFUTF8String;
               Children:TPasGLTFSizeUIntDynamicArray;
               Weights:TPasGLTFFloatDynamicArray;
               Mesh:TPasGLTFSizeInt;
@@ -232,6 +255,7 @@ type EGLTFOpenGL=class(Exception);
             PTexture=^TTexture;
             TTextures=array of TTexture;
             TScene=record
+             Name:TPasGLTFUTF8String;
              Nodes:TPasGLTFSizeUIntDynamicArray;
             end;
             PScene=^TScene;
@@ -865,6 +889,32 @@ procedure TGLTFOpenGL.InitializeResources;
    SourceMaterial:=fDocument.Materials.Items[Index];
 
    DestinationMaterial:=@fMaterials[Index];
+
+   begin
+    DestinationMaterial^.Name:=SourceMaterial.Name;
+    DestinationMaterial^.AlphaCutOff:=SourceMaterial.AlphaCutOff;
+    DestinationMaterial^.AlphaMode:=SourceMaterial.AlphaMode;
+    DestinationMaterial^.DoubleSided:=SourceMaterial.DoubleSided;
+    DestinationMaterial^.EmissiveFactor:=SourceMaterial.EmissiveFactor;
+    DestinationMaterial^.EmissiveTexture.Index:=SourceMaterial.EmissiveTexture.Index;
+    DestinationMaterial^.EmissiveTexture.TexCoord:=SourceMaterial.EmissiveTexture.TexCoord;
+    DestinationMaterial^.NormalTexture.Index:=SourceMaterial.NormalTexture.Index;
+    DestinationMaterial^.NormalTexture.TexCoord:=SourceMaterial.NormalTexture.TexCoord;
+    DestinationMaterial^.NormalTextureScale:=SourceMaterial.NormalTexture.Scale;
+    DestinationMaterial^.OcclusionTexture.Index:=SourceMaterial.OcclusionTexture.Index;
+    DestinationMaterial^.OcclusionTexture.TexCoord:=SourceMaterial.OcclusionTexture.TexCoord;
+    DestinationMaterial^.OcclusionTextureStrength:=SourceMaterial.OcclusionTexture.Strength;
+   end;
+
+   begin
+    DestinationMaterial^.PBRMetallicRoughness.BaseColorFactor:=SourceMaterial.PBRMetallicRoughness.BaseColorFactor;
+    DestinationMaterial^.PBRMetallicRoughness.BaseColorTexture.Index:=SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index;
+    DestinationMaterial^.PBRMetallicRoughness.BaseColorTexture.TexCoord:=SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord;
+    DestinationMaterial^.PBRMetallicRoughness.RoughnessFactor:=SourceMaterial.PBRMetallicRoughness.RoughnessFactor;
+    DestinationMaterial^.PBRMetallicRoughness.MetallicFactor:=SourceMaterial.PBRMetallicRoughness.MetallicFactor;
+    DestinationMaterial^.PBRMetallicRoughness.MetallicRoughnessTexture.Index:=SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.Index;
+    DestinationMaterial^.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord:=SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord;
+   end;
 
    JSONItem:=SourceMaterial.Extensions.Properties['KHR_materials_unlit'];
    if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
@@ -2349,22 +2399,20 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
   procedure DrawMesh(const aMesh:TMesh);
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
-      Material:TPasGLTF.TMaterial;
-      ExtraMaterial:PMaterial;
+      Material:PMaterial;
       DoDraw:boolean;
   begin
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
     DoDraw:=false;
     if (Primitive^.Material>=0) and (Primitive^.Material<length(fMaterials)) then begin
-     Material:=fDocument.Materials[Primitive^.Material];
-     ExtraMaterial:=@fMaterials[Primitive^.Material];
-     glBindBufferRange(GL_UNIFORM_BUFFER,
-                       TShadingShader.uboMaterial,
-                       fMaterialUniformBufferObjects[ExtraMaterial^.UniformBufferObjectIndex].UniformBufferObjectHandle,
-                       ExtraMaterial^.UniformBufferObjectOffset,
-                       SizeOf(TMaterial.TUniformBufferObjectData));
-     if Material.AlphaMode=aAlphaMode then begin
+     Material:=@fMaterials[Primitive^.Material];
+     if Material^.AlphaMode=aAlphaMode then begin
+      glBindBufferRange(GL_UNIFORM_BUFFER,
+                        TShadingShader.uboMaterial,
+                        fMaterialUniformBufferObjects[Material^.UniformBufferObjectIndex].UniformBufferObjectHandle,
+                        Material^.UniformBufferObjectOffset,
+                        SizeOf(TMaterial.TUniformBufferObjectData));
       case aAlphaMode of
        TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
         if Blend<>0 then begin
@@ -2389,7 +2437,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
         Assert(false);
        end;
       end;
-      if Material.DoubleSided then begin
+      if Material^.DoubleSided then begin
        if CullFace<>0 then begin
         CullFace:=0;
         glDisable(GL_CULL_FACE);
@@ -2400,48 +2448,48 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
         glEnable(GL_CULL_FACE);
        end;
       end;
-      case ExtraMaterial^.ShadingModel of
+      case Material^.ShadingModel of
        TMaterial.TShadingModel.PBRMetallicRoughness:begin
-        if (Material.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
+        if (Material^.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material^.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
          glActiveTexture(GL_TEXTURE0);
-         glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
+         glBindTexture(GL_TEXTURE_2D,fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
         end;
-        if (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
+        if (Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
          glActiveTexture(GL_TEXTURE1);
-         glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.MetallicRoughnessTexture.Index].Handle);
+         glBindTexture(GL_TEXTURE_2D,fTextures[Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index].Handle);
         end;
        end;
        TMaterial.TShadingModel.PBRSpecularGlossiness:begin
-        if (ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fTextures)) then begin
+        if (Material^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (Material^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fTextures)) then begin
          glActiveTexture(GL_TEXTURE0);
-         glBindTexture(GL_TEXTURE_2D,fTextures[ExtraMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index].Handle);
+         glBindTexture(GL_TEXTURE_2D,fTextures[Material^.PBRSpecularGlossiness.DiffuseTexture.Index].Handle);
         end;
-        if (ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fTextures)) then begin
+        if (Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fTextures)) then begin
          glActiveTexture(GL_TEXTURE1);
-         glBindTexture(GL_TEXTURE_2D,fTextures[ExtraMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index].Handle);
+         glBindTexture(GL_TEXTURE_2D,fTextures[Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index].Handle);
         end;
        end;
        TMaterial.TShadingModel.Unlit:begin
-        if (Material.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
+        if (Material^.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material^.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
          glActiveTexture(GL_TEXTURE0);
-         glBindTexture(GL_TEXTURE_2D,fTextures[Material.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
+         glBindTexture(GL_TEXTURE_2D,fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
         end;
        end;
        else begin
         Assert(false);
        end;
       end;
-      if (Material.NormalTexture.Index>=0) and (Material.NormalTexture.Index<length(fTextures)) then begin
+      if (Material^.NormalTexture.Index>=0) and (Material^.NormalTexture.Index<length(fTextures)) then begin
        glActiveTexture(GL_TEXTURE2);
-       glBindTexture(GL_TEXTURE_2D,fTextures[Material.NormalTexture.Index].Handle);
+       glBindTexture(GL_TEXTURE_2D,fTextures[Material^.NormalTexture.Index].Handle);
       end;
-      if (Material.OcclusionTexture.Index>=0) and (Material.OcclusionTexture.Index<length(fTextures)) then begin
+      if (Material^.OcclusionTexture.Index>=0) and (Material^.OcclusionTexture.Index<length(fTextures)) then begin
        glActiveTexture(GL_TEXTURE3);
-       glBindTexture(GL_TEXTURE_2D,fTextures[Material.OcclusionTexture.Index].Handle);
+       glBindTexture(GL_TEXTURE_2D,fTextures[Material^.OcclusionTexture.Index].Handle);
       end;
-      if (Material.EmissiveTexture.Index>=0) and (Material.EmissiveTexture.Index<length(fTextures)) then begin
+      if (Material^.EmissiveTexture.Index>=0) and (Material^.EmissiveTexture.Index<length(fTextures)) then begin
        glActiveTexture(GL_TEXTURE4);
-       glBindTexture(GL_TEXTURE_2D,fTextures[Material.EmissiveTexture.Index].Handle);
+       glBindTexture(GL_TEXTURE_2D,fTextures[Material^.EmissiveTexture.Index].Handle);
       end;
       DoDraw:=true;
      end;
