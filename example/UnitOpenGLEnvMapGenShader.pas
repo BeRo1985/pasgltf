@@ -166,7 +166,7 @@ begin
 //  '  vec3 lightColor = vec3(0.99, 1.27, 1.64);'+#13#10+
     '	 float lightPower = 1.0;'+#13#10+
     '	 float f = mix(0.0625, 0.5, smoothstep(-1.0, 1.0, dot(direction, lightDirection)));'+#13#10+
-    '  float f2 = mix(0.0, 32.0, smoothstep(0.99, 1.0, -dot(direction, lightDirection)));'+#13#10+
+    '  float f2 = mix(0.0, 32.0, pow(max(0.0, -dot(direction, lightDirection)), 256.0));'+#13#10+
 //  '  float f3 = max(f, mix(0.0, 16.0, smoothstep(0.99999, 1.0, -dot(direction, lightDirection))));'+#13#10+
     '  vec3 c = vec3(max(f, f2)) * lightColor;'+#13#10+
     '  c += ('+#13#10+
