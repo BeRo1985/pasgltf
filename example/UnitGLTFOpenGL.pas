@@ -261,6 +261,15 @@ type EGLTFOpenGL=class(Exception);
             end;
             PImage=^TImage;
             TImages=array of TImage;
+            TSampler=record
+             Name:TPasGLTFUTF8String;
+             MagFilter:TPasGLTF.TSampler.TMagFilter;
+             MinFilter:TPasGLTF.TSampler.TMinFilter;
+             WrapS:TPasGLTF.TSampler.TWrappingMode;
+             WrapT:TPasGLTF.TSampler.TWrappingMode;
+            end;
+            PSampler=^TSampler;
+            TSamplers=array of TSampler;
             TTexture=record
              Name:TPasGLTFUTF8String;
              Image:TPasGLTFSizeInt;
@@ -319,6 +328,7 @@ type EGLTFOpenGL=class(Exception);
        fSkins:TSkins;
        fNodes:TNodes;
        fImages:TImages;
+       fSamplers:TSamplers;
        fTextures:TTextures;
        fScenes:TScenes;
        fScene:TPasGLTFSizeInt;
@@ -801,6 +811,7 @@ begin
  fSkins:=nil;
  fNodes:=nil;
  fImages:=nil;
+ fSamplers:=nil;
  fTextures:=nil;
  fScenes:=nil;
  fScene:=-1;
@@ -1641,7 +1652,7 @@ procedure TGLTFOpenGL.InitializeResources;
   end;
  end;
  procedure InitializeImages;
- var Index,NodeIndex:TPasGLTFSizeInt;
+ var Index:TPasGLTFSizeInt;
      SourceImage:TPasGLTF.TImage;
      DestinationImage:PImage;
      Stream:TMemoryStream;
@@ -1664,6 +1675,22 @@ procedure TGLTFOpenGL.InitializeResources;
      FreeAndNil(Stream);
     end;
    end;
+  end;
+ end;
+ procedure InitializeSamplers;
+ var Index:TPasGLTFSizeInt;
+     SourceSampler:TPasGLTF.TSampler;
+     DestinationSampler:PSampler;
+ begin
+  SetLength(fSamplers,fDocument.Samplers.Count);
+  for Index:=0 to fDocument.Samplers.Count-1 do begin
+   SourceSampler:=fDocument.Samplers[Index];
+   DestinationSampler:=@fSamplers[Index];
+   DestinationSampler^.Name:=SourceSampler.Name;
+   DestinationSampler^.MinFilter:=SourceSampler.MinFilter;
+   DestinationSampler^.MagFilter:=SourceSampler.MagFilter;
+   DestinationSampler^.WrapS:=SourceSampler.WrapS;
+   DestinationSampler^.WrapT:=SourceSampler.WrapT;
   end;
  end;
  procedure InitializeTextures;
@@ -1794,6 +1821,7 @@ begin
  if not fReady then begin
   InitializeAnimations;
   InitializeImages;
+  InitializeSamplers;
   InitializeTextures;
   InitializeMaterials;
   InitializeMeshes;
@@ -1816,6 +1844,7 @@ begin
   fSkins:=nil;
   fNodes:=nil;
   fImages:=nil;
+  fSamplers:=nil;
   fTextures:=nil;
   fScenes:=nil;
   fSkinShaderStorageBufferObjects:=nil;
@@ -1917,7 +1946,7 @@ var AllVertices:TAllVertices;
  var Index:TPasGLTFSizeInt;
      Texture:PTexture;
      Image:PImage;
-     SourceSampler:TPasGLTF.TSampler;
+     Sampler:PSampler;
      MemoryStream:TMemoryStream;
      Stream:TStream;
      ImageData:TPasGLTFPointer;
@@ -1948,9 +1977,9 @@ var AllVertices:TAllVertices;
       try
        glGenTextures(1,@Handle);
        glBindTexture(GL_TEXTURE_2D,Handle);
-       if (Texture^.Sampler>=0) and (Texture^.Sampler<fDocument.Samplers.Count) then begin
-        SourceSampler:=fDocument.Samplers[Texture^.Sampler];
-        case SourceSampler.WrapS of
+       if (Texture^.Sampler>=0) and (Texture^.Sampler<length(fSamplers)) then begin
+        Sampler:=@fSamplers[Texture^.Sampler];
+        case Sampler^.WrapS of
          TPasGLTF.TSampler.TWrappingMode.Repeat_:begin
           glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_REPEAT);
          end;
@@ -1964,7 +1993,7 @@ var AllVertices:TAllVertices;
           Assert(false);
          end;
         end;
-        case SourceSampler.WrapT of
+        case Sampler^.WrapT of
          TPasGLTF.TSampler.TWrappingMode.Repeat_:begin
           glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_REPEAT);
          end;
@@ -1978,7 +2007,7 @@ var AllVertices:TAllVertices;
           Assert(false);
          end;
         end;
-        case SourceSampler.MinFilter of
+        case Sampler^.MinFilter of
          TPasGLTF.TSampler.TMinFilter.None:begin
           glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
          end;
@@ -2004,7 +2033,7 @@ var AllVertices:TAllVertices;
           Assert(false);
          end;
         end;
-        case SourceSampler.MagFilter of
+        case Sampler^.MagFilter of
          TPasGLTF.TSampler.TMagFilter.None:begin
           glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
          end;
