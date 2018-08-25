@@ -342,16 +342,30 @@ begin
     '      switch(shadingModel){'+#13#10+
     '        case smPBRMetallicRoughness:{'+#13#10+
     '          const vec3 f0 = vec3(0.04);'+#13#10+ // dielectricSpecular
-    '          vec4 baseColor = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) * uMaterial.baseColorFactor;'+#13#10+
-    '          vec2 metallicRoughness = clamp(textureFetch(uMetallicRoughnessTexture, 1, vec4(1.0)).zy * uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.xy, vec2(0.0, 1e-3), vec2(1.0));'+#13#10+
-    '          diffuseColorAlpha = vec4(baseColor.xyz * (vec3(1.0) - f0) * (1.0 - metallicRoughness.x) * PI, baseColor.w);'+#13#10+
-    '          specularColorRoughness = vec4(mix(f0, baseColor.xyz, metallicRoughness.x) * PI, metallicRoughness.y);'+#13#10+
+    '          vec4 baseColor = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) *'+#13#10+
+    '                           uMaterial.baseColorFactor;'+#13#10+
+    '          vec2 metallicRoughness = clamp(textureFetch(uMetallicRoughnessTexture, 1, vec4(1.0)).zy *'+#13#10+
+    '                                         uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.xy,'+#13#10+
+    '                                         vec2(0.0, 1e-3),'+#13#10+
+    '                                         vec2(1.0));'+#13#10+
+    '          diffuseColorAlpha = vec4((baseColor.xyz * (vec3(1.0) - f0) * (1.0 - metallicRoughness.x)) * PI,'+#13#10+
+    '                                   baseColor.w);'+#13#10+
+    '          specularColorRoughness = vec4(mix(f0, baseColor.xyz, metallicRoughness.x) * PI,'+#13#10+
+    '                                        metallicRoughness.y);'+#13#10+
     '          break;'+#13#10+
     '        }'+#13#10+
     '        case smPBRSpecularGlossiness:{'+#13#10+
-    '          diffuseColorAlpha = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) * uMaterial.baseColorFactor * vec2(PI, 1.0).xxxy;'+#13#10+
-    '          vec4 specularGlossiness = textureFetchSRGB(uMetallicRoughnessTexture, 1, vec4(1.0)) * vec4(PI * uMaterial.specularFactor.xyz, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.y);'+#13#10+
-    '          specularColorRoughness = vec4(specularGlossiness.xyz, clamp(1.0 - specularGlossiness.w, 1e-3, 1.0));'+#13#10+
+    '          vec4 specularGlossiness = textureFetchSRGB(uMetallicRoughnessTexture, 1, vec4(1.0)) *'+#13#10+
+    '                                    vec4(uMaterial.specularFactor.xyz,'+#13#10+
+    '                                         uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.y);'+#13#10+
+    '          diffuseColorAlpha = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) *'+#13#10+
+    '                              uMaterial.baseColorFactor *'+#13#10+
+    '                              vec2((1.0 - max(max(specularGlossiness.x,'+#13#10+
+    '                                                  specularGlossiness.y),'+#13#10+
+    '                                              specularGlossiness.z)) * PI,'+#13#10+
+    '                                   1.0).xxxy;'+#13#10+
+    '          specularColorRoughness = vec4(specularGlossiness.xyz * PI,'+#13#10+
+    '                                        clamp(1.0 - specularGlossiness.w, 1e-3, 1.0));'+#13#10+
     '          break;'+#13#10+
     '        }'+#13#10+
     '      }'+#13#10+
