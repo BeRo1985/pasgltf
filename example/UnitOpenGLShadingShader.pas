@@ -123,12 +123,11 @@ type TShadingShader=class(TShader)
        uNormalTexture:glInt;
        uOcclusionTexture:glInt;
        uEmissiveTexture:glInt;
-       uModelMatrix:glInt;
+       uMatrix:glInt;
        uLightDirection:glInt;
        uBRDFLUTTexture:glInt;
        uEnvMapTexture:glInt;
        uEnvMapMaxLevel:glInt;
-       uInverseGlobalTransform:glInt;
        uJointOffset:glInt;
        constructor Create(const aSkinned,aAlphaTest:boolean);
        destructor Destroy; override;
@@ -139,31 +138,29 @@ type TShadingShader=class(TShader)
 implementation
 
 constructor TShadingShader.Create(const aSkinned,aAlphaTest:boolean);
-var f0,f1,f2,f3,f,v:ansistring;
+var f0,f1,f2,f,v:ansistring;
 begin
  if aSkinned then begin
   f0:='layout(std140, binding = '+IntToStr(ssboJointMatrices)+') buffer ssboJointMatrices {'+#13#10+
       '  mat4 jointMatrices[];'+#13#10+
       '};'+#13#10+
-      'uniform mat4 uInverseGlobalTransform;'+#13#10+
       'uniform int uJointOffset;'+#13#10;
-  f1:='  mat4 skinMatrix = ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints0.x)]) * aWeights0.x) +'+#13#10+
-      '                    ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints0.y)]) * aWeights0.y) +'+#13#10+
-      '                    ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints0.z)]) * aWeights0.z) +'+#13#10+
-      '                    ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints0.w)]) * aWeights0.w);'+#13#10+
+  f1:='  mat4 inverseMatrix = inverse(uMatrix);'+#13#10+
+      '  mat4 skinMatrix = ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints0.x)]) * aWeights0.x) +'+#13#10+
+      '                    ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints0.y)]) * aWeights0.y) +'+#13#10+
+      '                    ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints0.z)]) * aWeights0.z) +'+#13#10+
+      '                    ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints0.w)]) * aWeights0.w);'+#13#10+
       '  if(any(not(equal(aWeights1, vec4(0.0))))){'+#13#10+
-      '    skinMatrix += ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints1.x)]) * aWeights1.x) +'+#13#10+
-      '                  ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints1.y)]) * aWeights1.y) +'+#13#10+
-      '                  ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints1.z)]) * aWeights1.z) +'+#13#10+
-      '                  ((uInverseGlobalTransform * jointMatrices[uJointOffset + int(aJoints1.w)]) * aWeights1.w);'+#13#10+
+      '    skinMatrix += ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints1.x)]) * aWeights1.x) +'+#13#10+
+      '                  ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints1.y)]) * aWeights1.y) +'+#13#10+
+      '                  ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints1.z)]) * aWeights1.z) +'+#13#10+
+      '                  ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints1.w)]) * aWeights1.w);'+#13#10+
       '  }'+#13#10;
   f2:=' * skinMatrix';
-  f3:=' * transpose(inverse(mat3(skinMatrix)))';
  end else begin
   f0:='';
   f1:='';
   f2:='';
-  f3:='';
  end;
  v:='#version 430'+#13#10+
     'layout(location = 0) in vec3 aPosition;'+#13#10+
@@ -185,6 +182,7 @@ begin
     'out vec4 vColor;'+#13#10+
     'layout(std140, binding = '+IntToStr(uboFrameGlobals)+') uniform uboFrameGlobals {'+#13#10+
     '  mat4 inverseViewMatrix;'+#13#10+
+    '  mat4 modelMatrix;'+#13#10+
     '  mat4 viewProjectionMatrix;'+#13#10+
     '} uFrameGlobals;'+#13#10+
     'struct MorphTargetVertex {'+#13#10+
@@ -196,11 +194,11 @@ begin
     'layout(std430, binding = '+IntToStr(ssboMorphTargetVertices)+') buffer ssboMorphTargetVertices {'+#13#10+
     '  MorphTargetVertex morphTargetVertices[];'+#13#10+
     '};'+#13#10+
-    'uniform mat4 uModelMatrix;'+#13#10+
+    'uniform mat4 uMatrix;'+#13#10+
     f0+
     'void main(){'+#13#10+
     f1+
-    '  mat4 modelMatrix = uModelMatrix'+f2+';'+#13#10+
+    '  mat4 modelMatrix = uFrameGlobals.modelMatrix * uMatrix'+f2+';'+#13#10+
     '  mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));'+#13#10+
     '  vNormal = normalize(normalMatrix * aNormal);'+#13#10+
     '  vTangent = normalize(normalMatrix * aTangent.xyz);'+#13#10+
@@ -481,13 +479,12 @@ begin
  uNormalTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uNormalTexture')));
  uOcclusionTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uOcclusionTexture')));
  uEmissiveTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveTexture')));
- uModelMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelMatrix')));
+ uMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMatrix')));
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
  uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
  uEnvMapMaxLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapMaxLevel')));
 //uboJointMatrices:=glGetUniformBlockIndex(ProgramHandle,pointer(pansichar('uboJointMatrices')));
- uInverseGlobalTransform:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uInverseGlobalTransform')));
  uJointOffset:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uJointOffset')));
  glUniform1i(uBaseColorTexture,0);
  glUniform1i(uMetallicRoughnessTexture,1);

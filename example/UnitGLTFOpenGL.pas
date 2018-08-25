@@ -309,6 +309,7 @@ type EGLTFOpenGL=class(Exception);
             PMorphTargetUniformBuffer=^TMorphTargetUniformBuffer;
             TFrameGlobalsUniformBufferObjectData=packed record
              InverseViewMatrix:TPasGLTF.TMatrix4x4;
+             ModelMatrix:TPasGLTF.TMatrix4x4;
              ViewProjectionMatrix:TPasGLTF.TMatrix4x4;
             end;
             PFrameGlobalsUniformBufferObjectData=^TFrameGlobalsUniformBufferObjectData;
@@ -2889,15 +2890,14 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
    end;
   end;
  var Index:TPasGLTFSizeInt;
-     Matrix,ModelMatrix,InverseMatrix:TPasGLTF.TMatrix4x4;
+     Matrix:TPasGLTF.PMatrix4x4;
      Node:PNode;
      Skin:PSkin;
      SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
  begin
   Node:=@fNodes[aNodeIndex];
-  Matrix:=Node^.WorkMatrix;
+  Matrix:=@Node^.WorkMatrix;
   if (Node^.Mesh>=0) and (Node^.Mesh<length(fMeshes)) then begin
-   ModelMatrix:=MatrixMul(Matrix,aModelMatrix);
    if (aAnimationIndex>=0) and
       ((Node^.Skin>=0) and (Node^.Skin<length(fSkins))) and
       (fSkins[Node^.Skin].SkinShaderStorageBufferObjectIndex>=0) then begin
@@ -2911,14 +2911,12 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     enD;
     ShadingShader:=SkinnedShadingShader;
     UseShader(ShadingShader);
-    InverseMatrix:=MatrixInverse(Matrix);
-    glUniformMatrix4fv(ShadingShader.uInverseGlobalTransform,1,false,@InverseMatrix);
     glUniform1i(ShadingShader.uJointOffset,Skin^.SkinShaderStorageBufferObjectOffset);
    end else begin
     ShadingShader:=NonSkinnedShadingShader;
     UseShader(ShadingShader);
    end;
-   glUniformMatrix4fv(ShadingShader.uModelMatrix,1,false,@ModelMatrix);
+   glUniformMatrix4fv(ShadingShader.uMatrix,1,false,pointer(Matrix));
    DrawMesh(fMeshes[Node^.Mesh]);
   end;
   for Index:=0 to length(Node^.Children)-1 do begin
@@ -2932,6 +2930,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
   p:=glMapBufferRange(GL_UNIFORM_BUFFER,0,SizeOf(TFrameGlobalsUniformBufferObjectData),GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
   if assigned(p) then begin
    p^.InverseViewMatrix:=MatrixInverse(aViewMatrix);
+   p^.ModelMatrix:=aModelMatrix;
    p^.ViewProjectionMatrix:=MatrixMul(aViewMatrix,aProjectionMatrix);
    glUnmapBuffer(GL_UNIFORM_BUFFER);
   end;
