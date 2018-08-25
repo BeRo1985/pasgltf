@@ -511,7 +511,8 @@ begin
     glClearDepth(1.0);
     glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
     glDisable(GL_DEPTH_TEST);
-    glCullFace(GL_NONE);
+    glDisable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
     glBindVertexArray(EmptyVertexArrayObjectHandle);
     BRDFLUTShader.Bind;
     glDrawArrays(GL_TRIANGLES,0,3);
@@ -553,7 +554,8 @@ begin
       glClearDepth(1.0);
       glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
       glDisable(GL_DEPTH_TEST);
-      glCullFace(GL_NONE);
+      glDisable(GL_CULL_FACE);
+      glCullFace(GL_BACK);
       glBindVertexArray(EmptyVertexArrayObjectHandle);
       glDrawArrays(GL_TRIANGLES,0,18);
       glBindVertexArray(0);
@@ -638,7 +640,8 @@ begin
        glClearDepth(1.0);
        glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
        glDisable(GL_DEPTH_TEST);
-       glCullFace(GL_NONE);
+       glDisable(GL_CULL_FACE);
+       glCullFace(GL_BACK);
        glBindVertexArray(EmptyVertexArrayObjectHandle);
        glDrawArrays(GL_TRIANGLES,0,18);
        glBindVertexArray(0);

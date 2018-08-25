@@ -697,7 +697,7 @@ begin
      if MipMapping and MipMapLevelWiseFill then begin
       glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY,GL_TEXTURE_BASE_LEVEL,0);
       glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY,GL_TEXTURE_MAX_LEVEL,MaxLevel);
-      glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY,GL_GENERATE_MIPMAP,0);
+//    glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY,GL_GENERATE_MIPMAP,0);
       for j:=0 to MaxLevel do begin
        for k:=low(CubeMapTexs) to high(CubeMapTexs) do begin
         glTexImage3D(CubeMapTexs[k],j,TextureFormats[Formats[i]].InternalFormat,FBO.WorkWidth shr j,FBO.WorkHeight shr j,FBO.WorkDepth,0,TextureFormats[Formats[i]].Format,TextureFormats[Formats[i]].Type_,nil);
@@ -731,7 +731,7 @@ begin
      if MipMapping and MipMapLevelWiseFill then begin
       glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_BASE_LEVEL,0);
       glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_MAX_LEVEL,MaxLevel);
-      glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_GENERATE_MIPMAP,0);
+//    glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_GENERATE_MIPMAP,0);
       for j:=0 to MaxLevel do begin
        for k:=low(CubeMapTexs) to high(CubeMapTexs) do begin
         glTexImage2D(CubeMapTexs[k],j,TextureFormats[Formats[i]].InternalFormat,FBO.WorkWidth shr j,FBO.WorkHeight shr j,0,TextureFormats[Formats[i]].Format,TextureFormats[Formats[i]].Type_,nil);
@@ -767,7 +767,7 @@ begin
      if MipMapping and MipMapLevelWiseFill then begin
       glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_BASE_LEVEL,0);
       glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MAX_LEVEL,MaxLevel);
-      glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_GENERATE_MIPMAP,0);
+//    glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_GENERATE_MIPMAP,0);
       for j:=0 to MaxLevel do begin
        glTexImage3D(GL_TEXTURE_2D_ARRAY,j,TextureFormats[Formats[i]].InternalFormat,FBO.WorkWidth shr j,FBO.WorkHeight shr j,FBO.WorkDepth shr j,0,TextureFormats[Formats[i]].Format,TextureFormats[Formats[i]].Type_,nil);
       end;
@@ -795,7 +795,7 @@ begin
      if MipMapping and MipMapLevelWiseFill then begin
       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_BASE_LEVEL,0);
       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,MaxLevel);
-      glTexParameteri(GL_TEXTURE_2D,GL_GENERATE_MIPMAP,0);
+//    glTexParameteri(GL_TEXTURE_2D,GL_GENERATE_MIPMAP,0);
       for j:=0 to MaxLevel do begin
        glTexImage2D(GL_TEXTURE_2D,j,TextureFormats[Formats[i]].InternalFormat,FBO.WorkWidth shr j,FBO.WorkHeight shr j,0,TextureFormats[Formats[i]].Format,TextureFormats[Formats[i]].Type_,nil);
       end;
@@ -825,7 +825,7 @@ begin
      if MipMapping and MipMapLevelWiseFill then begin
       glTexParameteri(GL_TEXTURE_3D,GL_TEXTURE_BASE_LEVEL,0);
       glTexParameteri(GL_TEXTURE_3D,GL_TEXTURE_MAX_LEVEL,MaxLevel);
-      glTexParameteri(GL_TEXTURE_3D,GL_GENERATE_MIPMAP,0);
+//    glTexParameteri(GL_TEXTURE_3D,GL_GENERATE_MIPMAP,0);
       for j:=0 to MaxLevel do begin
        glTexImage3D(GL_TEXTURE_3D,j,TextureFormats[Formats[i]].InternalFormat,FBO.WorkWidth shr j,FBO.WorkHeight shr j,FBO.WorkDepth shr j,0,TextureFormats[Formats[i]].Format,TextureFormats[Formats[i]].Type_,nil);
       end;
@@ -932,7 +932,7 @@ begin
     glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_WRAP_R,GL_REPEAT);
    end;
   end;
-  glTexParameteri(GL_TEXTURE_2D,GL_GENERATE_MIPMAP,0);
+//glTexParameteri(GL_TEXTURE_2D,GL_GENERATE_MIPMAP,0);
   for Counter:=low(CubeMapTexs) to high(CubeMapTexs) do begin
    glTexImage2D(CubeMapTexs[Counter],0,GL_RGBA16F,Width,Height,0,GL_RGBA,GL_HALF_FLOAT,nil);
   end;
@@ -976,7 +976,7 @@ begin
 {$ifdef gles20}
    glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,Width,Height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_SHORT,nil);
 {$else}
-   glTexParameteri(GL_TEXTURE_2D,GL_GENERATE_MIPMAP,0);
+// glTexParameteri(GL_TEXTURE_2D,GL_GENERATE_MIPMAP,0);
    glTexParameteri(GL_TEXTURE_2D,GL_DEPTH_TEXTURE_MODE,GL_LUMINANCE);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_COMPARE_MODE,GL_NONE);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_COMPARE_FUNC,GL_ALWAYS);
@@ -1018,7 +1018,7 @@ begin
     end;
    end;
 {$ifndef gles20}
-   glTexParameteri(GL_TEXTURE_2D,GL_GENERATE_MIPMAP,0);
+// glTexParameteri(GL_TEXTURE_2D,GL_GENERATE_MIPMAP,0);
 {$endif}
    glTexImage2D(GL_TEXTURE_2D,0,{$ifdef gles20}GL_RGBA{$else}GL_RGBA16F{$endif},Width,Height,0,{$ifdef gles20}GL_RGBA,GL_UNSIGNED_BYTE{$else}GL_RGBA,GL_HALF_FLOAT{$endif},nil);
    glBindTexture(GL_TEXTURE_2D,0);
