@@ -3090,12 +3090,10 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
    end;
   end;
  var Index:TPasGLTFSizeInt;
-     Matrix:TPasGLTF.PMatrix4x4;
      Skin:PSkin;
      SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
  begin
   Node:=@fNodes[aNodeIndex];
-  Matrix:=@Node^.WorkMatrix;
   if (Node^.Mesh>=0) and (Node^.Mesh<length(fMeshes)) then begin
    if (aAnimationIndex>=0) and
       ((Node^.Skin>=0) and (Node^.Skin<length(fSkins))) and
@@ -3115,7 +3113,6 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     ShadingShader:=NonSkinnedShadingShader;
     UseShader(ShadingShader);
    end;
-   glUniformMatrix4fv(ShadingShader.uMatrix,1,false,pointer(Matrix));
    DrawMesh(fMeshes[Node^.Mesh]);
   end;
   for Index:=0 to length(Node^.Children)-1 do begin

@@ -124,7 +124,6 @@ type TShadingShader=class(TShader)
        uNormalTexture:glInt;
        uOcclusionTexture:glInt;
        uEmissiveTexture:glInt;
-       uMatrix:glInt;
        uLightDirection:glInt;
        uBRDFLUTTexture:glInt;
        uEnvMapTexture:glInt;
@@ -146,7 +145,7 @@ begin
       '  mat4 jointMatrices[];'+#13#10+
       '};'+#13#10+
       'uniform int uJointOffset;'+#13#10;
-  f1:='  mat4 inverseMatrix = inverse(uMatrix);'+#13#10+
+  f1:='  mat4 inverseMatrix = inverse(nodeMatrix);'+#13#10+
       '  mat4 skinMatrix = ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints0.x)]) * aWeights0.x) +'+#13#10+
       '                    ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints0.y)]) * aWeights0.y) +'+#13#10+
       '                    ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints0.z)]) * aWeights0.z) +'+#13#10+
@@ -200,7 +199,6 @@ begin
     '  uvec4 primitiveMetaData;'+#13#10+
     '  float morphTargetWeights[];'+#13#10+
     '};'+#13#10+
-    'uniform mat4 uMatrix;'+#13#10+
     f0+
     'void main(){'+#13#10+
     f1+
@@ -214,7 +212,7 @@ begin
     '    normal += morphTargetVertices[morphTargetVertexIndex].normal.xyz * morphTargetWeight;'+#13#10+
     '    tangent.xyz += morphTargetVertices[morphTargetVertexIndex].tangent.xyz * morphTargetWeight;'+#13#10+
     '  }'+#13#10+
-    '  mat4 modelMatrix = uFrameGlobals.modelMatrix * uMatrix'+f2+';'+#13#10+
+    '  mat4 modelMatrix = uFrameGlobals.modelMatrix * nodeMatrix'+f2+';'+#13#10+
     '  mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));'+#13#10+
     '  vNormal = normalize(normalMatrix * normal);'+#13#10+
     '  vTangent = normalize(normalMatrix * tangent.xyz);'+#13#10+
@@ -495,7 +493,6 @@ begin
  uNormalTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uNormalTexture')));
  uOcclusionTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uOcclusionTexture')));
  uEmissiveTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveTexture')));
- uMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMatrix')));
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
  uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
