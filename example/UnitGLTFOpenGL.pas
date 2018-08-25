@@ -1656,7 +1656,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
          if Vector3Dot(TemporaryNormals[TemporaryTriangleIndices[IndexIndex+0]],Normal)<0.0 then begin
           Normal:=Vector3Neg(Normal);
          end;
- {$if true}
+{$if true}
          Area:=(t2t0[0]*t1t0[1])-(t1t0[0]*t2t0[1]);
          if IsZero(Area) then begin
           Tangent[0]:=0.0;
@@ -1677,7 +1677,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
           Tangent:=Vector3Neg(Tangent);
           Bitangent:=Vector3Neg(Bitangent);
          end;
- {$else}
+{$else}
          Tangent[0]:=(t1t0[1]*p2p0[0])-(t2t0[1]*p1p0[0]);
          Tangent[1]:=(t1t0[1]*p2p0[1])-(t2t0[1]*p1p0[1]);
          Tangent[2]:=(t1t0[1]*p2p0[2])-(t2t0[1]*p1p0[2]);
@@ -1688,7 +1688,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
           Tangent:=Vector3Neg(Tangent);
           Bitangent:=Vector3Neg(Bitangent);
          end;
- {$ifend}
+{$ifend}
          PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+0]])^:=Vector3Add(PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+0]])^,Tangent);
          PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+1]])^:=Vector3Add(PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+1]])^,Tangent);
          PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+2]])^:=Vector3Add(PVector3(@TemporaryTangents[TemporaryTriangleIndices[IndexIndex+2]])^,Tangent);
@@ -1715,13 +1715,13 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
        for VertexIndex:=0 to length(DestinationMeshPrimitiveTarget^.Vertices)-1 do begin
         DestinationMeshPrimitiveTargetVertex:=@DestinationMeshPrimitiveTarget^.Vertices[VertexIndex];
         if trunc(TemporaryTangents[VertexIndex,3])<>trunc(DestinationMeshPrimitive^.Vertices[VertexIndex].Tangent[3]) then begin
-         DestinationMeshPrimitiveTargetVertex^.Tangent[0]:=-TemporaryTangents[VertexIndex,0];
-         DestinationMeshPrimitiveTargetVertex^.Tangent[1]:=-TemporaryTangents[VertexIndex,1];
-         DestinationMeshPrimitiveTargetVertex^.Tangent[2]:=-TemporaryTangents[VertexIndex,2];
+         DestinationMeshPrimitiveTargetVertex^.Tangent[0]:=DestinationMeshPrimitive^.Vertices[VertexIndex].Tangent[0]-TemporaryTangents[VertexIndex,0];
+         DestinationMeshPrimitiveTargetVertex^.Tangent[1]:=DestinationMeshPrimitive^.Vertices[VertexIndex].Tangent[1]-TemporaryTangents[VertexIndex,1];
+         DestinationMeshPrimitiveTargetVertex^.Tangent[2]:=DestinationMeshPrimitive^.Vertices[VertexIndex].Tangent[2]-TemporaryTangents[VertexIndex,2];
         end else begin
-         DestinationMeshPrimitiveTargetVertex^.Tangent[0]:=TemporaryTangents[VertexIndex,0];
-         DestinationMeshPrimitiveTargetVertex^.Tangent[1]:=TemporaryTangents[VertexIndex,1];
-         DestinationMeshPrimitiveTargetVertex^.Tangent[2]:=TemporaryTangents[VertexIndex,2];
+         DestinationMeshPrimitiveTargetVertex^.Tangent[0]:=TemporaryTangents[VertexIndex,0]-DestinationMeshPrimitive^.Vertices[VertexIndex].Tangent[0];
+         DestinationMeshPrimitiveTargetVertex^.Tangent[1]:=TemporaryTangents[VertexIndex,1]-DestinationMeshPrimitive^.Vertices[VertexIndex].Tangent[1];
+         DestinationMeshPrimitiveTargetVertex^.Tangent[2]:=TemporaryTangents[VertexIndex,2]-DestinationMeshPrimitive^.Vertices[VertexIndex].Tangent[2];
         end;
        end;
       end;
