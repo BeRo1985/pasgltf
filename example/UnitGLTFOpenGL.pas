@@ -2227,6 +2227,18 @@ var AllVertices:TAllVertices;
    glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
   end;
  end;
+ procedure CreateMorphTargetVertexShaderStorageBufferObjects;
+ var Index:TPasGLTFSizeInt;
+     MorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
+ begin
+  for Index:=0 to length(fMorphTargetVertexShaderStorageBufferObjects)-1 do begin
+   MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[Index];
+   glGenBuffers(1,@MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+   glBindBuffer(GL_SHADER_STORAGE_BUFFER,MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+   glBufferData(GL_SHADER_STORAGE_BUFFER,MorphTargetVertexShaderStorageBufferObject^.Size,@MorphTargetVertexShaderStorageBufferObject^.Vertices[0],GL_STATIC_DRAW);
+   glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
+  end;
+ end;
  procedure CreateFrameGlobalsUniformBufferObject;
  begin
   glGenBuffers(1,@fFrameGlobalsUniformBufferObjectHandle);
@@ -2323,6 +2335,7 @@ begin
     CreateOpenGLObjects;
     LoadTextures;
     CreateSkinShaderStorageBufferObjects;
+    CreateMorphTargetVertexShaderStorageBufferObjects;
     CreateFrameGlobalsUniformBufferObject;
     CreateMaterialUniformBufferObjects;
    finally
@@ -2364,6 +2377,17 @@ procedure TGLTFOpenGL.Unload;
    end;
   end;
  end;
+ procedure DestroyMorphTargetVertexShaderStorageBufferObjects;
+ var Index:TPasGLTFSizeInt;
+     MorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
+ begin
+  for Index:=0 to length(fMorphTargetVertexShaderStorageBufferObjects)-1 do begin
+   MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[Index];
+   if MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle>0 then begin
+    glDeleteBuffers(1,@MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+   end;
+  end;
+ end;
  procedure DestroyFrameGlobalsUniformBufferObject;
  begin
   glDeleteBuffers(1,@fFrameGlobalsUniformBufferObjectHandle);
@@ -2384,6 +2408,7 @@ begin
   DeleteOpenGLObjects;
   UnloadTextures;
   DestroySkinShaderStorageBufferObjects;
+  DestroyMorphTargetVertexShaderStorageBufferObjects;
   DestroyFrameGlobalsUniformBufferObject;
   DestroyMaterialUniformBufferObjects;
  end;
