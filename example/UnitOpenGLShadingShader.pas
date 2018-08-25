@@ -202,20 +202,20 @@ begin
     'void main(){'+#13#10+
     f1+
     '  vec3 position = aPosition,'+#13#10+
-    '       normal = aNormal;'+#13#10+
-    '  vec4 tangent = aTangent;'+#13#10+
+    '       normal = normalize(aNormal),'+#13#10+
+    '       tangent = normalize(aTangent.xyz);'+#13#10+
     '  for(uint index = 0, count = primitiveMetaData.w, vertexIndex = uint(gl_VertexID); index < count; index++){'+#13#10+
     '    float morphTargetWeight = morphTargetWeights[index];'+#13#10+
     '    uint morphTargetVertexIndex = (index * primitiveMetaData.z) + vertexIndex;'+#13#10+
     '    position += morphTargetVertices[morphTargetVertexIndex].position.xyz * morphTargetWeight;'+#13#10+
     '    normal += morphTargetVertices[morphTargetVertexIndex].normal.xyz * morphTargetWeight;'+#13#10+
-    '    tangent.xyz += morphTargetVertices[morphTargetVertexIndex].tangent.xyz * morphTargetWeight;'+#13#10+
+    '    tangent += morphTargetVertices[morphTargetVertexIndex].tangent.xyz * morphTargetWeight;'+#13#10+
     '  }'+#13#10+
     '  mat4 modelMatrix = uFrameGlobals.modelMatrix * nodeMatrix'+f2+';'+#13#10+
     '  mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));'+#13#10+
-    '  vNormal = normalize(normalMatrix * normal);'+#13#10+
-    '  vTangent = normalize(normalMatrix * tangent.xyz);'+#13#10+
-    '  vBitangent = cross(vNormal, vTangent) * tangent.w;'+#13#10+
+    '  vNormal = normalize(normalMatrix * normalize(normal));'+#13#10+
+    '  vTangent = normalize(normalMatrix * normalize(tangent));'+#13#10+
+    '  vBitangent = cross(vNormal, vTangent) * aTangent.w;'+#13#10+
     '  vTexCoord0 = aTexCoord0;'+#13#10+
     '  vTexCoord1 = aTexCoord1;'+#13#10+
     '  vColor = aColor0;'+#13#10+
