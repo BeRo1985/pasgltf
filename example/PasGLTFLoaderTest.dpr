@@ -676,7 +676,7 @@ begin
          AntialiasingShader:=TAntialiasingShader.Create;
          try
 
-          GLTFOpenGL.UploadResources;
+          GLTFOpenGL.Upload;
           try
 
            ShadingShaders[false,false]:=TShadingShader.Create(false,false);
@@ -837,7 +837,7 @@ begin
            end;
 
           finally
-           GLTFOpenGL.UnloadResources;
+           GLTFOpenGL.Unload;
           end;
 
          finally

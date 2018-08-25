@@ -339,8 +339,8 @@ type EGLTFOpenGL=class(Exception);
        procedure LoadFromDocument(const aDocument:TPasGLTF.TDocument);
        procedure LoadFromStream(const aStream:TStream);
        procedure LoadFromFile(const aFileName:String);
-       procedure UploadResources;
-       procedure UnloadResources;
+       procedure Upload;
+       procedure Unload;
        procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                       const aViewMatrix:TPasGLTF.TMatrix4x4;
                       const aProjectionMatrix:TPasGLTF.TMatrix4x4;
@@ -821,7 +821,7 @@ end;
 
 destructor TGLTFOpenGL.Destroy;
 begin
- UnloadResources;
+ Unload;
  Clear;
  inherited Destroy;
 end;
@@ -1876,7 +1876,7 @@ begin
  end;
 end;
 
-procedure TGLTFOpenGL.UploadResources;
+procedure TGLTFOpenGL.Upload;
 type TAllVertices=TPasGLTFDynamicArray<TVertex>;
      TAllIndices=TPasGLTFDynamicArray<TPasGLTFUInt32>;
 var AllVertices:TAllVertices;
@@ -2216,7 +2216,7 @@ begin
  end;
 end;
 
-procedure TGLTFOpenGL.UnloadResources;
+procedure TGLTFOpenGL.Unload;
  procedure DeleteOpenGLObjects;
  begin
   glBindBuffer(GL_ARRAY_BUFFER,0);
