@@ -851,7 +851,7 @@ begin
 end;
 
 procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
- procedure InitializeAnimations;
+ procedure LoadAnimations;
  var Index,ChannelIndex,ValueIndex:TPasGLTFSizeInt;
      SourceAnimation:TPasGLTF.TAnimation;
      DestinationAnimation:PAnimation;
@@ -935,7 +935,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
   end;
 
  end;
- procedure InitializeMaterials;
+ procedure LoadMaterials;
  var Index:TPasGLTFSizeInt;
      SourceMaterial:TPasGLTF.TMaterial;
      DestinationMaterial:PMaterial;
@@ -1110,7 +1110,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
   end;
 
  end;
- procedure InitializeMeshes;
+ procedure LoadMeshes;
  var Index,
      PrimitiveIndex,
      AccessorIndex,
@@ -1581,7 +1581,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
   end;
 
  end;
- procedure InitializeSkins;
+ procedure LoadSkins;
  var Index,JointIndex,OldCount:TPasGLTFSizeInt;
      SourceSkin:TPasGLTF.TSkin;
      DestinationSkin:PSkin;
@@ -1627,7 +1627,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
   end;
 
  end;
- procedure InitializeNodes;
+ procedure LoadNodes;
  var Index,WeightIndex,ChildrenIndex,Count:TPasGLTFSizeInt;
      SourceNode:TPasGLTF.TNode;
      DestinationNode:PNode;
@@ -1668,7 +1668,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
    end;
   end;
  end;
- procedure InitializeImages;
+ procedure LoadImages;
  var Index:TPasGLTFSizeInt;
      SourceImage:TPasGLTF.TImage;
      DestinationImage:PImage;
@@ -1694,7 +1694,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
    end;
   end;
  end;
- procedure InitializeSamplers;
+ procedure LoadSamplers;
  var Index:TPasGLTFSizeInt;
      SourceSampler:TPasGLTF.TSampler;
      DestinationSampler:PSampler;
@@ -1710,7 +1710,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
    DestinationSampler^.WrapT:=SourceSampler.WrapT;
   end;
  end;
- procedure InitializeTextures;
+ procedure LoadTextures;
  var Index,NodeIndex:TPasGLTFSizeInt;
      SourceTexture:TPasGLTF.TTexture;
      DestinationTexture:PTexture;
@@ -1724,7 +1724,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
    DestinationTexture^.Sampler:=SourceTexture.Sampler;
   end;
  end;
- procedure InitializeScenes;
+ procedure LoadScenes;
  var Index,NodeIndex:TPasGLTFSizeInt;
      SourceScene:TPasGLTF.TScene;
      DestinationScene:PScene;
@@ -1836,15 +1836,15 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
  end;
 begin
  if not fReady then begin
-  InitializeAnimations;
-  InitializeImages;
-  InitializeSamplers;
-  InitializeTextures;
-  InitializeMaterials;
-  InitializeMeshes;
-  InitializeSkins;
-  InitializeNodes;
-  InitializeScenes;
+  LoadAnimations;
+  LoadImages;
+  LoadSamplers;
+  LoadTextures;
+  LoadMaterials;
+  LoadMeshes;
+  LoadSkins;
+  LoadNodes;
+  LoadScenes;
   InitializeSkinShaderStorageBufferObjects;
   ProcessScenes;
   fReady:=true;
