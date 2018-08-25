@@ -133,6 +133,13 @@ const CubeMapFileNames:array[0..5] of string=
         'negz'
        );
 
+procedure ResetCamera;
+begin
+ ZoomLevel:=1.0;
+ CameraRotationX:=0.0;
+ CameraRotationY:=0.0;
+end;
+
 function Matrix4x4ProjectionReversedZ(const aFOV,aAspectRatio,aZNear:single):TMatrix4x4;
 var f:single;
 begin
@@ -221,7 +228,7 @@ var Event:TSDL_Event;
                                                                                 Matrix4x4RotateX(CameraRotationY*PI*2.0)))),
                                 Center,
                                 Vector3YAxis);}
-   ProjectionMatrix:=Matrix4x4ProjectionReversedZ(45.0,ViewPortWidth/ViewPortHeight,0.1);
+   ProjectionMatrix:=Matrix4x4ProjectionReversedZ(45.0,ViewPortWidth/ViewPortHeight,1e-3);
    glClipControl(GL_LOWER_LEFT,GL_ZERO_TO_ONE);
    glDepthFunc(GL_GEQUAL);
    LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
@@ -734,6 +741,9 @@ begin
                      WrapCursor:=not WrapCursor;
                      SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
                     end;
+                    SDLK_R:begin
+                     ResetCamera;
+                    end;
                     SDLK_SPACE:begin
                      AutomaticRotate:=not AutomaticRotate;
                     end;
@@ -780,6 +790,7 @@ begin
                     finally
                      SDL_free(Event.drop.FileName);
                     end;
+                    ResetCamera;
                    end;
                   end;
                   SDL_WINDOWEVENT:begin
