@@ -138,17 +138,6 @@ type EGLTFOpenGL=class(Exception);
                      PBRSpecularGlossiness,
                      Unlit
                     );
-              const EmptyMaterialUniformBufferObjectData:TUniformBufferObjectData=
-                     (
-                      BaseColorFactor:(1.0,1.0,1.0,1.0);
-                      SpecularFactor:(1.0,1.0,1.0,0.0);
-                      EmissiveFactor:(0.0,0.0,0.0,0.0);
-                      MetallicRoughnessNormalScaleOcclusionStrengthFactor:(1.0,1.0,1.0,1.0);
-                      AlphaCutOff:1.0;
-                      Flags:0;
-                      Reversed0:0;
-                      Reversed1:0;
-                     );
              public
               Name:TPasGLTFUTF8String;
               ShadingModel:TShadingModel;
@@ -382,6 +371,18 @@ type TVector2=TPasGLTF.TVector2;
 
      TMatrix=TPasGLTF.TMatrix4x4;
      PMatrix=^TMatrix;
+
+const EmptyMaterialUniformBufferObjectData:TGLTFOpenGL.TMaterial.TUniformBufferObjectData=
+       (
+        BaseColorFactor:(1.0,1.0,1.0,1.0);
+        SpecularFactor:(1.0,1.0,1.0,0.0);
+        EmissiveFactor:(0.0,0.0,0.0,0.0);
+        MetallicRoughnessNormalScaleOcclusionStrengthFactor:(1.0,1.0,1.0,1.0);
+        AlphaCutOff:1.0;
+        Flags:0;
+        Reversed0:0;
+        Reversed1:0;
+       );
 
 function Vector2Add(const a,b:TVector2):TVector2;
 begin
@@ -2152,7 +2153,7 @@ var AllVertices:TAllVertices;
    if assigned(p) then begin
     for MaterialIndex:=0 to length(MaterialUniformBufferObject^.Materials)-1 do begin
      if MaterialUniformBufferObject^.Materials[MaterialIndex]<0 then begin
-      TMaterial.PUniformBufferObjectData(@p^[0])^:=TMaterial.EmptyMaterialUniformBufferObjectData;
+      TMaterial.PUniformBufferObjectData(@p^[0])^:=EmptyMaterialUniformBufferObjectData;
      end else begin
       Material:=@fMaterials[MaterialUniformBufferObject^.Materials[MaterialIndex]];
       TMaterial.PUniformBufferObjectData(@p^[Material^.UniformBufferObjectOffset])^:=Material^.UniformBufferObjectData;
