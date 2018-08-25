@@ -187,7 +187,6 @@ type EGLTFOpenGL=class(Exception);
                      CountVertices:TPasGLTFSizeUInt;
                      CountIndices:TPasGLTFSizeUInt;
                      MorphTargetVertexShaderStorageBufferObjectIndex:TPasGLTFSizeInt;
-                     MorphTargetVertexShaderStorageBufferObjectOffset:TPasGLTFSizeUInt;
                      MorphTargetVertexShaderStorageBufferObjectByteOffset:TPasGLTFSizeUInt;
                      MorphTargetVertexShaderStorageBufferObjectByteSize:TPasGLTFSizeUInt;
                    end;
@@ -2336,12 +2335,11 @@ var AllVertices:TAllVertices;
         inc(ItemDataSize,fShaderStorageBufferOffsetAlignment-(ItemDataSize mod fShaderStorageBufferOffsetAlignment));
        end;
        if (CountMorphTargetVertexShaderStorageBufferObjects=0) or
-          ((fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1].Size+(CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex)))>134217728) then begin // 128MB = the minimum required SSBO size in the OpenGL specification
+          ((fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1].Size+ItemDataSize)>fMaximumShaderStorageBufferBlockSize) then begin
         if length(fMorphTargetVertexShaderStorageBufferObjects)<=CountMorphTargetVertexShaderStorageBufferObjects then begin
          SetLength(fMorphTargetVertexShaderStorageBufferObjects,(CountMorphTargetVertexShaderStorageBufferObjects+1)*2);
         end;
         Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=CountMorphTargetVertexShaderStorageBufferObjects;
-        Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset:=0;
         Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset:=0;
         Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=ItemDataSize;
         MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects];
@@ -2357,7 +2355,6 @@ var AllVertices:TAllVertices;
        end else begin
         MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1];
         Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=CountMorphTargetVertexShaderStorageBufferObjects-1;
-        Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset:=MorphTargetVertexShaderStorageBufferObject^.Count;
         Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset:=MorphTargetVertexShaderStorageBufferObject^.Size;
         Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=ItemDataSize;
         if length(MorphTargetVertexShaderStorageBufferObject^.Data)<(MorphTargetVertexShaderStorageBufferObject^.Size+ItemDataSize) then begin
