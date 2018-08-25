@@ -225,6 +225,14 @@ type EGLTFOpenGL=class(Exception);
                      Weights
                     );
                    TOverwriteFlags=set of TOverwriteFlag;
+                   TMeshPrimitiveMetaData=record
+                    ShaderStorageBufferObjectIndex:TPasGLTFSizeInt;
+                    ShaderStorageBufferObjectOffset:TPasGLTFSizeUInt;
+                    ShaderStorageBufferObjectByteOffset:TPasGLTFSizeUInt;
+                    ShaderStorageBufferObjectByteSize:TPasGLTFSizeUInt;
+                   end;
+                   PMeshPrimitiveMetaData=^TMeshPrimitiveMetaData;
+                   TMeshPrimitiveMetaDataArray=array of TMeshPrimitiveMetaData;
              public
               Name:TPasGLTFUTF8String;
               Children:TPasGLTFSizeUIntDynamicArray;
@@ -243,6 +251,7 @@ type EGLTFOpenGL=class(Exception);
               OverwriteRotation:TPasGLTF.TVector4;
               OverwriteScale:TPasGLTF.TVector3;
               OverwriteWeights:TPasGLTFFloatDynamicArray;
+              MeshPrimitiveMetaDataArray:TMeshPrimitiveMetaDataArray;
             end;
             PNode=^TNode;
             TNodes=array of TNode;
@@ -321,26 +330,33 @@ type EGLTFOpenGL=class(Exception);
             end;
             PMaterialUniformBufferObject=^TMaterialUniformBufferObject;
             TMaterialUniformBufferObjects=array of TMaterialUniformBufferObject;
-            TNodeShaderStorageBufferObjectDataItem=packed record
+            TNodeMeshPrimitiveShaderStorageBufferObjectDataItem=packed record
              Matrix:TPasGLTF.TMatrix4x4;
              // uvec4 MetaData; begin
+              Reversed:TPasGLTFUInt32;
               JointOffset:TPasGLTFUInt32;
               CountVertices:TPasGLTFUInt32;
               CountMorphTargets:TPasGLTFUInt32;
-              Reversed:TPasGLTFUInt32;
              // uvec4 MetaData; end
              MorphTargetWeights:array[0..0] of TPasGLTFFloat;
             end;
-            PNodeShaderStorageBufferObjectDataItem=^TNodeShaderStorageBufferObjectDataItem;
-            TNodeShaderStorageBufferObjectDataItems=array of TNodeShaderStorageBufferObjectDataItem;
-            TNodeShaderStorageBufferObject=record
+            PNodeMeshPrimitiveShaderStorageBufferObjectDataItem=^TNodeMeshPrimitiveShaderStorageBufferObjectDataItem;
+            TNodeMeshPrimitiveShaderStorageBufferObjectDataItems=array of TNodeMeshPrimitiveShaderStorageBufferObjectDataItem;
+            TNodeMeshPrimitiveShaderStorageBufferObjectItem=record
+             Node:TPasGLTFSizeInt;
+             Mesh:TPasGLTFSizeInt;
+             Primitive:TPasGLTFSizeInt;
+            end;
+            PNodeMeshPrimitiveShaderStorageBufferObjectItem=^TNodeMeshPrimitiveShaderStorageBufferObjectItem;
+            TNodeMeshPrimitiveShaderStorageBufferObjectItems=array of TNodeMeshPrimitiveShaderStorageBufferObjectItem;
+            TNodeMeshPrimitiveShaderStorageBufferObject=record
              ShaderStorageBufferObjectHandle:glUInt;
              Size:TPasGLTFSizeInt;
-             Nodes:TPasGLTFSizeIntDynamicArray;
+             Items:TNodeMeshPrimitiveShaderStorageBufferObjectItems;
              Count:TPasGLTFSizeInt;
             end;
-            PNodeShaderStorageBufferObject=^TNodeShaderStorageBufferObject;
-            TNodeShaderStorageBufferObjects=array of TNodeShaderStorageBufferObject;
+            PNodeMeshPrimitiveShaderStorageBufferObject=^TNodeMeshPrimitiveShaderStorageBufferObject;
+            TNodeMeshPrimitiveShaderStorageBufferObjects=array of TNodeMeshPrimitiveShaderStorageBufferObject;
        const EmptyBoundingBox:TBoundingBox=(Min:(Infinity,Infinity,Infinity);Max:(NegInfinity,NegInfinity,NegInfinity));
       private
        fReady:boolean;
@@ -357,13 +373,15 @@ type EGLTFOpenGL=class(Exception);
        fScene:TPasGLTFSizeInt;
        fSkinShaderStorageBufferObjects:TSkinShaderStorageBufferObjects;
        fMorphTargetVertexShaderStorageBufferObjects:TMorphTargetVertexShaderStorageBufferObjects;
-       fNodeShaderStorageBufferObjects:TNodeShaderStorageBufferObjects;
+       fNodeMeshPrimitiveShaderStorageBufferObjects:TNodeMeshPrimitiveShaderStorageBufferObjects;
        fMaterialUniformBufferObjects:TMaterialUniformBufferObjects;
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
        fVertexArrayHandle:glInt;
        fStaticBoundingBox:TBoundingBox;
        fFrameGlobalsUniformBufferObjectHandle:glUInt;
+       fShaderStorageBufferOffsetAlignment:glInt;
+       fMaximumShaderStorageBufferBlockSize:glInt;
        fUniformBufferOffsetAlignment:glInt;
        fMaximumUniformBufferBlockSize:glInt;
        fRootPath:String;
@@ -854,7 +872,7 @@ begin
  fScene:=-1;
  fSkinShaderStorageBufferObjects:=nil;
  fMorphTargetVertexShaderStorageBufferObjects:=nil;
- fNodeShaderStorageBufferObjects:=nil;
+ fNodeMeshPrimitiveShaderStorageBufferObjects:=nil;
  fMaterialUniformBufferObjects:=nil;
 end;
 
@@ -880,7 +898,7 @@ begin
   fScenes:=nil;
   fSkinShaderStorageBufferObjects:=nil;
   fMorphTargetVertexShaderStorageBufferObjects:=nil;
-  fNodeShaderStorageBufferObjects:=nil;
+  fNodeMeshPrimitiveShaderStorageBufferObjects:=nil;
   fMaterialUniformBufferObjects:=nil;
  end;
 end;
@@ -2045,7 +2063,6 @@ var AllVertices:TAllVertices;
     for IndexIndex:=Primitive^.StartBufferIndexOffset to (Primitive^.StartBufferIndexOffset+Primitive^.CountIndices)-1 do begin
      AllIndices[IndexIndex]:=AllIndices[IndexIndex]+Primitive^.StartBufferVertexOffset;
     end;
-
    end;
   end;
  end;
@@ -2264,6 +2281,84 @@ var AllVertices:TAllVertices;
    glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
   end;
  end;
+ procedure CreateNodeMeshPrimitiveShaderStorageBufferObjects;
+ var Index,
+     NodeIndex,
+     PrimitiveIndex,
+     Count,
+     NodeDataSize:TPasGLTFSizeInt;
+     ShaderStorageBufferObjectData:PNodeMeshPrimitiveShaderStorageBufferObjectDataItem;
+     Node:PNode;
+     Mesh:PMesh;
+     NodeMeshPrimitiveShaderStorageBufferObject:PNodeMeshPrimitiveShaderStorageBufferObject;
+     NodeMeshPrimitiveShaderStorageBufferObjectItem:PNodeMeshPrimitiveShaderStorageBufferObjectItem;
+ begin
+  fNodeMeshPrimitiveShaderStorageBufferObjects:=nil;
+  Count:=0;
+  try
+   for NodeIndex:=0 to length(fNodes)-1 do begin
+    Node:=@fNodes[NodeIndex];
+    if (Node^.Mesh>=0) and (Node^.Mesh<length(fMeshes)) then begin
+     NodeDataSize:=SizeOf(TNodeMeshPrimitiveShaderStorageBufferObjectDataItem);
+     inc(NodeDataSize,(length(Node^.WorkWeights)-1)*SizeOf(TPasGLTFFloat));
+     if (NodeDataSize mod fShaderStorageBufferOffsetAlignment)<>0 then begin
+      inc(NodeDataSize,fShaderStorageBufferOffsetAlignment-(NodeDataSize mod fShaderStorageBufferOffsetAlignment));
+     end;
+     Mesh:=@fMeshes[Node^.Mesh];
+     SetLength(Node^.MeshPrimitiveMetaDataArray,length(Mesh^.Primitives));
+     for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
+      if (Count=0) or
+         ((fNodeMeshPrimitiveShaderStorageBufferObjects[Count-1].Size+NodeDataSize)>fMaximumShaderStorageBufferBlockSize) then begin
+       if length(fNodeMeshPrimitiveShaderStorageBufferObjects)<=Count then begin
+        SetLength(fNodeMeshPrimitiveShaderStorageBufferObjects,(Count+1)*2);
+       end;
+       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectIndex:=Count;
+       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectOffset:=0;
+       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectByteOffset:=0;
+       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectByteSize:=NodeDataSize;
+       NodeMeshPrimitiveShaderStorageBufferObject:=@fNodeMeshPrimitiveShaderStorageBufferObjects[Count];
+       inc(Count);
+       NodeMeshPrimitiveShaderStorageBufferObject^.Size:=NodeDataSize;
+       NodeMeshPrimitiveShaderStorageBufferObject^.Count:=1;
+       SetLength(NodeMeshPrimitiveShaderStorageBufferObject^.Items,1);
+       NodeMeshPrimitiveShaderStorageBufferObjectItem:=@NodeMeshPrimitiveShaderStorageBufferObject^.Items[0];
+       NodeMeshPrimitiveShaderStorageBufferObjectItem^.Node:=NodeIndex;
+       NodeMeshPrimitiveShaderStorageBufferObjectItem^.Mesh:=Node^.Mesh;
+       NodeMeshPrimitiveShaderStorageBufferObjectItem^.Primitive:=PrimitiveIndex;
+      end else begin
+       NodeMeshPrimitiveShaderStorageBufferObject:=@fNodeMeshPrimitiveShaderStorageBufferObjects[Count-1];
+       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectIndex:=Count-1;
+       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectOffset:=NodeMeshPrimitiveShaderStorageBufferObject^.Count;
+       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectByteOffset:=NodeMeshPrimitiveShaderStorageBufferObject^.Size;
+       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectByteSize:=NodeDataSize;
+       inc(NodeMeshPrimitiveShaderStorageBufferObject^.Size,NodeDataSize);
+       if length(NodeMeshPrimitiveShaderStorageBufferObject^.Items)<=NodeMeshPrimitiveShaderStorageBufferObject^.Count then begin
+        SetLength(NodeMeshPrimitiveShaderStorageBufferObject^.Items,(NodeMeshPrimitiveShaderStorageBufferObject^.Count+1)*2);
+       end;
+       NodeMeshPrimitiveShaderStorageBufferObjectItem:=@NodeMeshPrimitiveShaderStorageBufferObject^.Items[NodeMeshPrimitiveShaderStorageBufferObject^.Count];
+       inc(NodeMeshPrimitiveShaderStorageBufferObject^.Count);
+       NodeMeshPrimitiveShaderStorageBufferObjectItem^.Node:=NodeIndex;
+       NodeMeshPrimitiveShaderStorageBufferObjectItem^.Mesh:=Node^.Mesh;
+       NodeMeshPrimitiveShaderStorageBufferObjectItem^.Primitive:=PrimitiveIndex;
+      end;
+     end;
+    end;
+   end;
+  finally
+   SetLength(fNodeMeshPrimitiveShaderStorageBufferObjects,Count);
+   for Index:=0 to length(fNodeMeshPrimitiveShaderStorageBufferObjects)-1 do begin
+    NodeMeshPrimitiveShaderStorageBufferObject:=@fNodeMeshPrimitiveShaderStorageBufferObjects[Index];
+    SetLength(NodeMeshPrimitiveShaderStorageBufferObject^.Items,NodeMeshPrimitiveShaderStorageBufferObject^.Count);
+   end;
+  end;
+  for Index:=0 to length(fNodeMeshPrimitiveShaderStorageBufferObjects)-1 do begin
+   NodeMeshPrimitiveShaderStorageBufferObject:=@fNodeMeshPrimitiveShaderStorageBufferObjects[Index];
+   glGenBuffers(1,@NodeMeshPrimitiveShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+   glBindBuffer(GL_SHADER_STORAGE_BUFFER,NodeMeshPrimitiveShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+   glBufferData(GL_SHADER_STORAGE_BUFFER,NodeMeshPrimitiveShaderStorageBufferObject^.Size,nil,GL_DYNAMIC_DRAW);
+  end;
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
+ end;
  procedure CreateFrameGlobalsUniformBufferObject;
  begin
   glGenBuffers(1,@fFrameGlobalsUniformBufferObjectHandle);
@@ -2354,6 +2449,8 @@ begin
   try
    AllIndices:=TAllIndices.Create;
    try
+    glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT,@fShaderStorageBufferOffsetAlignment);
+    glGetIntegerv(GL_MAX_SHADER_STORAGE_BLOCK_SIZE,@fMaximumShaderStorageBufferBlockSize);
     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT,@fUniformBufferOffsetAlignment);
     glGetIntegerv(GL_MAX_UNIFORM_BLOCK_SIZE,@fMaximumUniformBufferBlockSize);
     CollectVerticesAndIndicesFromMeshes;
@@ -2362,6 +2459,7 @@ begin
     CreateSkinShaderStorageBufferObjects;
     CreateMorphTargetVertexShaderStorageBufferObjects;
     CreateFrameGlobalsUniformBufferObject;
+    CreateNodeMeshPrimitiveShaderStorageBufferObjects;
     CreateMaterialUniformBufferObjects;
    finally
     FreeAndNil(AllIndices);
@@ -2413,6 +2511,17 @@ procedure TGLTFOpenGL.Unload;
    end;
   end;
  end;
+ procedure DestroyNodeMeshPrimitiveShaderStorageBufferObjects;
+ var Index:TPasGLTFSizeInt;
+     NodeMeshPrimitiveShaderStorageBufferObject:PNodeMeshPrimitiveShaderStorageBufferObject;
+ begin
+  for Index:=0 to length(fNodeMeshPrimitiveShaderStorageBufferObjects)-1 do begin
+   NodeMeshPrimitiveShaderStorageBufferObject:=@fNodeMeshPrimitiveShaderStorageBufferObjects[Index];
+   if NodeMeshPrimitiveShaderStorageBufferObject^.ShaderStorageBufferObjectHandle>0 then begin
+    glDeleteBuffers(1,@NodeMeshPrimitiveShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+   end;
+  end;
+ end;
  procedure DestroyFrameGlobalsUniformBufferObject;
  begin
   glDeleteBuffers(1,@fFrameGlobalsUniformBufferObjectHandle);
@@ -2434,6 +2543,7 @@ begin
   UnloadTextures;
   DestroySkinShaderStorageBufferObjects;
   DestroyMorphTargetVertexShaderStorageBufferObjects;
+  DestroyNodeMeshPrimitiveShaderStorageBufferObjects;
   DestroyFrameGlobalsUniformBufferObject;
   DestroyMaterialUniformBufferObjects;
  end;
@@ -2729,6 +2839,65 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
    ProcessNode(Node^.Children[Index],Matrix);
   end;
  end;
+ procedure ProcessNodeMeshPrimitiveShaderStorageBufferObjects;
+  procedure ProcessNodeMeshPrimitiveShaderStorageBufferObject(const aNodeMeshPrimitiveShaderStorageBufferObject:PNodeMeshPrimitiveShaderStorageBufferObject);
+   procedure Process(const aNode:PNode;const aPrimitive:TMesh.PPrimitive;const aData:pointer);
+   var WeightIndex:TPasGLTFSizeInt;
+       NodeMeshPrimitiveShaderStorageBufferObject:PNodeMeshPrimitiveShaderStorageBufferObject;
+       NodeMeshPrimitiveShaderStorageBufferObjectItem:PNodeMeshPrimitiveShaderStorageBufferObjectDataItem;
+       SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
+       Mesh:PMesh;
+       Skin:PSkin;
+   begin
+    NodeMeshPrimitiveShaderStorageBufferObjectItem:=aData;
+    NodeMeshPrimitiveShaderStorageBufferObjectItem^.Matrix:=aNode^.WorkMatrix;
+    NodeMeshPrimitiveShaderStorageBufferObjectItem^.Reversed:=0;
+    if (aAnimationIndex>=0) and
+       ((aNode^.Skin>=0) and (aNode^.Skin<length(fSkins))) and
+       (fSkins[aNode^.Skin].SkinShaderStorageBufferObjectIndex>=0) then begin
+     Skin:=@fSkins[aNode^.Skin];
+     SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[Skin^.SkinShaderStorageBufferObjectIndex];
+     NodeMeshPrimitiveShaderStorageBufferObjectItem^.JointOffset:=Skin^.SkinShaderStorageBufferObjectOffset;
+    end else begin
+     NodeMeshPrimitiveShaderStorageBufferObjectItem^.JointOffset:=0;
+    end;
+    NodeMeshPrimitiveShaderStorageBufferObjectItem^.CountVertices:=length(aPrimitive^.Vertices);
+    NodeMeshPrimitiveShaderStorageBufferObjectItem^.CountMorphTargets:=length(aPrimitive^.Targets);
+    for WeightIndex:=0 to length(aPrimitive^.Targets)-1 do begin
+     NodeMeshPrimitiveShaderStorageBufferObjectItem^.MorphTargetWeights[WeightIndex]:=aNode.WorkWeights[WeightIndex];
+    end;
+   end;
+  var Index,SubIndex:TPasGLTFSizeInt;
+      Data:pointer;
+      Item:PNodeMeshPrimitiveShaderStorageBufferObjectItem;
+      Node:PNode;
+      MeshPrimitiveMetaData:TNode.PMeshPrimitiveMetaData;
+      Mesh:PMesh;
+  begin
+   glBindBuffer(GL_SHADER_STORAGE_BUFFER,aNodeMeshPrimitiveShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+   Data:=glMapBufferRange(GL_SHADER_STORAGE_BUFFER,0,aNodeMeshPrimitiveShaderStorageBufferObject^.Size,GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
+   if assigned(Data) then begin
+    for Index:=0 to length(aNodeMeshPrimitiveShaderStorageBufferObject^.Items)-1 do begin
+     Item:=@aNodeMeshPrimitiveShaderStorageBufferObject^.Items[Index];
+     Node:=@fNodes[Item^.Node];
+     Mesh:=@fMeshes[Item^.Mesh];
+     for SubIndex:=0 to length(Node^.MeshPrimitiveMetaDataArray)-1 do begin
+      MeshPrimitiveMetaData:=@Node^.MeshPrimitiveMetaDataArray[SubIndex];
+      Process(Node,
+              @Mesh^.Primitives[SubIndex],
+              @PPasGLTFUint8Array(Data)^[MeshPrimitiveMetaData^.ShaderStorageBufferObjectByteOffset]);
+     end;
+    end;
+    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+   end;
+  end;
+ var Index:TPasGLTFSizeInt;
+ begin
+  for Index:=0 to length(fNodeMeshPrimitiveShaderStorageBufferObjects)-1 do begin
+   ProcessNodeMeshPrimitiveShaderStorageBufferObject(@fNodeMeshPrimitiveShaderStorageBufferObjects[Index]);
+  end;
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
+ end;
  procedure ProcessSkins;
   procedure ProcessSkinShaderStorageBufferObjects;
    procedure ProcessSkinShaderStorageBufferObject(const aSkinShaderStorageBufferObject:PSkinShaderStorageBufferObject);
@@ -2996,6 +3165,7 @@ begin
   for Index:=0 to length(Scene^.Nodes)-1 do begin
    ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
   end;
+  ProcessNodeMeshPrimitiveShaderStorageBufferObjects;
   ProcessSkins;
   glCullFace(GL_BACK);
   CullFace:=-1;
