@@ -2951,11 +2951,13 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
  end;
  procedure DrawNode(const aNodeIndex:TPasGLTFSizeInt;const aAlphaMode:TPasGLTF.TMaterial.TAlphaMode);
  var ShadingShader:TShadingShader;
+     Node:PNode;
   procedure DrawMesh(const aMesh:TMesh);
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
       Material:PMaterial;
       MorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
+      MeshPrimitiveMetaData:TNode.PMeshPrimitiveMetaData;
       DoDraw:boolean;
   begin
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
@@ -3074,6 +3076,12 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
                        TShadingShader.ssboMorphTargetVertices,
                        MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
      end;
+     MeshPrimitiveMetaData:=@Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex];
+     glBindBufferRange(GL_SHADER_STORAGE_BUFFER,
+                       TShadingShader.ssboNodeMeshPrimitiveMetaData,
+                       fNodeMeshPrimitiveShaderStorageBufferObjects[MeshPrimitiveMetaData^.ShaderStorageBufferObjectIndex].ShaderStorageBufferObjectHandle,
+                       MeshPrimitiveMetaData^.ShaderStorageBufferObjectByteOffset,
+                       MeshPrimitiveMetaData^.ShaderStorageBufferObjectByteSize);
      glDrawElements(Primitive^.PrimitiveMode,
                     Primitive^.CountIndices,
                     GL_UNSIGNED_INT,
@@ -3083,7 +3091,6 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
   end;
  var Index:TPasGLTFSizeInt;
      Matrix:TPasGLTF.PMatrix4x4;
-     Node:PNode;
      Skin:PSkin;
      SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
  begin

@@ -117,6 +117,7 @@ type TShadingShader=class(TShader)
              uboMaterial=1;
              ssboJointMatrices=2;
              ssboMorphTargetVertices=3;
+             ssboNodeMeshPrimitiveMetaData=4;
       public
        uBaseColorTexture:glInt;
        uMetallicRoughnessTexture:glInt;
@@ -194,19 +195,34 @@ begin
     'layout(std430, binding = '+IntToStr(ssboMorphTargetVertices)+') buffer ssboMorphTargetVertices {'+#13#10+
     '  MorphTargetVertex morphTargetVertices[];'+#13#10+
     '};'+#13#10+
+    'layout(std430, binding = '+IntToStr(ssboNodeMeshPrimitiveMetaData)+') buffer ssboNodeMeshPrimitiveMetaData {'+#13#10+
+    '  mat4 nodeMatrix;'+#13#10+
+    '  uvec4 primitiveMetaData;'+#13#10+
+    '  float morphTargetWeights[];'+#13#10+
+    '};'+#13#10+
     'uniform mat4 uMatrix;'+#13#10+
     f0+
     'void main(){'+#13#10+
     f1+
+    '  vec3 position = aPosition,'+#13#10+
+    '       normal = aNormal;'+#13#10+
+    '  vec4 tangent = aTangent;'+#13#10+
+    '  for(uint index = 0, count = primitiveMetaData.w, vertexIndex = uint(gl_VertexID); index < count; index++){'+#13#10+
+    '    float morphTargetWeight = morphTargetWeights[index];'+#13#10+
+    '    uint morphTargetVertexIndex = (index * primitiveMetaData.z) + vertexIndex;'+#13#10+
+    '    position += morphTargetVertices[morphTargetVertexIndex].position.xyz * morphTargetWeight;'+#13#10+
+    '    normal += morphTargetVertices[morphTargetVertexIndex].normal.xyz * morphTargetWeight;'+#13#10+
+    '    tangent.xyz += morphTargetVertices[morphTargetVertexIndex].tangent.xyz * morphTargetWeight;'+#13#10+
+    '  }'+#13#10+
     '  mat4 modelMatrix = uFrameGlobals.modelMatrix * uMatrix'+f2+';'+#13#10+
     '  mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));'+#13#10+
-    '  vNormal = normalize(normalMatrix * aNormal);'+#13#10+
-    '  vTangent = normalize(normalMatrix * aTangent.xyz);'+#13#10+
-    '  vBitangent = cross(vNormal, vTangent) * aTangent.w;'+#13#10+
+    '  vNormal = normalize(normalMatrix * normal);'+#13#10+
+    '  vTangent = normalize(normalMatrix * tangent.xyz);'+#13#10+
+    '  vBitangent = cross(vNormal, vTangent) * tangent.w;'+#13#10+
     '  vTexCoord0 = aTexCoord0;'+#13#10+
     '  vTexCoord1 = aTexCoord1;'+#13#10+
     '  vColor = aColor0;'+#13#10+
-    '  vec4 worldSpacePosition = modelMatrix * vec4(aPosition, 1.0);'+#13#10+
+    '  vec4 worldSpacePosition = modelMatrix * vec4(position, 1.0);'+#13#10+
     '  vCameraRelativePosition = (worldSpacePosition.xyz / worldSpacePosition.w) - uFrameGlobals.inverseViewMatrix[3].xyz;'+#13#10+
     '  gl_Position = uFrameGlobals.viewProjectionMatrix * worldSpacePosition;'+#13#10+
     '}'+#13#10;
