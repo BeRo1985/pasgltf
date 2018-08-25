@@ -178,6 +178,7 @@ type EGLTFOpenGL=class(Exception);
                           TTargets=array of TTarget;
                     public
                      PrimitiveMode:glEnum;
+                     Material:TPasGLTFSizeInt;
                      Vertices:TVertices;
                      Indices:TPasGLTFUInt32DynamicArray;
                      Targets:TTargets;
@@ -185,7 +186,10 @@ type EGLTFOpenGL=class(Exception);
                      StartBufferIndexOffset:TPasGLTFSizeUInt;
                      CountVertices:TPasGLTFSizeUInt;
                      CountIndices:TPasGLTFSizeUInt;
-                     Material:TPasGLTFSizeInt;
+                     MorphTargetVertexShaderStorageBufferObjectIndex:TPasGLTFSizeInt;
+                     MorphTargetVertexShaderStorageBufferObjectOffset:TPasGLTFSizeUInt;
+                     MorphTargetVertexShaderStorageBufferObjectByteOffset:TPasGLTFSizeUInt;
+                     MorphTargetVertexShaderStorageBufferObjectByteSize:TPasGLTFSizeUInt;
                    end;
                    PPrimitive=^TPrimitive;
                    TPrimitives=array of TPrimitive;
@@ -205,9 +209,9 @@ type EGLTFOpenGL=class(Exception);
              Matrices:TPasGLTF.TMatrix4x4DynamicArray;
              Joints:TPasGLTFSizeIntDynamicArray;
              SkinShaderStorageBufferObjectIndex:TPasGLTFSizeInt;
-             SkinShaderStorageBufferObjectOffset:TPasGLTFSizeInt;
-             SkinShaderStorageBufferObjectByteOffset:TPasGLTFSizeInt;
-             SkinShaderStorageBufferObjectByteSize:TPasGLTFSizeInt;
+             SkinShaderStorageBufferObjectOffset:TPasGLTFSizeUInt;
+             SkinShaderStorageBufferObjectByteOffset:TPasGLTFSizeUInt;
+             SkinShaderStorageBufferObjectByteSize:TPasGLTFSizeUInt;
             end;
             PSkin=^TSkin;
             TSkins=array of TSkin;
@@ -288,6 +292,14 @@ type EGLTFOpenGL=class(Exception);
              Tangent:TPasGLTF.TVector4;
             end;
             TMorphTargetVertexDynamicArray=array of TMorphTargetVertex;
+            TMorphTargetVertexShaderStorageBufferObject=record
+             Count:TPasGLTFSizeInt;
+             Size:TPasGLTFSizeInt;
+             ShaderStorageBufferObjectHandle:glUInt;
+             Vertices:TMorphTargetVertexDynamicArray;
+            end;
+            PMorphTargetVertexShaderStorageBufferObject=^TMorphTargetVertexShaderStorageBufferObject;
+            TMorphTargetVertexShaderStorageBufferObjects=array of TMorphTargetVertexShaderStorageBufferObject;
             TMorphTargetUniformBuffer=packed record
              MetaData:TPasGLTF.TInt32Vector4; // x = count of weights, y = count of morph vertices, z = start buffer index, w = unused
              Weights:array[0..MaxMorphTargets-1] of TPasGLTFFloat;
@@ -321,6 +333,7 @@ type EGLTFOpenGL=class(Exception);
        fScenes:TScenes;
        fScene:TPasGLTFSizeInt;
        fSkinShaderStorageBufferObjects:TSkinShaderStorageBufferObjects;
+       fMorphTargetVertexShaderStorageBufferObjects:TMorphTargetVertexShaderStorageBufferObjects;
        fMaterialUniformBufferObjects:TMaterialUniformBufferObjects;
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
@@ -816,6 +829,7 @@ begin
  fScenes:=nil;
  fScene:=-1;
  fSkinShaderStorageBufferObjects:=nil;
+ fMorphTargetVertexShaderStorageBufferObjects:=nil;
  fMaterialUniformBufferObjects:=nil;
 end;
 
@@ -840,6 +854,8 @@ begin
   fTextures:=nil;
   fScenes:=nil;
   fSkinShaderStorageBufferObjects:=nil;
+  fMorphTargetVertexShaderStorageBufferObjects:=nil;
+  fMaterialUniformBufferObjects:=nil;
  end;
 end;
 
@@ -1793,62 +1809,100 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
      SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
  begin
   CountSkinShaderStorageBufferObjects:=0;
-  for Index:=0 to aDocument.Skins.Count-1 do begin
-   SourceSkin:=aDocument.Skins[Index];
-   DestinationSkin:=@fSkins[Index];
-   CountMatrices:=SourceSkin.Joints.Count;
-   if (CountSkinShaderStorageBufferObjects=0) or
-      ((fSkinShaderStorageBufferObjects[CountSkinShaderStorageBufferObjects-1].Size+(CountMatrices*SizeOf(TPasGLTF.TMatrix4x4)))>134217728) then begin // 128MB = the minimum required SSBO size in the OpenGL specification
-    if length(fSkinShaderStorageBufferObjects)<=CountSkinShaderStorageBufferObjects then begin
-     SetLength(fSkinShaderStorageBufferObjects,(CountSkinShaderStorageBufferObjects+1)*2);
+  try
+   for Index:=0 to aDocument.Skins.Count-1 do begin
+    SourceSkin:=aDocument.Skins[Index];
+    DestinationSkin:=@fSkins[Index];
+    CountMatrices:=SourceSkin.Joints.Count;
+    if (CountSkinShaderStorageBufferObjects=0) or
+       ((fSkinShaderStorageBufferObjects[CountSkinShaderStorageBufferObjects-1].Size+(CountMatrices*SizeOf(TPasGLTF.TMatrix4x4)))>134217728) then begin // 128MB = the minimum required SSBO size in the OpenGL specification
+     if length(fSkinShaderStorageBufferObjects)<=CountSkinShaderStorageBufferObjects then begin
+      SetLength(fSkinShaderStorageBufferObjects,(CountSkinShaderStorageBufferObjects+1)*2);
+     end;
+     DestinationSkin^.SkinShaderStorageBufferObjectIndex:=CountSkinShaderStorageBufferObjects;
+     DestinationSkin^.SkinShaderStorageBufferObjectOffset:=0;
+     DestinationSkin^.SkinShaderStorageBufferObjectByteOffset:=DestinationSkin^.SkinShaderStorageBufferObjectOffset*SizeOf(TPasGLTF.TMatrix4x4);
+     DestinationSkin^.SkinShaderStorageBufferObjectByteSize:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
+     SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[CountSkinShaderStorageBufferObjects];
+     inc(CountSkinShaderStorageBufferObjects);
+     SkinShaderStorageBufferObject^.Count:=CountMatrices;
+     SkinShaderStorageBufferObject^.Size:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
+     SkinShaderStorageBufferObject^.CountSkins:=1;
+     SetLength(SkinShaderStorageBufferObject^.Skins,1);
+     SkinShaderStorageBufferObject^.Skins[0]:=Index;
+    end else begin
+     SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[CountSkinShaderStorageBufferObjects-1];
+     DestinationSkin^.SkinShaderStorageBufferObjectIndex:=CountSkinShaderStorageBufferObjects-1;
+     DestinationSkin^.SkinShaderStorageBufferObjectOffset:=SkinShaderStorageBufferObject^.Count;
+     DestinationSkin^.SkinShaderStorageBufferObjectByteOffset:=DestinationSkin^.SkinShaderStorageBufferObjectOffset*SizeOf(TPasGLTF.TMatrix4x4);
+     DestinationSkin^.SkinShaderStorageBufferObjectByteSize:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
+     inc(SkinShaderStorageBufferObject^.Count,CountMatrices);
+     inc(SkinShaderStorageBufferObject^.Size,CountMatrices*SizeOf(TPasGLTF.TMatrix4x4));
+     if length(SkinShaderStorageBufferObject^.Skins)<=SkinShaderStorageBufferObject^.CountSkins then begin
+      SetLength(SkinShaderStorageBufferObject^.Skins,(SkinShaderStorageBufferObject^.CountSkins+1)*2);
+     end;
+     SkinShaderStorageBufferObject^.Skins[SkinShaderStorageBufferObject^.CountSkins]:=Index;
+     inc(SkinShaderStorageBufferObject^.CountSkins);
     end;
-    DestinationSkin^.SkinShaderStorageBufferObjectIndex:=CountSkinShaderStorageBufferObjects;
-    DestinationSkin^.SkinShaderStorageBufferObjectOffset:=0;
-    DestinationSkin^.SkinShaderStorageBufferObjectByteOffset:=DestinationSkin^.SkinShaderStorageBufferObjectOffset*SizeOf(TPasGLTF.TMatrix4x4);
-    DestinationSkin^.SkinShaderStorageBufferObjectByteSize:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
-    SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[CountSkinShaderStorageBufferObjects];
-    inc(CountSkinShaderStorageBufferObjects);
-    SkinShaderStorageBufferObject^.Count:=CountMatrices;
-    SkinShaderStorageBufferObject^.Size:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
-    SkinShaderStorageBufferObject^.CountSkins:=1;
-    SetLength(SkinShaderStorageBufferObject^.Skins,1);
-    SkinShaderStorageBufferObject^.Skins[0]:=Index;
-   end else begin
-    SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[CountSkinShaderStorageBufferObjects-1];
-    DestinationSkin^.SkinShaderStorageBufferObjectIndex:=CountSkinShaderStorageBufferObjects-1;
-    DestinationSkin^.SkinShaderStorageBufferObjectOffset:=SkinShaderStorageBufferObject^.Count;
-    DestinationSkin^.SkinShaderStorageBufferObjectByteOffset:=DestinationSkin^.SkinShaderStorageBufferObjectOffset*SizeOf(TPasGLTF.TMatrix4x4);
-    DestinationSkin^.SkinShaderStorageBufferObjectByteSize:=CountMatrices*SizeOf(TPasGLTF.TMatrix4x4);
-    inc(SkinShaderStorageBufferObject^.Count,CountMatrices);
-    inc(SkinShaderStorageBufferObject^.Size,CountMatrices*SizeOf(TPasGLTF.TMatrix4x4));
-    if length(SkinShaderStorageBufferObject^.Skins)<=SkinShaderStorageBufferObject^.CountSkins then begin
-     SetLength(SkinShaderStorageBufferObject^.Skins,(SkinShaderStorageBufferObject^.CountSkins+1)*2);
-    end;
-    SkinShaderStorageBufferObject^.Skins[SkinShaderStorageBufferObject^.CountSkins]:=Index;
-    inc(SkinShaderStorageBufferObject^.CountSkins);
    end;
+  finally
+   SetLength(fSkinShaderStorageBufferObjects,CountSkinShaderStorageBufferObjects);
   end;
-  SetLength(fSkinShaderStorageBufferObjects,CountSkinShaderStorageBufferObjects);
   for Index:=0 to length(fSkinShaderStorageBufferObjects)-1 do begin
    SkinShaderStorageBufferObject:=@fSkinShaderStorageBufferObjects[Index];
    SetLength(SkinShaderStorageBufferObject^.Skins,SkinShaderStorageBufferObject^.CountSkins);
   end;
  end;
  procedure InitializeMorphTargetVertexShaderStorageBufferObjects;
- var MeshIndex,PrimitiveIndex:TPasGLTFSizeInt;
+ var MeshIndex,
+     PrimitiveIndex,
+     TargetIndex,
+     CountVertices,
+     CountMorphTargetVertexShaderStorageBufferObjects:TPasGLTFSizeInt;
      Mesh:PMesh;
      Primitive:TMesh.PPrimitive;
+     MorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
  begin
-  for MeshIndex:=0 to length(fMeshes)-1 do begin
-   Mesh:=@fMeshes[MeshIndex];
-   for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
-    Primitive:=@Mesh^.Primitives[PrimitiveIndex];
-    if length(Primitive^.Targets)>0 then begin
-
-    end else begin
-
+  CountMorphTargetVertexShaderStorageBufferObjects:=0;
+  try
+   for MeshIndex:=0 to length(fMeshes)-1 do begin
+    Mesh:=@fMeshes[MeshIndex];
+    for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
+     Primitive:=@Mesh^.Primitives[PrimitiveIndex];
+     if length(Primitive^.Targets)>0 then begin
+      CountVertices:=0;
+      for TargetIndex:=0 to length(Primitive^.Targets)-1 do begin
+       inc(CountVertices,length(Primitive^.Targets[0].Vertices));
+      end;
+      if (CountMorphTargetVertexShaderStorageBufferObjects=0) or
+         ((fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1].Size+(CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex)))>134217728) then begin // 128MB = the minimum required SSBO size in the OpenGL specification
+       if length(fMorphTargetVertexShaderStorageBufferObjects)<=CountMorphTargetVertexShaderStorageBufferObjects then begin
+        SetLength(fMorphTargetVertexShaderStorageBufferObjects,(CountMorphTargetVertexShaderStorageBufferObjects+1)*2);
+       end;
+       Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=CountMorphTargetVertexShaderStorageBufferObjects;
+       Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset:=0;
+       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset:=Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
+       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
+       MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects];
+       inc(CountMorphTargetVertexShaderStorageBufferObjects);
+       MorphTargetVertexShaderStorageBufferObject^.Count:=CountVertices;
+       MorphTargetVertexShaderStorageBufferObject^.Size:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
+      end else begin
+       MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1];
+       Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=CountMorphTargetVertexShaderStorageBufferObjects-1;
+       Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset:=MorphTargetVertexShaderStorageBufferObject^.Count;
+       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset:=Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
+       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
+       inc(MorphTargetVertexShaderStorageBufferObject^.Count,CountVertices);
+       inc(MorphTargetVertexShaderStorageBufferObject^.Size,CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex));
+      end;
+     end else begin
+      Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=-1;
+     end;
     end;
    end;
+  finally
+   SetLength(fMorphTargetVertexShaderStorageBufferObjects,CountMorphTargetVertexShaderStorageBufferObjects);
   end;
  end;
 begin
