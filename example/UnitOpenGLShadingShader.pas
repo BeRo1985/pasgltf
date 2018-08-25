@@ -128,7 +128,6 @@ type TShadingShader=class(TShader)
        uBRDFLUTTexture:glInt;
        uEnvMapTexture:glInt;
        uEnvMapMaxLevel:glInt;
-       uJointOffset:glInt;
        constructor Create(const aSkinned,aAlphaTest:boolean);
        destructor Destroy; override;
        procedure BindAttributes; override;
@@ -143,18 +142,18 @@ begin
  if aSkinned then begin
   f0:='layout(std140, binding = '+IntToStr(ssboJointMatrices)+') buffer ssboJointMatrices {'+#13#10+
       '  mat4 jointMatrices[];'+#13#10+
-      '};'+#13#10+
-      'uniform int uJointOffset;'+#13#10;
-  f1:='  mat4 inverseMatrix = inverse(nodeMatrix);'+#13#10+
-      '  mat4 skinMatrix = ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints0.x)]) * aWeights0.x) +'+#13#10+
-      '                    ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints0.y)]) * aWeights0.y) +'+#13#10+
-      '                    ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints0.z)]) * aWeights0.z) +'+#13#10+
-      '                    ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints0.w)]) * aWeights0.w);'+#13#10+
+      '};'+#13#10;
+  f1:='  uint jointMatrixOffset = primitiveMetaData.y;'+#13#10+
+      '  mat4 inverseMatrix = inverse(nodeMatrix);'+#13#10+
+      '  mat4 skinMatrix = ((inverseMatrix * jointMatrices[jointMatrixOffset + uint(aJoints0.x)]) * aWeights0.x) +'+#13#10+
+      '                    ((inverseMatrix * jointMatrices[jointMatrixOffset + uint(aJoints0.y)]) * aWeights0.y) +'+#13#10+
+      '                    ((inverseMatrix * jointMatrices[jointMatrixOffset + uint(aJoints0.z)]) * aWeights0.z) +'+#13#10+
+      '                    ((inverseMatrix * jointMatrices[jointMatrixOffset + uint(aJoints0.w)]) * aWeights0.w);'+#13#10+
       '  if(any(not(equal(aWeights1, vec4(0.0))))){'+#13#10+
-      '    skinMatrix += ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints1.x)]) * aWeights1.x) +'+#13#10+
-      '                  ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints1.y)]) * aWeights1.y) +'+#13#10+
-      '                  ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints1.z)]) * aWeights1.z) +'+#13#10+
-      '                  ((inverseMatrix * jointMatrices[uJointOffset + int(aJoints1.w)]) * aWeights1.w);'+#13#10+
+      '    skinMatrix += ((inverseMatrix * jointMatrices[jointMatrixOffset + uint(aJoints1.x)]) * aWeights1.x) +'+#13#10+
+      '                  ((inverseMatrix * jointMatrices[jointMatrixOffset + uint(aJoints1.y)]) * aWeights1.y) +'+#13#10+
+      '                  ((inverseMatrix * jointMatrices[jointMatrixOffset + uint(aJoints1.z)]) * aWeights1.z) +'+#13#10+
+      '                  ((inverseMatrix * jointMatrices[jointMatrixOffset + uint(aJoints1.w)]) * aWeights1.w);'+#13#10+
       '  }'+#13#10;
   f2:=' * skinMatrix';
  end else begin
@@ -498,7 +497,6 @@ begin
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
  uEnvMapMaxLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapMaxLevel')));
 //uboJointMatrices:=glGetUniformBlockIndex(ProgramHandle,pointer(pansichar('uboJointMatrices')));
- uJointOffset:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uJointOffset')));
  glUniform1i(uBaseColorTexture,0);
  glUniform1i(uMetallicRoughnessTexture,1);
  glUniform1i(uNormalTexture,2);

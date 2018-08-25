@@ -3107,12 +3107,11 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
                       SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
     enD;
     ShadingShader:=SkinnedShadingShader;
-    UseShader(ShadingShader);
-    glUniform1i(ShadingShader.uJointOffset,Skin^.SkinShaderStorageBufferObjectOffset);
+//   glUniform1i(ShadingShader.uJointOffset,Skin^.SkinShaderStorageBufferObjectOffset);gh
    end else begin
     ShadingShader:=NonSkinnedShadingShader;
-    UseShader(ShadingShader);
    end;
+   UseShader(ShadingShader);
    DrawMesh(fMeshes[Node^.Mesh]);
   end;
   for Index:=0 to length(Node^.Children)-1 do begin
