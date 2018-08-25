@@ -2795,64 +2795,70 @@ begin
  if aScene<0 then begin
   if fScene<0 then begin
    Scene:=@fScenes[0];
-  end else begin
+  end else if fScene<length(fScenes) then begin
    Scene:=@fScenes[fScene];
+  end else begin
+   Scene:=nil;
   end;
- end else begin
+ end else if aScene<length(fScenes) then begin
   Scene:=@fScenes[aScene];
+ end else begin
+  Scene:=nil;
  end;
- CurrentSkinShaderStorageBufferObjectHandle:=0;
- UpdateFrameGlobalsUniformBufferObject;
- glBindVertexArray(fVertexArrayHandle);
- glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
- glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fIndexBufferObjectHandle);
- for Index:=0 to length(Scene^.Nodes)-1 do begin
-  ResetNode(Scene^.Nodes[Index]);
- end;
- for Index:=0 to length(fSkins)-1 do begin
-  fSkins[Index].Used:=false;
- end;
- if (aAnimationIndex>=0) and (aAnimationIndex<length(fAnimations)) then begin
-  ProcessAnimation(aAnimationIndex);
- end;
- for Index:=0 to length(Scene^.Nodes)-1 do begin
-  ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
- end;
- ProcessSkins;
- glCullFace(GL_BACK);
- CullFace:=-1;
- Blend:=-1;
- CurrentShader:=nil;
- for AlphaMode:=TPasGLTF.TMaterial.TAlphaMode.Opaque to TPasGLTF.TMaterial.TAlphaMode.Blend do begin
-  if (aAlphaModes=[]) or (AlphaMode in aAlphaModes) then begin
-   case AlphaMode of
-    TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
-     NonSkinnedShadingShader:=aNonSkinnedNormalShadingShader;
-     SkinnedShadingShader:=aSkinnedNormalShadingShader;
+ if assigned(Scene) then begin
+  CurrentSkinShaderStorageBufferObjectHandle:=0;
+  UpdateFrameGlobalsUniformBufferObject;
+  glBindVertexArray(fVertexArrayHandle);
+  glBindBuffer(GL_ARRAY_BUFFER,fVertexBufferObjectHandle);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fIndexBufferObjectHandle);
+  for Index:=0 to length(Scene^.Nodes)-1 do begin
+   ResetNode(Scene^.Nodes[Index]);
+  end;
+  for Index:=0 to length(fSkins)-1 do begin
+   fSkins[Index].Used:=false;
+  end;
+  if (aAnimationIndex>=0) and (aAnimationIndex<length(fAnimations)) then begin
+   ProcessAnimation(aAnimationIndex);
+  end;
+  for Index:=0 to length(Scene^.Nodes)-1 do begin
+   ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
+  end;
+  ProcessSkins;
+  glCullFace(GL_BACK);
+  CullFace:=-1;
+  Blend:=-1;
+  CurrentShader:=nil;
+  for AlphaMode:=TPasGLTF.TMaterial.TAlphaMode.Opaque to TPasGLTF.TMaterial.TAlphaMode.Blend do begin
+   if (aAlphaModes=[]) or (AlphaMode in aAlphaModes) then begin
+    case AlphaMode of
+     TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
+      NonSkinnedShadingShader:=aNonSkinnedNormalShadingShader;
+      SkinnedShadingShader:=aSkinnedNormalShadingShader;
+     end;
+     TPasGLTF.TMaterial.TAlphaMode.Mask:begin
+      NonSkinnedShadingShader:=aNonSkinnedAlphaTestShadingShader;
+      SkinnedShadingShader:=aSkinnedAlphaTestShadingShader;
+     end;
+     TPasGLTF.TMaterial.TAlphaMode.Blend:begin
+      NonSkinnedShadingShader:=aNonSkinnedNormalShadingShader;
+      SkinnedShadingShader:=aSkinnedNormalShadingShader;
+     end;
+     else begin
+      NonSkinnedShadingShader:=nil;
+      Assert(false);
+     end;
     end;
-    TPasGLTF.TMaterial.TAlphaMode.Mask:begin
-     NonSkinnedShadingShader:=aNonSkinnedAlphaTestShadingShader;
-     SkinnedShadingShader:=aSkinnedAlphaTestShadingShader;
+    for Index:=0 to length(Scene^.Nodes)-1 do begin
+     DrawNode(Scene^.Nodes[Index],AlphaMode);
     end;
-    TPasGLTF.TMaterial.TAlphaMode.Blend:begin
-     NonSkinnedShadingShader:=aNonSkinnedNormalShadingShader;
-     SkinnedShadingShader:=aSkinnedNormalShadingShader;
-    end;
-    else begin
-     NonSkinnedShadingShader:=nil;
-     Assert(false);
-    end;
-   end;
-   for Index:=0 to length(Scene^.Nodes)-1 do begin
-    DrawNode(Scene^.Nodes[Index],AlphaMode);
    end;
   end;
+  glUseProgram(0);
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER,0);
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+  glActiveTexture(GL_TEXTURE0);
  end;
- glUseProgram(0);
- glBindVertexArray(0);
- glBindBuffer(GL_ARRAY_BUFFER,0);
- glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
- glActiveTexture(GL_TEXTURE0);
 end;
 
 end.
