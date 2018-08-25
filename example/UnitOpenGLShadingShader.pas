@@ -116,6 +116,7 @@ type TShadingShader=class(TShader)
        const uboFrameGlobals=0;
              uboMaterial=1;
              ssboJointMatrices=2;
+             ssboMorphTargetVertices=3;
       public
        uBaseColorTexture:glInt;
        uMetallicRoughnessTexture:glInt;
@@ -186,6 +187,15 @@ begin
     '  mat4 inverseViewMatrix;'+#13#10+
     '  mat4 viewProjectionMatrix;'+#13#10+
     '} uFrameGlobals;'+#13#10+
+    'struct MorphTargetVertex {'+#13#10+
+    '  vec4 position;'+#13#10+
+    '  vec4 normal;'+#13#10+
+    '  vec4 tangent;'+#13#10+
+    '  vec4 reversed;'+#13#10+
+    '};'+#13#10+
+    'layout(std430, binding = '+IntToStr(ssboMorphTargetVertices)+') buffer ssboMorphTargetVertices {'+#13#10+
+    '  MorphTargetVertex morphTargetVertices[];'+#13#10+
+    '};'+#13#10+
     'uniform mat4 uModelMatrix;'+#13#10+
     f0+
     'void main(){'+#13#10+
