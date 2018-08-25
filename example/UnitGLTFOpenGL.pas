@@ -291,6 +291,7 @@ type EGLTFOpenGL=class(Exception);
              Normal:TPasGLTF.TVector4;
              Tangent:TPasGLTF.TVector4;
             end;
+            PMorphTargetVertex=^TMorphTargetVertex;
             TMorphTargetVertexDynamicArray=array of TMorphTargetVertex;
             TMorphTargetVertexShaderStorageBufferObject=record
              Count:TPasGLTFSizeInt;
@@ -1856,15 +1857,33 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
  procedure InitializeMorphTargetVertexShaderStorageBufferObjects;
   procedure FillMorphTargetVertexShaderStorageBufferObject(const aMorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
                                                            const aPrimitive:TMesh.PPrimitive);
-  var TargetIndex,CountVertices:TPasGLTFSizeInt;
+  var TargetIndex,
+      CountVertices,
+      VertexIndex:TPasGLTFSizeInt;
+      SourceVertex:TMesh.TPrimitive.TTarget.PTargetVertex;
+      DestinationVertex:PMorphTargetVertex;
       Target:TMesh.TPrimitive.PTarget;
   begin
    CountVertices:=0;
    for TargetIndex:=0 to length(aPrimitive^.Targets)-1 do begin
     Target:=@aPrimitive^.Targets[TargetIndex];
-
-    //aMorphTargetVertexShaderStorageBufferObject^.Vertices
-    inc(CountVertices,length(Target^.Vertices));
+    for VertexIndex:=0 to length(Target^.Vertices)-1 do begin
+     SourceVertex:=@Target^.Vertices[VertexIndex];
+     DestinationVertex:=@aMorphTargetVertexShaderStorageBufferObject.Vertices[aMorphTargetVertexShaderStorageBufferObject^.Count+CountVertices];
+     inc(CountVertices);
+     DestinationVertex^.Position[0]:=SourceVertex^.Position[0];
+     DestinationVertex^.Position[1]:=SourceVertex^.Position[1];
+     DestinationVertex^.Position[2]:=SourceVertex^.Position[2];
+     DestinationVertex^.Position[3]:=0.0;
+     DestinationVertex^.Normal[0]:=SourceVertex^.Normal[0];
+     DestinationVertex^.Normal[1]:=SourceVertex^.Normal[1];
+     DestinationVertex^.Normal[2]:=SourceVertex^.Normal[2];
+     DestinationVertex^.Normal[3]:=0.0;
+     DestinationVertex^.Tangent[0]:=SourceVertex^.Tangent[0];
+     DestinationVertex^.Tangent[1]:=SourceVertex^.Tangent[1];
+     DestinationVertex^.Tangent[2]:=SourceVertex^.Tangent[2];
+     DestinationVertex^.Tangent[3]:=0.0;
+    end;
    end;
   end;
  var MeshIndex,
