@@ -75,7 +75,7 @@ var InputFileName:ansistring;
 
 var StartPerformanceCounter:Int64=0;
 
-    GLTFOpenGL:TGLTFOpenGL;
+    GLTFOpenGL:TGLTFOpenGL=nil;
 
     ShadingShaders:array[boolean,boolean] of TShadingShader;
 
@@ -120,6 +120,8 @@ var StartPerformanceCounter:Int64=0;
 
     CameraRotationX:TPasGLTFFloat=0.0;
     CameraRotationY:TPasGLTFFloat=0.0;
+
+    FileName:TPasGLTFUTF8String='';
 
 const CubeMapFileNames:array[0..5] of string=
        (
@@ -188,12 +190,21 @@ var Event:TSDL_Event;
    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
    ModelMatrix:=Matrix4x4Identity;
    t:=Time*0.125;
-   Center.x:=(GLTFOpenGL.StaticBoundingBox.Min[0]+GLTFOpenGL.StaticBoundingBox.Max[0])*0.5;
-   Center.y:=(GLTFOpenGL.StaticBoundingBox.Min[1]+GLTFOpenGL.StaticBoundingBox.Max[1])*0.5;
-   Center.z:=(GLTFOpenGL.StaticBoundingBox.Min[2]+GLTFOpenGL.StaticBoundingBox.Max[2])*0.5;
-   Bounds.x:=(GLTFOpenGL.StaticBoundingBox.Max[0]-GLTFOpenGL.StaticBoundingBox.Min[0])*0.5;
-   Bounds.y:=(GLTFOpenGL.StaticBoundingBox.Max[1]-GLTFOpenGL.StaticBoundingBox.Min[1])*0.5;
-   Bounds.z:=(GLTFOpenGL.StaticBoundingBox.Max[2]-GLTFOpenGL.StaticBoundingBox.Min[2])*0.5;
+   if assigned(GLTFOpenGL) then begin
+    Center.x:=(GLTFOpenGL.StaticBoundingBox.Min[0]+GLTFOpenGL.StaticBoundingBox.Max[0])*0.5;
+    Center.y:=(GLTFOpenGL.StaticBoundingBox.Min[1]+GLTFOpenGL.StaticBoundingBox.Max[1])*0.5;
+    Center.z:=(GLTFOpenGL.StaticBoundingBox.Min[2]+GLTFOpenGL.StaticBoundingBox.Max[2])*0.5;
+    Bounds.x:=(GLTFOpenGL.StaticBoundingBox.Max[0]-GLTFOpenGL.StaticBoundingBox.Min[0])*0.5;
+    Bounds.y:=(GLTFOpenGL.StaticBoundingBox.Max[1]-GLTFOpenGL.StaticBoundingBox.Min[1])*0.5;
+    Bounds.z:=(GLTFOpenGL.StaticBoundingBox.Max[2]-GLTFOpenGL.StaticBoundingBox.Min[2])*0.5;
+   end else begin
+    Center.x:=0.0;
+    Center.y:=0.0;
+    Center.z:=0.0;
+    Bounds.x:=1.0;
+    Bounds.y:=1.0;
+    Bounds.z:=1.0;
+   end;
    Zoom:=ZoomLevel;
    ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
                                           Vector3ScalarMul(Vector3Norm(Vector3(sin(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0),
@@ -246,17 +257,19 @@ var Event:TSDL_Event;
      ShadingShader.Unbind;
     end;
     t0:=SDL_GetPerformanceCounter;
-    GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
-                    TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
-                    TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
-                    ShadingShaders[false,false],
-                    ShadingShaders[false,true],
-                    ShadingShaders[true,false],
-                    ShadingShaders[true,true],
-                    0,
-                    Time);
+    if assigned(GLTFOpenGL) then begin
+     GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
+                     TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
+                     TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
+                     ShadingShaders[false,false],
+                     ShadingShaders[false,true],
+                     ShadingShaders[true,false],
+                     ShadingShaders[true,true],
+                     0,
+                     Time);
+    end;
     t1:=SDL_GetPerformanceCounter;
-    write(#13,(t1-t0)/SDL_GetPerformanceFrequency:1:5);
+//  write(#13,(t1-t0)/SDL_GetPerformanceFrequency:1:5);
    end;
    glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);
   end;
@@ -409,7 +422,7 @@ begin
   end;
   SurfaceWindow:=SDL_CreateWindow(pansichar(Title),(BestWidth-ScreenWidth) div 2,(BestHeight-ScreenHeight) div 2,ScreenWidth,ScreenHeight,SDL_WINDOW_OPENGL or SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE or VideoFlags);
   if assigned(SurfaceWindow) then begin
-// SDL_EventState(SDL_DROPFILE,SDL_ENABLE);
+   SDL_EventState(SDL_DROPFILE,SDL_ENABLE);
    SurfaceContext:=SDL_GL_CreateContext(SurfaceWindow);
    if not assigned(SurfaceContext) then begin
     SDL_DestroyWindow(SurfaceWindow);
@@ -676,7 +689,9 @@ begin
          AntialiasingShader:=TAntialiasingShader.Create;
          try
 
-          GLTFOpenGL.Upload;
+          if assigned(GLTFOpenGL) then begin
+           GLTFOpenGL.Upload;
+          end;
           try
 
            ShadingShaders[false,false]:=TShadingShader.Create(false,false);
@@ -743,6 +758,29 @@ begin
                    end;
                   end;
                   SDL_KEYUP:begin
+                  end;
+                  SDL_DROPFILE:begin
+                   if assigned(Event.drop.FileName) then begin
+                    try
+                     if assigned(GLTFOpenGL) then begin
+                      GLTFOpenGL.Unload;
+                      FreeAndNil(GLTFOpenGL);
+                     end;
+                     FileName:=ExpandFileName(Event.drop.FileName);
+                     try
+                      GLTFOpenGL:=TGLTFOpenGL.Create;
+                      GLTFOpenGL.RootPath:=IncludeTrailingPathDelimiter(ExtractFilePath(FileName));
+                      GLTFOpenGL.LoadFromFile(FileName);
+                      GLTFOpenGL.Upload;
+                     except
+                      GLTFOpenGL.Unload;
+                      FreeAndNil(GLTFOpenGL);
+                      raise;
+                     end;
+                    finally
+                     SDL_free(Event.drop.FileName);
+                    end;
+                   end;
                   end;
                   SDL_WINDOWEVENT:begin
                    case event.window.event of
@@ -837,7 +875,9 @@ begin
            end;
 
           finally
-           GLTFOpenGL.Unload;
+           if assigned(GLTFOpenGL) then begin
+            GLTFOpenGL.Unload;
+           end;
           end;
 
          finally
@@ -903,20 +943,21 @@ begin
  try
   if ParamCount>0 then begin
    InputFileName:=AnsiString(ParamStr(1));
-
    GLTFOpenGL:=TGLTFOpenGL.Create;
    try
-
     GLTFOpenGL.RootPath:=ExtractFilePath(InputFileName);
-
     GLTFOpenGL.LoadFromFile(InputFileName);
-
     Main;
-
    finally
     FreeAndNil(GLTFOpenGL);
    end;
-
+  end else begin
+   GLTFOpenGL:=nil;
+   try
+    Main;
+   finally
+    FreeAndNil(GLTFOpenGL);
+   end;
   end;
  finally
  end;
