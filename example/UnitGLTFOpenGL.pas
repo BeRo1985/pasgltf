@@ -307,7 +307,7 @@ type EGLTFOpenGL=class(Exception);
              Count:TPasGLTFSizeInt;
              Size:TPasGLTFSizeInt;
              ShaderStorageBufferObjectHandle:glUInt;
-             Vertices:TMorphTargetVertexDynamicArray;
+             Data:TBytes;
             end;
             PMorphTargetVertexShaderStorageBufferObject=^TMorphTargetVertexShaderStorageBufferObject;
             TMorphTargetVertexShaderStorageBufferObjects=array of TMorphTargetVertexShaderStorageBufferObject;
@@ -2003,103 +2003,6 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
    SetLength(SkinShaderStorageBufferObject^.Skins,SkinShaderStorageBufferObject^.CountSkins);
   end;
  end;
- procedure InitializeMorphTargetVertexShaderStorageBufferObjects;
-  procedure FillMorphTargetVertexShaderStorageBufferObject(const aMorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
-                                                           const aPrimitive:TMesh.PPrimitive);
-  var TargetIndex,
-      CountVertices,
-      VertexIndex:TPasGLTFSizeInt;
-      SourceVertex:TMesh.TPrimitive.TTarget.PTargetVertex;
-      DestinationVertex:PMorphTargetVertex;
-      Target:TMesh.TPrimitive.PTarget;
-  begin
-   CountVertices:=0;
-   for TargetIndex:=0 to length(aPrimitive^.Targets)-1 do begin
-    Target:=@aPrimitive^.Targets[TargetIndex];
-    for VertexIndex:=0 to length(Target^.Vertices)-1 do begin
-     SourceVertex:=@Target^.Vertices[VertexIndex];
-     DestinationVertex:=@aMorphTargetVertexShaderStorageBufferObject.Vertices[aMorphTargetVertexShaderStorageBufferObject^.Count+CountVertices];
-     inc(CountVertices);
-     DestinationVertex^.Position[0]:=SourceVertex^.Position[0];
-     DestinationVertex^.Position[1]:=SourceVertex^.Position[1];
-     DestinationVertex^.Position[2]:=SourceVertex^.Position[2];
-     DestinationVertex^.Position[3]:=0.0;
-     DestinationVertex^.Normal[0]:=SourceVertex^.Normal[0];
-     DestinationVertex^.Normal[1]:=SourceVertex^.Normal[1];
-     DestinationVertex^.Normal[2]:=SourceVertex^.Normal[2];
-     DestinationVertex^.Normal[3]:=0.0;
-     DestinationVertex^.Tangent[0]:=SourceVertex^.Tangent[0];
-     DestinationVertex^.Tangent[1]:=SourceVertex^.Tangent[1];
-     DestinationVertex^.Tangent[2]:=SourceVertex^.Tangent[2];
-     DestinationVertex^.Tangent[3]:=0.0;
-    end;
-   end;
-  end;
- var MeshIndex,
-     PrimitiveIndex,
-     TargetIndex,
-     CountVertices,
-     CountMorphTargetVertexShaderStorageBufferObjects,
-     Index:TPasGLTFSizeInt;
-     Mesh:PMesh;
-     Primitive:TMesh.PPrimitive;
-     MorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
- begin
-  CountMorphTargetVertexShaderStorageBufferObjects:=0;
-  try
-   for MeshIndex:=0 to length(fMeshes)-1 do begin
-    Mesh:=@fMeshes[MeshIndex];
-    for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
-     Primitive:=@Mesh^.Primitives[PrimitiveIndex];
-     if length(Primitive^.Targets)>0 then begin
-      CountVertices:=0;
-      for TargetIndex:=0 to length(Primitive^.Targets)-1 do begin
-       inc(CountVertices,length(Primitive^.Targets[TargetIndex].Vertices));
-      end;
-      if (CountMorphTargetVertexShaderStorageBufferObjects=0) or
-         ((fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1].Size+(CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex)))>134217728) then begin // 128MB = the minimum required SSBO size in the OpenGL specification
-       if length(fMorphTargetVertexShaderStorageBufferObjects)<=CountMorphTargetVertexShaderStorageBufferObjects then begin
-        SetLength(fMorphTargetVertexShaderStorageBufferObjects,(CountMorphTargetVertexShaderStorageBufferObjects+1)*2);
-       end;
-       Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=CountMorphTargetVertexShaderStorageBufferObjects;
-       Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset:=0;
-       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset:=Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
-       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
-       MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects];
-       inc(CountMorphTargetVertexShaderStorageBufferObjects);
-       MorphTargetVertexShaderStorageBufferObject^.Count:=0;
-       if length(MorphTargetVertexShaderStorageBufferObject^.Vertices)<(MorphTargetVertexShaderStorageBufferObject^.Count+CountVertices) then begin
-        SetLength(MorphTargetVertexShaderStorageBufferObject^.Vertices,(MorphTargetVertexShaderStorageBufferObject^.Count+CountVertices)*2);
-       end;
-       FillMorphTargetVertexShaderStorageBufferObject(MorphTargetVertexShaderStorageBufferObject,Primitive);
-       inc(MorphTargetVertexShaderStorageBufferObject^.Count,CountVertices);
-       MorphTargetVertexShaderStorageBufferObject^.Size:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
-      end else begin
-       MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1];
-       Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=CountMorphTargetVertexShaderStorageBufferObjects-1;
-       Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset:=MorphTargetVertexShaderStorageBufferObject^.Count;
-       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset:=Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
-       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
-       if length(MorphTargetVertexShaderStorageBufferObject^.Vertices)<(MorphTargetVertexShaderStorageBufferObject^.Count+CountVertices) then begin
-        SetLength(MorphTargetVertexShaderStorageBufferObject^.Vertices,(MorphTargetVertexShaderStorageBufferObject^.Count+CountVertices)*2);
-       end;
-       FillMorphTargetVertexShaderStorageBufferObject(MorphTargetVertexShaderStorageBufferObject,Primitive);
-       inc(MorphTargetVertexShaderStorageBufferObject^.Count,CountVertices);
-       inc(MorphTargetVertexShaderStorageBufferObject^.Size,CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex));
-      end;
-     end else begin
-      Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=-1;
-     end;
-    end;
-   end;
-  finally
-   SetLength(fMorphTargetVertexShaderStorageBufferObjects,CountMorphTargetVertexShaderStorageBufferObjects);
-  end;
-  for Index:=0 to length(fMorphTargetVertexShaderStorageBufferObjects)-1 do begin
-   MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[Index];
-   SetLength(MorphTargetVertexShaderStorageBufferObject^.Vertices,MorphTargetVertexShaderStorageBufferObject^.Count);
-  end;
- end;
 begin
  if not fReady then begin
   LoadAnimations;
@@ -2113,7 +2016,6 @@ begin
   LoadScenes;
   ProcessScenes;
   InitializeSkinShaderStorageBufferObjects;
-  InitializeMorphTargetVertexShaderStorageBufferObjects;
   fReady:=true;
  end;
 end;
@@ -2376,14 +2278,117 @@ var AllVertices:TAllVertices;
   end;
  end;
  procedure CreateMorphTargetVertexShaderStorageBufferObjects;
+  procedure InitializeMorphTargetVertexShaderStorageBufferObjects;
+   procedure FillMorphTargetVertexShaderStorageBufferObject(const aMorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
+                                                            const aPrimitive:TMesh.PPrimitive;
+                                                            const aDestinationVertex:PMorphTargetVertex);
+   var TargetIndex,
+       VertexIndex:TPasGLTFSizeInt;
+       SourceVertex:TMesh.TPrimitive.TTarget.PTargetVertex;
+       DestinationVertex:PMorphTargetVertex;
+       Target:TMesh.TPrimitive.PTarget;
+   begin
+    DestinationVertex:=aDestinationVertex;
+    for TargetIndex:=0 to length(aPrimitive^.Targets)-1 do begin
+     Target:=@aPrimitive^.Targets[TargetIndex];
+     for VertexIndex:=0 to length(Target^.Vertices)-1 do begin
+      SourceVertex:=@Target^.Vertices[VertexIndex];
+      DestinationVertex^.Position[0]:=SourceVertex^.Position[0];
+      DestinationVertex^.Position[1]:=SourceVertex^.Position[1];
+      DestinationVertex^.Position[2]:=SourceVertex^.Position[2];
+      DestinationVertex^.Position[3]:=0.0;
+      DestinationVertex^.Normal[0]:=SourceVertex^.Normal[0];
+      DestinationVertex^.Normal[1]:=SourceVertex^.Normal[1];
+      DestinationVertex^.Normal[2]:=SourceVertex^.Normal[2];
+      DestinationVertex^.Normal[3]:=0.0;
+      DestinationVertex^.Tangent[0]:=SourceVertex^.Tangent[0];
+      DestinationVertex^.Tangent[1]:=SourceVertex^.Tangent[1];
+      DestinationVertex^.Tangent[2]:=SourceVertex^.Tangent[2];
+      DestinationVertex^.Tangent[3]:=0.0;
+      inc(DestinationVertex);
+     end;
+    end;
+   end;
+  var MeshIndex,
+      PrimitiveIndex,
+      TargetIndex,
+      CountVertices,
+      CountMorphTargetVertexShaderStorageBufferObjects,
+      Index,
+      ItemDataSize:TPasGLTFSizeInt;
+      Mesh:PMesh;
+      Primitive:TMesh.PPrimitive;
+      MorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
+  begin
+   CountMorphTargetVertexShaderStorageBufferObjects:=0;
+   try
+    for MeshIndex:=0 to length(fMeshes)-1 do begin
+     Mesh:=@fMeshes[MeshIndex];
+     for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
+      Primitive:=@Mesh^.Primitives[PrimitiveIndex];
+      if length(Primitive^.Targets)>0 then begin
+       CountVertices:=0;
+       for TargetIndex:=0 to length(Primitive^.Targets)-1 do begin
+        inc(CountVertices,length(Primitive^.Targets[TargetIndex].Vertices));
+       end;
+       ItemDataSize:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
+       if (ItemDataSize mod fShaderStorageBufferOffsetAlignment)<>0 then begin
+        inc(ItemDataSize,fShaderStorageBufferOffsetAlignment-(ItemDataSize mod fShaderStorageBufferOffsetAlignment));
+       end;
+       if (CountMorphTargetVertexShaderStorageBufferObjects=0) or
+          ((fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1].Size+(CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex)))>134217728) then begin // 128MB = the minimum required SSBO size in the OpenGL specification
+        if length(fMorphTargetVertexShaderStorageBufferObjects)<=CountMorphTargetVertexShaderStorageBufferObjects then begin
+         SetLength(fMorphTargetVertexShaderStorageBufferObjects,(CountMorphTargetVertexShaderStorageBufferObjects+1)*2);
+        end;
+        Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=CountMorphTargetVertexShaderStorageBufferObjects;
+        Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset:=0;
+        Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset:=0;
+        Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=ItemDataSize;
+        MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects];
+        inc(CountMorphTargetVertexShaderStorageBufferObjects);
+        MorphTargetVertexShaderStorageBufferObject^.Count:=0;
+        MorphTargetVertexShaderStorageBufferObject^.Size:=0;
+        if length(MorphTargetVertexShaderStorageBufferObject^.Data)<(MorphTargetVertexShaderStorageBufferObject^.Size+ItemDataSize) then begin
+         SetLength(MorphTargetVertexShaderStorageBufferObject^.Data,(MorphTargetVertexShaderStorageBufferObject^.Size+ItemDataSize)*2);
+        end;
+        FillMorphTargetVertexShaderStorageBufferObject(MorphTargetVertexShaderStorageBufferObject,Primitive,pointer(@MorphTargetVertexShaderStorageBufferObject^.Data[Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset]));
+        inc(MorphTargetVertexShaderStorageBufferObject^.Count,CountVertices);
+        MorphTargetVertexShaderStorageBufferObject^.Size:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
+       end else begin
+        MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1];
+        Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=CountMorphTargetVertexShaderStorageBufferObjects-1;
+        Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset:=MorphTargetVertexShaderStorageBufferObject^.Count;
+        Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset:=MorphTargetVertexShaderStorageBufferObject^.Size;
+        Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=ItemDataSize;
+        if length(MorphTargetVertexShaderStorageBufferObject^.Data)<(MorphTargetVertexShaderStorageBufferObject^.Size+ItemDataSize) then begin
+         SetLength(MorphTargetVertexShaderStorageBufferObject^.Data,(MorphTargetVertexShaderStorageBufferObject^.Size+ItemDataSize)*2);
+        end;
+        FillMorphTargetVertexShaderStorageBufferObject(MorphTargetVertexShaderStorageBufferObject,Primitive,pointer(@MorphTargetVertexShaderStorageBufferObject^.Data[Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset]));
+        inc(MorphTargetVertexShaderStorageBufferObject^.Count,CountVertices);
+        inc(MorphTargetVertexShaderStorageBufferObject^.Size,ItemDataSize);
+       end;
+      end else begin
+       Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=-1;
+      end;
+     end;
+    end;
+   finally
+    SetLength(fMorphTargetVertexShaderStorageBufferObjects,CountMorphTargetVertexShaderStorageBufferObjects);
+   end;
+   for Index:=0 to length(fMorphTargetVertexShaderStorageBufferObjects)-1 do begin
+    MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[Index];
+    SetLength(MorphTargetVertexShaderStorageBufferObject^.Data,MorphTargetVertexShaderStorageBufferObject^.Size);
+   end;
+  end;
  var Index:TPasGLTFSizeInt;
      MorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
  begin
+  InitializeMorphTargetVertexShaderStorageBufferObjects;
   for Index:=0 to length(fMorphTargetVertexShaderStorageBufferObjects)-1 do begin
    MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[Index];
    glGenBuffers(1,@MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
    glBindBuffer(GL_SHADER_STORAGE_BUFFER,MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
-   glBufferData(GL_SHADER_STORAGE_BUFFER,MorphTargetVertexShaderStorageBufferObject^.Size,@MorphTargetVertexShaderStorageBufferObject^.Vertices[0],GL_STATIC_DRAW);
+   glBufferData(GL_SHADER_STORAGE_BUFFER,MorphTargetVertexShaderStorageBufferObject^.Size,@MorphTargetVertexShaderStorageBufferObject^.Data[0],GL_STATIC_DRAW);
    glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
   end;
  end;
@@ -2392,7 +2397,7 @@ var AllVertices:TAllVertices;
      NodeIndex,
      PrimitiveIndex,
      Count,
-     NodeDataSize:TPasGLTFSizeInt;
+     ItemDataSize:TPasGLTFSizeInt;
      ShaderStorageBufferObjectData:PNodeMeshPrimitiveShaderStorageBufferObjectDataItem;
      Node:PNode;
      Mesh:PMesh;
@@ -2405,26 +2410,26 @@ var AllVertices:TAllVertices;
    for NodeIndex:=0 to length(fNodes)-1 do begin
     Node:=@fNodes[NodeIndex];
     if (Node^.Mesh>=0) and (Node^.Mesh<length(fMeshes)) then begin
-     NodeDataSize:=SizeOf(TNodeMeshPrimitiveShaderStorageBufferObjectDataItem);
-     inc(NodeDataSize,(length(Node^.WorkWeights)-1)*SizeOf(TPasGLTFFloat));
-     if (NodeDataSize mod fShaderStorageBufferOffsetAlignment)<>0 then begin
-      inc(NodeDataSize,fShaderStorageBufferOffsetAlignment-(NodeDataSize mod fShaderStorageBufferOffsetAlignment));
+     ItemDataSize:=SizeOf(TNodeMeshPrimitiveShaderStorageBufferObjectDataItem);
+     inc(ItemDataSize,(length(Node^.WorkWeights)-1)*SizeOf(TPasGLTFFloat));
+     if (ItemDataSize mod fShaderStorageBufferOffsetAlignment)<>0 then begin
+      inc(ItemDataSize,fShaderStorageBufferOffsetAlignment-(ItemDataSize mod fShaderStorageBufferOffsetAlignment));
      end;
      Mesh:=@fMeshes[Node^.Mesh];
      SetLength(Node^.MeshPrimitiveMetaDataArray,length(Mesh^.Primitives));
      for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
       if (Count=0) or
-         ((fNodeMeshPrimitiveShaderStorageBufferObjects[Count-1].Size+NodeDataSize)>fMaximumShaderStorageBufferBlockSize) then begin
+         ((fNodeMeshPrimitiveShaderStorageBufferObjects[Count-1].Size+ItemDataSize)>fMaximumShaderStorageBufferBlockSize) then begin
        if length(fNodeMeshPrimitiveShaderStorageBufferObjects)<=Count then begin
         SetLength(fNodeMeshPrimitiveShaderStorageBufferObjects,(Count+1)*2);
        end;
        Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectIndex:=Count;
        Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectOffset:=0;
        Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectByteOffset:=0;
-       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectByteSize:=NodeDataSize;
+       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectByteSize:=ItemDataSize;
        NodeMeshPrimitiveShaderStorageBufferObject:=@fNodeMeshPrimitiveShaderStorageBufferObjects[Count];
        inc(Count);
-       NodeMeshPrimitiveShaderStorageBufferObject^.Size:=NodeDataSize;
+       NodeMeshPrimitiveShaderStorageBufferObject^.Size:=ItemDataSize;
        NodeMeshPrimitiveShaderStorageBufferObject^.Count:=1;
        SetLength(NodeMeshPrimitiveShaderStorageBufferObject^.Items,1);
        NodeMeshPrimitiveShaderStorageBufferObjectItem:=@NodeMeshPrimitiveShaderStorageBufferObject^.Items[0];
@@ -2436,8 +2441,8 @@ var AllVertices:TAllVertices;
        Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectIndex:=Count-1;
        Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectOffset:=NodeMeshPrimitiveShaderStorageBufferObject^.Count;
        Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectByteOffset:=NodeMeshPrimitiveShaderStorageBufferObject^.Size;
-       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectByteSize:=NodeDataSize;
-       inc(NodeMeshPrimitiveShaderStorageBufferObject^.Size,NodeDataSize);
+       Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex].ShaderStorageBufferObjectByteSize:=ItemDataSize;
+       inc(NodeMeshPrimitiveShaderStorageBufferObject^.Size,ItemDataSize);
        if length(NodeMeshPrimitiveShaderStorageBufferObject^.Items)<=NodeMeshPrimitiveShaderStorageBufferObject^.Count then begin
         SetLength(NodeMeshPrimitiveShaderStorageBufferObject^.Items,(NodeMeshPrimitiveShaderStorageBufferObject^.Count+1)*2);
        end;
@@ -3178,9 +3183,11 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     if DoDraw then begin
      if Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex>=0 then begin
       MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex];
-      glBindBufferBase(GL_SHADER_STORAGE_BUFFER,
+      glBindBufferRange(GL_SHADER_STORAGE_BUFFER,
                        TShadingShader.ssboMorphTargetVertices,
-                       MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+                       MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle,
+                       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset,
+                       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize);
      end;
      MeshPrimitiveMetaData:=@Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex];
      glBindBufferRange(GL_SHADER_STORAGE_BUFFER,
