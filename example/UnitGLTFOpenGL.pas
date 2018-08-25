@@ -319,7 +319,6 @@ type EGLTFOpenGL=class(Exception);
             TMaterialUniformBufferObjects=array of TMaterialUniformBufferObject;
        const EmptyBoundingBox:TBoundingBox=(Min:(Infinity,Infinity,Infinity);Max:(NegInfinity,NegInfinity,NegInfinity));
       private
-       fDocument:TPasGLTF.TDocument;
        fReady:boolean;
        fUploaded:boolean;
        fAnimations:TAnimations;
@@ -345,10 +344,10 @@ type EGLTFOpenGL=class(Exception);
        fGetURI:TGetURI;
        function DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
       public
-       constructor Create(const aDocument:TPasGLTF.TDocument); reintroduce;
+       constructor Create; reintroduce;
        destructor Destroy; override;
-       procedure InitializeResources;
-       procedure FinalizeResources;
+       procedure Clear;
+       procedure LoadFromDocument(const aDocument:TPasGLTF.TDocument);
        procedure UploadResources;
        procedure UnloadResources;
        procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
@@ -366,7 +365,6 @@ type EGLTFOpenGL=class(Exception);
       published
        property GetURI:TGetURI read fGetURI write fGetURI;
        property RootPath:String read fRootPath write fRootPath;
-       property Document:TPasGLTF.TDocument read fDocument;
      end;
 
 implementation
@@ -797,12 +795,11 @@ end;
 
 { TGLTFModel }
 
-constructor TGLTFOpenGL.Create(const aDocument:TPasGLTF.TDocument);
+constructor TGLTFOpenGL.Create;
 begin
  inherited Create;
  fGetURI:=DefaultGetURI;
  fRootPath:='';
- fDocument:=aDocument;
  fReady:=false;
  fUploaded:=false;
  fAnimations:=nil;
@@ -822,8 +819,25 @@ end;
 destructor TGLTFOpenGL.Destroy;
 begin
  UnloadResources;
- FinalizeResources;
+ Clear;
  inherited Destroy;
+end;
+
+procedure TGLTFOpenGL.Clear;
+begin
+ if fReady then begin
+  fReady:=false;
+  fAnimations:=nil;
+  fMaterials:=nil;
+  fMeshes:=nil;
+  fSkins:=nil;
+  fNodes:=nil;
+  fImages:=nil;
+  fSamplers:=nil;
+  fTextures:=nil;
+  fScenes:=nil;
+  fSkinShaderStorageBufferObjects:=nil;
+ end;
 end;
 
 function TGLTFOpenGL.DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
@@ -833,7 +847,7 @@ begin
  result:=TFileStream.Create(FileName,fmOpenRead or fmShareDenyWrite);
 end;
 
-procedure TGLTFOpenGL.InitializeResources;
+procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
  procedure InitializeAnimations;
  var Index,ChannelIndex,ValueIndex:TPasGLTFSizeInt;
      SourceAnimation:TPasGLTF.TAnimation;
@@ -843,11 +857,11 @@ procedure TGLTFOpenGL.InitializeResources;
      DestinationAnimationChannel:TAnimation.PChannel;
  begin
 
-  SetLength(fAnimations,fDocument.Animations.Count);
+  SetLength(fAnimations,aDocument.Animations.Count);
 
-  for Index:=0 to fDocument.Animations.Count-1 do begin
+  for Index:=0 to aDocument.Animations.Count-1 do begin
 
-   SourceAnimation:=fDocument.Animations.Items[Index];
+   SourceAnimation:=aDocument.Animations.Items[Index];
 
    DestinationAnimation:=@fAnimations[Index];
 
@@ -893,20 +907,20 @@ procedure TGLTFOpenGL.InitializeResources;
        raise EGLTFOpenGL.Create('Non-supported animation sampler interpolation method type');
       end;
      end;
-     DestinationAnimationChannel^.InputTimeArray:=fDocument.Accessors[SourceAnimationSampler.Input].DecodeAsFloatArray(false);
+     DestinationAnimationChannel^.InputTimeArray:=aDocument.Accessors[SourceAnimationSampler.Input].DecodeAsFloatArray(false);
      case DestinationAnimationChannel^.Target of
       TAnimation.TChannel.TTarget.Translation,
       TAnimation.TChannel.TTarget.Scale:begin
-       DestinationAnimationChannel^.OutputVector3Array:=fDocument.Accessors[SourceAnimationSampler.Output].DecodeAsVector3Array(false);
+       DestinationAnimationChannel^.OutputVector3Array:=aDocument.Accessors[SourceAnimationSampler.Output].DecodeAsVector3Array(false);
       end;
       TAnimation.TChannel.TTarget.Rotation:begin
-       DestinationAnimationChannel^.OutputVector4Array:=fDocument.Accessors[SourceAnimationSampler.Output].DecodeAsVector4Array(false);
+       DestinationAnimationChannel^.OutputVector4Array:=aDocument.Accessors[SourceAnimationSampler.Output].DecodeAsVector4Array(false);
        for ValueIndex:=0 to length(DestinationAnimationChannel^.OutputVector4Array)-1 do begin
         DestinationAnimationChannel^.OutputVector4Array[ValueIndex]:=Vector4Normalize(DestinationAnimationChannel^.OutputVector4Array[ValueIndex]);
        end;
       end;
       TAnimation.TChannel.TTarget.Weights:begin
-       DestinationAnimationChannel^.OutputScalarArray:=fDocument.Accessors[SourceAnimationSampler.Output].DecodeAsFloatArray(false);
+       DestinationAnimationChannel^.OutputScalarArray:=aDocument.Accessors[SourceAnimationSampler.Output].DecodeAsFloatArray(false);
       end;
      end;
     end else begin
@@ -927,11 +941,11 @@ procedure TGLTFOpenGL.InitializeResources;
      UniformBufferObjectData:TMaterial.PUniformBufferObjectData;
  begin
 
-  SetLength(fMaterials,fDocument.Materials.Count);
+  SetLength(fMaterials,aDocument.Materials.Count);
 
-  for Index:=0 to fDocument.Materials.Count-1 do begin
+  for Index:=0 to aDocument.Materials.Count-1 do begin
 
-   SourceMaterial:=fDocument.Materials.Items[Index];
+   SourceMaterial:=aDocument.Materials.Items[Index];
 
    DestinationMaterial:=@fMaterials[Index];
 
@@ -1132,11 +1146,11 @@ procedure TGLTFOpenGL.InitializeResources;
      Area:TPasGLTFFloat;
  begin
 
-  SetLength(fMeshes,fDocument.Meshes.Count);
+  SetLength(fMeshes,aDocument.Meshes.Count);
 
-  for Index:=0 to fDocument.Meshes.Count-1 do begin
+  for Index:=0 to aDocument.Meshes.Count-1 do begin
 
-   SourceMesh:=fDocument.Meshes.Items[Index];
+   SourceMesh:=aDocument.Meshes.Items[Index];
 
    DestinationMesh:=@fMeshes[Index];
 
@@ -1161,7 +1175,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['POSITION'];
       if AccessorIndex>=0 then begin
-       TemporaryPositions:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+       TemporaryPositions:=aDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
        for VertexIndex:=0 to length(TemporaryPositions)-1 do begin
         DestinationMesh^.BoundingBox.Min[0]:=Min(DestinationMesh^.BoundingBox.Min[0],TemporaryPositions[VertexIndex,0]);
         DestinationMesh^.BoundingBox.Min[1]:=Min(DestinationMesh^.BoundingBox.Min[1],TemporaryPositions[VertexIndex,1]);
@@ -1177,7 +1191,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['NORMAL'];
       if AccessorIndex>=0 then begin
-       TemporaryNormals:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+       TemporaryNormals:=aDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
       end else begin
        TemporaryNormals:=nil;
       end;
@@ -1185,7 +1199,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['TANGENT'];
       if AccessorIndex>=0 then begin
-       TemporaryTangents:=fDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
+       TemporaryTangents:=aDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
       end else begin
        TemporaryTangents:=nil;
       end;
@@ -1193,7 +1207,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['TEXCOORD_0'];
       if AccessorIndex>=0 then begin
-       TemporaryTexCoord0:=fDocument.Accessors[AccessorIndex].DecodeAsVector2Array(true);
+       TemporaryTexCoord0:=aDocument.Accessors[AccessorIndex].DecodeAsVector2Array(true);
       end else begin
        TemporaryTexCoord0:=nil;
       end;
@@ -1201,7 +1215,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['TEXCOORD_1'];
       if AccessorIndex>=0 then begin
-       TemporaryTexCoord1:=fDocument.Accessors[AccessorIndex].DecodeAsVector2Array(true);
+       TemporaryTexCoord1:=aDocument.Accessors[AccessorIndex].DecodeAsVector2Array(true);
       end else begin
        TemporaryTexCoord1:=nil;
       end;
@@ -1209,7 +1223,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['COLOR_0'];
       if AccessorIndex>=0 then begin
-       TemporaryColor0:=fDocument.Accessors[AccessorIndex].DecodeAsColorArray(true);
+       TemporaryColor0:=aDocument.Accessors[AccessorIndex].DecodeAsColorArray(true);
       end else begin
        TemporaryColor0:=nil;
       end;
@@ -1217,7 +1231,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['JOINTS_0'];
       if AccessorIndex>=0 then begin
-       TemporaryJoints0:=fDocument.Accessors[AccessorIndex].DecodeAsInt32Vector4Array(true);
+       TemporaryJoints0:=aDocument.Accessors[AccessorIndex].DecodeAsInt32Vector4Array(true);
       end else begin
        TemporaryJoints0:=nil;
       end;
@@ -1225,7 +1239,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['JOINTS_1'];
       if AccessorIndex>=0 then begin
-       TemporaryJoints1:=fDocument.Accessors[AccessorIndex].DecodeAsInt32Vector4Array(true);
+       TemporaryJoints1:=aDocument.Accessors[AccessorIndex].DecodeAsInt32Vector4Array(true);
       end else begin
        TemporaryJoints1:=nil;
       end;
@@ -1233,7 +1247,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['WEIGHTS_0'];
       if AccessorIndex>=0 then begin
-       TemporaryWeights0:=fDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
+       TemporaryWeights0:=aDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
       end else begin
        TemporaryWeights0:=nil;
       end;
@@ -1241,7 +1255,7 @@ procedure TGLTFOpenGL.InitializeResources;
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['WEIGHTS_1'];
       if AccessorIndex>=0 then begin
-       TemporaryWeights1:=fDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
+       TemporaryWeights1:=aDocument.Accessors[AccessorIndex].DecodeAsVector4Array(true);
       end else begin
        TemporaryWeights1:=nil;
       end;
@@ -1251,7 +1265,7 @@ procedure TGLTFOpenGL.InitializeResources;
     begin
      // load or generate vertex indices
      if SourceMeshPrimitive.Indices>=0 then begin
-      TemporaryIndices:=fDocument.Accessors[SourceMeshPrimitive.Indices].DecodeAsUInt32Array(false);
+      TemporaryIndices:=aDocument.Accessors[SourceMeshPrimitive.Indices].DecodeAsUInt32Array(false);
      end else begin
       SetLength(TemporaryIndices,length(TemporaryPositions));
       for IndexIndex:=0 to length(TemporaryIndices)-1 do begin
@@ -1494,7 +1508,7 @@ procedure TGLTFOpenGL.InitializeResources;
 
       AccessorIndex:=SourceMeshPrimitiveTarget['POSITION'];
       if AccessorIndex>=0 then begin
-       TemporaryPositions:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+       TemporaryPositions:=aDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
        if length(TemporaryPositions)<>length(DestinationMeshPrimitive^.Vertices) then begin
         raise EGLTFOpenGL.Create('Vertex count mismatch');
        end;
@@ -1507,7 +1521,7 @@ procedure TGLTFOpenGL.InitializeResources;
 
       AccessorIndex:=SourceMeshPrimitiveTarget['NORMAL'];
       if AccessorIndex>=0 then begin
-       TemporaryNormals:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+       TemporaryNormals:=aDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
        if length(TemporaryNormals)<>length(DestinationMeshPrimitive^.Vertices) then begin
         raise EGLTFOpenGL.Create('Vertex count mismatch');
        end;
@@ -1520,7 +1534,7 @@ procedure TGLTFOpenGL.InitializeResources;
 
       AccessorIndex:=SourceMeshPrimitiveTarget['TANGENT'];
       if AccessorIndex>=0 then begin
-       TemporaryTargetTangents:=fDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
+       TemporaryTargetTangents:=aDocument.Accessors[AccessorIndex].DecodeAsVector3Array(true);
        if length(TemporaryTargetTangents)<>length(DestinationMeshPrimitive^.Vertices) then begin
         raise EGLTFOpenGL.Create('Vertex count mismatch');
        end;
@@ -1572,11 +1586,11 @@ procedure TGLTFOpenGL.InitializeResources;
      JSONObject:TPasJSONItemObject;
  begin
 
-  SetLength(fSkins,fDocument.Skins.Count);
+  SetLength(fSkins,aDocument.Skins.Count);
 
-  for Index:=0 to fDocument.Skins.Count-1 do begin
+  for Index:=0 to aDocument.Skins.Count-1 do begin
 
-   SourceSkin:=fDocument.Skins.Items[Index];
+   SourceSkin:=aDocument.Skins.Items[Index];
 
    DestinationSkin:=@fSkins[Index];
 
@@ -1587,7 +1601,7 @@ procedure TGLTFOpenGL.InitializeResources;
    DestinationSkin^.SkinShaderStorageBufferObjectIndex:=-1;
 
    if SourceSkin.InverseBindMatrices>=0 then begin
-    DestinationSkin^.InverseBindMatrices:=fDocument.Accessors[SourceSkin.InverseBindMatrices].DecodeAsMatrix4x4Array(false);
+    DestinationSkin^.InverseBindMatrices:=aDocument.Accessors[SourceSkin.InverseBindMatrices].DecodeAsMatrix4x4Array(false);
    end else begin
     DestinationSkin^.InverseBindMatrices:=nil;
    end;
@@ -1616,9 +1630,9 @@ procedure TGLTFOpenGL.InitializeResources;
      DestinationNode:PNode;
      Mesh:PMesh;
  begin
-  SetLength(fNodes,fDocument.Nodes.Count);
-  for Index:=0 to fDocument.Nodes.Count-1 do begin
-   SourceNode:=fDocument.Nodes[Index];
+  SetLength(fNodes,aDocument.Nodes.Count);
+  for Index:=0 to aDocument.Nodes.Count-1 do begin
+   SourceNode:=aDocument.Nodes[Index];
    DestinationNode:=@fNodes[Index];
    DestinationNode^.Name:=SourceNode.Name;
    DestinationNode^.Mesh:=SourceNode.Mesh;
@@ -1657,9 +1671,9 @@ procedure TGLTFOpenGL.InitializeResources;
      DestinationImage:PImage;
      Stream:TMemoryStream;
  begin
-  SetLength(fImages,fDocument.Images.Count);
-  for Index:=0 to fDocument.Images.Count-1 do begin
-   SourceImage:=fDocument.Images[Index];
+  SetLength(fImages,aDocument.Images.Count);
+  for Index:=0 to aDocument.Images.Count-1 do begin
+   SourceImage:=aDocument.Images[Index];
    DestinationImage:=@fImages[Index];
    DestinationImage^.Name:=SourceImage.Name;
    DestinationImage^.URI:=SourceImage.URI;
@@ -1682,9 +1696,9 @@ procedure TGLTFOpenGL.InitializeResources;
      SourceSampler:TPasGLTF.TSampler;
      DestinationSampler:PSampler;
  begin
-  SetLength(fSamplers,fDocument.Samplers.Count);
-  for Index:=0 to fDocument.Samplers.Count-1 do begin
-   SourceSampler:=fDocument.Samplers[Index];
+  SetLength(fSamplers,aDocument.Samplers.Count);
+  for Index:=0 to aDocument.Samplers.Count-1 do begin
+   SourceSampler:=aDocument.Samplers[Index];
    DestinationSampler:=@fSamplers[Index];
    DestinationSampler^.Name:=SourceSampler.Name;
    DestinationSampler^.MinFilter:=SourceSampler.MinFilter;
@@ -1698,9 +1712,9 @@ procedure TGLTFOpenGL.InitializeResources;
      SourceTexture:TPasGLTF.TTexture;
      DestinationTexture:PTexture;
  begin
-  SetLength(fTextures,fDocument.Textures.Count);
-  for Index:=0 to fDocument.Textures.Count-1 do begin
-   SourceTexture:=fDocument.Textures[Index];
+  SetLength(fTextures,aDocument.Textures.Count);
+  for Index:=0 to aDocument.Textures.Count-1 do begin
+   SourceTexture:=aDocument.Textures[Index];
    DestinationTexture:=@fTextures[Index];
    DestinationTexture^.Name:=SourceTexture.Name;
    DestinationTexture^.Image:=SourceTexture.Source;
@@ -1712,9 +1726,9 @@ procedure TGLTFOpenGL.InitializeResources;
      SourceScene:TPasGLTF.TScene;
      DestinationScene:PScene;
  begin
-  SetLength(fScenes,fDocument.Scenes.Count);
-  for Index:=0 to fDocument.Scenes.Count-1 do begin
-   SourceScene:=fDocument.Scenes[Index];
+  SetLength(fScenes,aDocument.Scenes.Count);
+  for Index:=0 to aDocument.Scenes.Count-1 do begin
+   SourceScene:=aDocument.Scenes[Index];
    DestinationScene:=@fScenes[Index];
    DestinationScene^.Name:=SourceScene.Name;
    SetLength(DestinationScene^.Nodes,SourceScene.Nodes.Count);
@@ -1730,8 +1744,8 @@ procedure TGLTFOpenGL.InitializeResources;
      SkinShaderStorageBufferObject:PSkinShaderStorageBufferObject;
  begin
   CountSkinShaderStorageBufferObjects:=0;
-  for Index:=0 to fDocument.Skins.Count-1 do begin
-   SourceSkin:=fDocument.Skins[Index];
+  for Index:=0 to aDocument.Skins.Count-1 do begin
+   SourceSkin:=aDocument.Skins[Index];
    DestinationSkin:=@fSkins[Index];
    CountMatrices:=SourceSkin.Joints.Count;
    if (CountSkinShaderStorageBufferObjects=0) or
@@ -1808,7 +1822,7 @@ procedure TGLTFOpenGL.InitializeResources;
  var SceneIndex,Index:TPasGLTFSizeInt;
      Scene:PScene;
  begin
-  fScene:=fDocument.Scene;
+  fScene:=aDocument.Scene;
   fStaticBoundingBox:=EmptyBoundingBox;
   for SceneIndex:=0 to length(fScenes)-1 do begin
    Scene:=@fScenes[SceneIndex];
@@ -1831,23 +1845,6 @@ begin
   InitializeSkinShaderStorageBufferObjects;
   ProcessScenes;
   fReady:=true;
- end;
-end;
-
-procedure TGLTFOpenGL.FinalizeResources;
-begin
- if fReady then begin
-  fReady:=false;
-  fAnimations:=nil;
-  fMaterials:=nil;
-  fMeshes:=nil;
-  fSkins:=nil;
-  fNodes:=nil;
-  fImages:=nil;
-  fSamplers:=nil;
-  fTextures:=nil;
-  fScenes:=nil;
-  fSkinShaderStorageBufferObjects:=nil;
  end;
 end;
 

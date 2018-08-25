@@ -680,10 +680,10 @@ begin
          AntialiasingShader:=TAntialiasingShader.Create;
          try
 
-          GLTFOpenGL:=TGLTFOpenGL.Create(GLTFDocument);
+          GLTFOpenGL:=TGLTFOpenGL.Create;
           try
 
-           GLTFOpenGL.InitializeResources;
+           GLTFOpenGL.LoadFromDocument(GLTFDocument);
            try
 
             GLTFOpenGL.UploadResources;
@@ -851,7 +851,7 @@ begin
             end;
 
            finally
-            GLTFOpenGL.FinalizeResources;
+            GLTFOpenGL.Clear;
            end;
 
           finally
