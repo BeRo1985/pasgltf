@@ -73,11 +73,7 @@ exports NvOptimusEnablement,
 
 var InputFileName:ansistring;
 
-var fs:TFileStream;
-    ms:TMemoryStream;
-    StartPerformanceCounter:Int64=0;
-
-    GLTFDocument:TPasGLTF.TDocument;
+var StartPerformanceCounter:Int64=0;
 
     GLTFOpenGL:TGLTFOpenGL;
 
@@ -903,64 +899,24 @@ begin
 
 end;
 
-var ofs:TFileStream;
 begin
  try
   if ParamCount>0 then begin
    InputFileName:=AnsiString(ParamStr(1));
 
-   fs:=TFileStream.Create(String(InputFileName),fmOpenRead or fmShareDenyWrite);
+   GLTFOpenGL:=TGLTFOpenGL.Create;
    try
-    ms:=TMemoryStream.Create;
-    try
-     ms.SetSize(fs.Size);
-     fs.Seek(0,soBeginning);
-     ms.CopyFrom(fs,fs.Size);
-     ms.Seek(0,soBeginning);
-     GLTFDocument:=TPasGLTF.TDocument.Create(nil);
-     try
-      GLTFDocument.RootPath:=ExtractFilePath(InputFileName);
-      GLTFDocument.LoadFromStream(ms);
-{     ofs:=TFileStream.Create('output.gltf',fmCreate);
-      try
-       GLTFDocument.SaveToStream(ofs,false,true);
-      finally
-       ofs.Free;
-      end;
-      ofs:=TFileStream.Create('output.glb',fmCreate);
-      try
-       GLTFDocument.SaveToStream(ofs,true,false);
-      finally
-       ofs.Free;
-      end;}
-      GLTFOpenGL:=TGLTFOpenGL.Create;
-      try
 
-       GLTFOpenGL.LoadFromDocument(GLTFDocument);
-       try
+    GLTFOpenGL.RootPath:=ExtractFilePath(InputFileName);
 
-        FreeAndNil(GLTFDocument);
+    GLTFOpenGL.LoadFromFile(InputFileName);
 
-        Main;
+    Main;
 
-       finally
-        GLTFOpenGL.Clear;
-       end;
-
-      finally
-       FreeAndNil(GLTFOpenGL);
-      end;
-
-     finally
-      FreeAndNil(GLTFDocument);
-     end;
-
-    finally
-     ms.Free;
-    end;
    finally
-    fs.Free;
+    FreeAndNil(GLTFOpenGL);
    end;
+
   end;
  finally
  end;

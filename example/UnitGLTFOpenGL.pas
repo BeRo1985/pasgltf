@@ -337,6 +337,8 @@ type EGLTFOpenGL=class(Exception);
        destructor Destroy; override;
        procedure Clear;
        procedure LoadFromDocument(const aDocument:TPasGLTF.TDocument);
+       procedure LoadFromStream(const aStream:TStream);
+       procedure LoadFromFile(const aFileName:String);
        procedure UploadResources;
        procedure UnloadResources;
        procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
@@ -1849,6 +1851,31 @@ begin
  end;
 end;
 
+procedure TGLTFOpenGL.LoadFromStream(const aStream:TStream);
+var Document:TPasGLTF.TDocument;
+begin
+ Document:=TPasGLTF.TDocument.Create;
+ try
+  Document.RootPath:=fRootPath;
+  Document.LoadFromStream(aStream);
+  LoadFromDocument(Document);
+ finally
+  FreeAndNil(Document);
+ end;
+end;
+
+procedure TGLTFOpenGL.LoadFromFile(const aFileName:String);
+var MemoryStream:TMemoryStream;
+begin
+ MemoryStream:=TMemoryStream.Create;
+ try
+  MemoryStream.LoadFromFile(aFileName);
+  LoadFromStream(MemoryStream);
+ finally
+  FreeAndNil(MemoryStream);
+ end;
+end;
+
 procedure TGLTFOpenGL.UploadResources;
 type TAllVertices=TPasGLTFDynamicArray<TVertex>;
      TAllIndices=TPasGLTFDynamicArray<TPasGLTFUInt32>;
@@ -1875,6 +1902,7 @@ var AllVertices:TAllVertices;
     for IndexIndex:=Primitive^.StartBufferIndexOffset to (Primitive^.StartBufferIndexOffset+Primitive^.CountIndices)-1 do begin
      AllIndices[IndexIndex]:=AllIndices[IndexIndex]+Primitive^.StartBufferVertexOffset;
     end;
+
    end;
   end;
  end;
