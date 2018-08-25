@@ -172,6 +172,7 @@ begin
     'layout(location = 7) in vec4 aJoints1;'+#13#10+
     'layout(location = 8) in vec4 aWeights0;'+#13#10+
     'layout(location = 9) in vec4 aWeights1;'+#13#10+
+    'layout(location = 10) in float aVertexIndex;'+#13#10+
     'out vec3 vCameraRelativePosition;'+#13#10+
     'out vec2 vTexCoord0;'+#13#10+
     'out vec2 vTexCoord1;'+#13#10+
@@ -204,9 +205,9 @@ begin
     '  vec3 position = aPosition,'+#13#10+
     '       normal = aNormal,'+#13#10+
     '       tangent = aTangent.xyz;'+#13#10+
-    '  for(uint index = 0, count = primitiveMetaData.w, vertexIndex = uint(gl_VertexID); index < count; index++){'+#13#10+
+    '  for(uint index = 0, count = primitiveMetaData.w; index < count; index++){'+#13#10+
     '    float morphTargetWeight = morphTargetWeights[index];'+#13#10+
-    '    uint morphTargetVertexIndex = (index * primitiveMetaData.z) + vertexIndex;'+#13#10+
+    '    uint morphTargetVertexIndex = (index * primitiveMetaData.z) + uint(aVertexIndex);'+#13#10+
     '    position += morphTargetVertices[morphTargetVertexIndex].position.xyz * morphTargetWeight;'+#13#10+
     '    normal += morphTargetVertices[morphTargetVertexIndex].normal.xyz * morphTargetWeight;'+#13#10+
     '    tangent += morphTargetVertices[morphTargetVertexIndex].tangent.xyz * morphTargetWeight;'+#13#10+
@@ -482,6 +483,7 @@ begin
  glBindAttribLocation(ProgramHandle,7,'aJoints1');
  glBindAttribLocation(ProgramHandle,8,'aWeights0');
  glBindAttribLocation(ProgramHandle,9,'aWeights1');
+ glBindAttribLocation(ProgramHandle,10,'aVertexIndex');
 end;
 
 procedure TShadingShader.BindVariables;

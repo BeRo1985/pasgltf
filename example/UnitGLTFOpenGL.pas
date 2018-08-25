@@ -82,9 +82,11 @@ type EGLTFOpenGL=class(Exception);
                     Joints1=7;
                     Weights0=8;
                     Weights1=9;
+                    VertexIndex=10;
             end;
             TVertex=packed record
              Position:TPasGLTF.TVector3;
+             VertexIndex:TPasGLTFUInt32;
              Normal:TPasGLTF.TVector3;
              Tangent:TPasGLTF.TVector4;
              TexCoord0:TPasGLTF.TVector2;
@@ -187,6 +189,7 @@ type EGLTFOpenGL=class(Exception);
                      CountVertices:TPasGLTFSizeUInt;
                      CountIndices:TPasGLTFSizeUInt;
                      MorphTargetVertexShaderStorageBufferObjectIndex:TPasGLTFSizeInt;
+                     MorphTargetVertexShaderStorageBufferObjectOffset:TPasGLTFSizeUInt;
                      MorphTargetVertexShaderStorageBufferObjectByteOffset:TPasGLTFSizeUInt;
                      MorphTargetVertexShaderStorageBufferObjectByteSize:TPasGLTFSizeUInt;
                    end;
@@ -1547,6 +1550,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
       if VertexIndex<length(TemporaryWeights1) then begin
        Vertex^.Weights1:=TemporaryWeights1[VertexIndex];
       end;
+      Vertex^.VertexIndex:=VertexIndex;
      end;
     end;
 
@@ -2131,6 +2135,10 @@ var AllVertices:TAllVertices;
     glVertexAttribPointer(TVertexAttributeBindingLocations.Weights1,4,GL_FLOAT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Weights1);
     glEnableVertexAttribArray(TVertexAttributeBindingLocations.Weights1);
    end;
+   begin
+    glVertexAttribPointer(TVertexAttributeBindingLocations.VertexIndex,1,GL_UNSIGNED_INT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.VertexIndex);
+    glEnableVertexAttribArray(TVertexAttributeBindingLocations.VertexIndex);
+   end;
   end;
   glBindVertexArray(0);
 
@@ -2334,12 +2342,14 @@ var AllVertices:TAllVertices;
        if (ItemDataSize mod fShaderStorageBufferOffsetAlignment)<>0 then begin
         inc(ItemDataSize,fShaderStorageBufferOffsetAlignment-(ItemDataSize mod fShaderStorageBufferOffsetAlignment));
        end;
-       if (CountMorphTargetVertexShaderStorageBufferObjects=0) or
+       if true or
+          (CountMorphTargetVertexShaderStorageBufferObjects=0) or
           ((fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1].Size+ItemDataSize)>fMaximumShaderStorageBufferBlockSize) then begin
         if length(fMorphTargetVertexShaderStorageBufferObjects)<=CountMorphTargetVertexShaderStorageBufferObjects then begin
          SetLength(fMorphTargetVertexShaderStorageBufferObjects,(CountMorphTargetVertexShaderStorageBufferObjects+1)*2);
         end;
         Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=CountMorphTargetVertexShaderStorageBufferObjects;
+        Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset:=0;
         Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset:=0;
         Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=ItemDataSize;
         MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects];
@@ -2351,10 +2361,11 @@ var AllVertices:TAllVertices;
         end;
         FillMorphTargetVertexShaderStorageBufferObject(MorphTargetVertexShaderStorageBufferObject,Primitive,pointer(@MorphTargetVertexShaderStorageBufferObject^.Data[Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset]));
         inc(MorphTargetVertexShaderStorageBufferObject^.Count,CountVertices);
-        MorphTargetVertexShaderStorageBufferObject^.Size:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
+        inc(MorphTargetVertexShaderStorageBufferObject^.Size,ItemDataSize);
        end else begin
         MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1];
         Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex:=CountMorphTargetVertexShaderStorageBufferObjects-1;
+        Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset:=MorphTargetVertexShaderStorageBufferObject^.Count;
         Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset:=MorphTargetVertexShaderStorageBufferObject^.Size;
         Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=ItemDataSize;
         if length(MorphTargetVertexShaderStorageBufferObject^.Data)<(MorphTargetVertexShaderStorageBufferObject^.Size+ItemDataSize) then begin
@@ -2387,6 +2398,7 @@ var AllVertices:TAllVertices;
    glBindBuffer(GL_SHADER_STORAGE_BUFFER,MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
    glBufferData(GL_SHADER_STORAGE_BUFFER,MorphTargetVertexShaderStorageBufferObject^.Size,@MorphTargetVertexShaderStorageBufferObject^.Data[0],GL_STATIC_DRAW);
    glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
+   MorphTargetVertexShaderStorageBufferObject^.Data:=nil;
   end;
  end;
  procedure CreateNodeMeshPrimitiveShaderStorageBufferObjects;
@@ -3181,10 +3193,10 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      if Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex>=0 then begin
       MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex];
       glBindBufferRange(GL_SHADER_STORAGE_BUFFER,
-                       TShadingShader.ssboMorphTargetVertices,
-                       MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle,
-                       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset,
-                       Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize);
+                        TShadingShader.ssboMorphTargetVertices,
+                        MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle,
+                        Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset,
+                        Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize);
      end;
      MeshPrimitiveMetaData:=@Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex];
      glBindBufferRange(GL_SHADER_STORAGE_BUFFER,
