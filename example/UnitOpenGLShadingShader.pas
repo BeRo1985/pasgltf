@@ -276,24 +276,29 @@ begin
     '};'+#13#10+
     'const float PI = 3.14159265358979323846,'+#13#10+
     '            OneOverPI = 1.0 / PI;'+#13#10+
-    'const vec3 dielectricSpecular = vec3(0.04, 0.04, 0.04);'+#13#10+
+    'const vec3 dielectricSpecular = vec3(0.04);'+#13#10+
     'float solveMetallic(float diffuse, float specular, float oneMinusSpecularStrength){'+#13#10+
-    '  if(specular < dielectricSpecular.r){'+#13#10+
+    '  if(specular < dielectricSpecular.x){'+#13#10+
     '    return 0.0;'+#13#10+
     '  }'+#13#10+
     '  float a = dielectricSpecular.x,'+#13#10+
     '        b = (diffuse * oneMinusSpecularStrength / (1.0 - dielectricSpecular.x)) + specular - (2.0 * dielectricSpecular.x),'+#13#10+
     '        c = dielectricSpecular.x - specular,'+#13#10+
-    '        D = max(0.0, (b * b) - (4 * a * c));'+#13#10+
-    '  return clamp((-b + sqrt(D)) / (2.0 * a), 0.0, 1.0);'+#13#10+
+    '        D = max(0.0, (b * b) - (4.0 * a * c));'+#13#10+
+    '  return clamp((sqrt(D) - b) / (2.0 * a), 0.0, 1.0);'+#13#10+
     '}'+#13#10+
     'void convertPBRSpecularGlossinessToPBRMetallicRoughness(in PBRSpecularGlossiness In, out PBRMetallicRoughness Out){'+#13#10+
     '  float oneMinusSpecularStrength = 1.0 - max(max(In.specularGlossiness.x, In.specularGlossiness.y), In.specularGlossiness.z);'+#13#10+
-    '  Out.metallicRoughness = vec2(solveMetallic(dot(In.diffuseColor.xyz * In.diffuseColor.xyz, vec3(0.299, 0.587, 0.114)), dot(In.specularGlossiness.xyz * In.specularGlossiness.xyz, vec3(0.299, 0.587, 0.114)), oneMinusSpecularStrength),'+#13#10+
+    '  Out.metallicRoughness = vec2(solveMetallic(dot(In.diffuseColor.xyz * In.diffuseColor.xyz, vec3(0.299, 0.587, 0.114)),'+#13#10+
+    '                                             dot(In.specularGlossiness.xyz * In.specularGlossiness.xyz, vec3(0.299, 0.587, 0.114)),'+#13#10+
+    '                                             oneMinusSpecularStrength),'+#13#10+
     '                               clamp(1.0 - In.specularGlossiness.w, 1e-3, 1.0));'+#13#10+
     '  vec3 baseColorFromDiffuse = In.diffuseColor.xyz * ((oneMinusSpecularStrength / (1.0 - dielectricSpecular.x)) / max(1.0 - Out.metallicRoughness.x, 1e-6)),'+#13#10+
-    '       baseColorFromSpecular = (In.specularGlossiness.xyz - (dielectricSpecular * (1.0 - Out.metallicRoughness.x))) / max(1.0 - Out.metallicRoughness.x, 1e-6);'+#13#10+
-    '  Out.baseColor = vec4(convertSRGBToLinearRGB(mix(baseColorFromDiffuse, baseColorFromSpecular, Out.metallicRoughness.x * Out.metallicRoughness.x)), In.diffuseColor.w);'+#13#10+
+    '       baseColorFromSpecular = (In.specularGlossiness.xyz - (dielectricSpecular * (1.0 - Out.metallicRoughness.x))) / max(Out.metallicRoughness.x, 1e-6);'+#13#10+
+    '  Out.baseColor = vec4(convertSRGBToLinearRGB(mix(baseColorFromDiffuse,'+#13#10+
+    '                                                  baseColorFromSpecular,'+#13#10+
+    '                                                  Out.metallicRoughness.x * Out.metallicRoughness.x)),'+#13#10+
+    '                       In.diffuseColor.w);'+#13#10+
     '}'+#13#10+
     'vec3 diffuseLambert(vec3 diffuseColor){'+#13#10+
     '  return diffuseColor * OneOverPI;'+#13#10+
