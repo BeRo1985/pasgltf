@@ -290,6 +290,7 @@ type EGLTFOpenGL=class(Exception);
              Position:TPasGLTF.TVector4;
              Normal:TPasGLTF.TVector4;
              Tangent:TPasGLTF.TVector4;
+             Reversed:TPasGLTF.TVector4; // just for alignment of 64 bytes for now
             end;
             PMorphTargetVertex=^TMorphTargetVertex;
             TMorphTargetVertexDynamicArray=array of TMorphTargetVertex;
