@@ -2762,6 +2762,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TMesh.PPrimitive;
       Material:PMaterial;
+      MorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
       DoDraw:boolean;
   begin
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
@@ -2874,6 +2875,12 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      end;
     end;
     if DoDraw then begin
+     if Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex>=0 then begin
+      MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex];
+      glBindBufferBase(GL_SHADER_STORAGE_BUFFER,
+                       TShadingShader.ssboMorphTargetVertices,
+                       MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+     end;
      glDrawElements(Primitive^.PrimitiveMode,
                     Primitive^.CountIndices,
                     GL_UNSIGNED_INT,
