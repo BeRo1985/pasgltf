@@ -680,182 +680,168 @@ begin
          AntialiasingShader:=TAntialiasingShader.Create;
          try
 
-          GLTFOpenGL:=TGLTFOpenGL.Create;
+          GLTFOpenGL.UploadResources;
           try
 
-           GLTFOpenGL.LoadFromDocument(GLTFDocument);
+           ShadingShaders[false,false]:=TShadingShader.Create(false,false);
            try
 
-            GLTFOpenGL.UploadResources;
+            ShadingShaders[false,true]:=TShadingShader.Create(false,true);
             try
 
-             ShadingShaders[false,false]:=TShadingShader.Create(false,false);
+             ShadingShaders[true,false]:=TShadingShader.Create(true,false);
              try
 
-              ShadingShaders[false,true]:=TShadingShader.Create(false,true);
+              ShadingShaders[true,true]:=TShadingShader.Create(true,true);
               try
 
-               ShadingShaders[true,false]:=TShadingShader.Create(true,false);
-               try
+               SDLRunning:=true;
+               while SDLRunning do begin
 
-                ShadingShaders[true,true]:=TShadingShader.Create(true,true);
-                try
-
-                 SDLRunning:=true;
-                 while SDLRunning do begin
-
-                  while SDL_PollEvent(@Event)<>0 do begin
-                   case Event.type_ of
-                    SDL_QUITEV,SDL_APP_TERMINATING:begin
+                while SDL_PollEvent(@Event)<>0 do begin
+                 case Event.type_ of
+                  SDL_QUITEV,SDL_APP_TERMINATING:begin
+                   SDLRunning:=false;
+                   break;
+                  end;
+                  SDL_APP_WILLENTERBACKGROUND:begin
+                   //SDL_PauseAudio(1);
+                  end;
+                  SDL_APP_DIDENTERFOREGROUND:begin
+                   //SDL_PauseAudio(0);
+                  end;
+                  SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
+                  end;
+                  SDL_KEYDOWN:begin
+                   case Event.key.keysym.sym of
+                    SDLK_ESCAPE:begin
+              //     BackKey;
                      SDLRunning:=false;
                      break;
                     end;
-                    SDL_APP_WILLENTERBACKGROUND:begin
-                     //SDL_PauseAudio(1);
+                    SDLK_M:begin
+                     WrapCursor:=not WrapCursor;
+                     SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
                     end;
-                    SDL_APP_DIDENTERFOREGROUND:begin
-                     //SDL_PauseAudio(0);
+                    SDLK_SPACE:begin
+                     AutomaticRotate:=not AutomaticRotate;
                     end;
-                    SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
-                    end;
-                    SDL_KEYDOWN:begin
-                     case Event.key.keysym.sym of
-                      SDLK_ESCAPE:begin
-                //     BackKey;
-                       SDLRunning:=false;
-                       break;
+                    SDLK_RETURN:begin
+                     if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+                      FullScreen:=not FullScreen;
+                      if FullScreen then begin
+                       SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
+                      end else begin
+                       SDL_SetWindowFullscreen(SurfaceWindow,0);
                       end;
-                      SDLK_M:begin
-                       WrapCursor:=not WrapCursor;
-                       SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
-                      end;
-                      SDLK_SPACE:begin
-                       AutomaticRotate:=not AutomaticRotate;
-                      end;
-                      SDLK_RETURN:begin
-                       if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
-                        FullScreen:=not FullScreen;
-                        if FullScreen then begin
-                         SDL_SetWindowFullscreen(SurfaceWindow,SDL_WINDOW_FULLSCREEN_DESKTOP);
-                        end else begin
-                         SDL_SetWindowFullscreen(SurfaceWindow,0);
-                        end;
-                        SDL_ShowCursor(ord(not FullScreen) and 1);
-                        SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
-                       end;
-                      end;
-                      SDLK_F4:begin
-                       if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
-                        SDLRunning:=false;
-                        break;
-                       end;
-                      end;
+                      SDL_ShowCursor(ord(not FullScreen) and 1);
+                      SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
                      end;
                     end;
-                    SDL_KEYUP:begin
-                    end;
-                    SDL_WINDOWEVENT:begin
-                     case event.window.event of
-                      SDL_WINDOWEVENT_RESIZED:begin
-                       ScreenWidth:=event.window.Data1;
-                       ScreenHeight:=event.window.Data2;
-                       Resize(ScreenWidth,ScreenHeight);
-                      end;
-                     end;
-                    end;
-                    SDL_MOUSEMOTION:begin
-                     if ButtonLeftPressed then begin
-                      if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
-                       CameraRotationX:=frac(CameraRotationX+(1.0-(event.motion.xrel*(1.0/ScreenWidth))));
-                       CameraRotationY:=frac(CameraRotationY+(1.0-(event.motion.yrel*(1.0/ScreenHeight))));
-                      end;
-                     end;
-                    end;
-                    SDL_MOUSEWHEEL:begin
-                     ZoomLevel:=Max(1e-4,ZoomLevel+((event.wheel.x+event.wheel.y)*0.1));
-                    end;
-                    SDL_MOUSEBUTTONDOWN:begin
-                     case event.button.button of
-                      SDL_BUTTON_LEFT:begin
-                       ButtonLeftPressed:=true;
-                      end;
-                      SDL_BUTTON_RIGHT:begin
-                      end;
-                     end;
-                    end;
-                    SDL_MOUSEBUTTONUP:begin
-                     case event.button.button of
-                      SDL_BUTTON_LEFT:begin
-                       ButtonLeftPressed:=false;
-                      end;
-                      SDL_BUTTON_RIGHT:begin
-                      end;
+                    SDLK_F4:begin
+                     if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
+                      SDLRunning:=false;
+                      break;
                      end;
                     end;
                    end;
                   end;
-                  Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
-                  if FirstTime then begin
-                   FirstTime:=false;
-                   DeltaTime:=0.0;
-                  end else begin
-                   DeltaTime:=Min(Max(Time-LastTime,0.0),1.0);
+                  SDL_KEYUP:begin
                   end;
-                  LastTime:=Time;
-                  begin
-                   // 1 1/3 % (quadratically total-pixel-count-wise) super-sampling on top on FXAA
-                   TempScale:=sqrt(1.33333333);
-                   SceneFBOWidth:=round(ViewPortWidth*TempScale);
-                   SceneFBOHeight:=round(ViewPortHeight*TempScale);
-                   if (HDRSceneFBO.Width<>SceneFBOWidth) or
-                      (HDRSceneFBO.Height<>SceneFBOHeight) then begin
-                    DestroyFrameBuffer(HDRSceneFBO);
-                    HDRSceneFBO.Width:=SceneFBOWidth;
-                    HDRSceneFBO.Height:=SceneFBOHeight;
-                    CreateFrameBuffer(HDRSceneFBO);
-                   end;
-                   if (LDRSceneFBO.Width<>SceneFBOWidth) or
-                      (LDRSceneFBO.Height<>SceneFBOHeight) then begin
-                    DestroyFrameBuffer(LDRSceneFBO);
-                    LDRSceneFBO.Width:=SceneFBOWidth;
-                    LDRSceneFBO.Height:=SceneFBOHeight;
-                    CreateFrameBuffer(LDRSceneFBO);
+                  SDL_WINDOWEVENT:begin
+                   case event.window.event of
+                    SDL_WINDOWEVENT_RESIZED:begin
+                     ScreenWidth:=event.window.Data1;
+                     ScreenHeight:=event.window.Data2;
+                     Resize(ScreenWidth,ScreenHeight);
+                    end;
                    end;
                   end;
-                  if AutomaticRotate then begin
-                   CameraRotationX:=frac(CameraRotationX+(1.0-(DeltaTime*0.1)));
-//                 CameraRotationY:=frac(CameraRotationY+(1.0-(DeltaTime*0.015625)));
+                  SDL_MOUSEMOTION:begin
+                   if ButtonLeftPressed then begin
+                    if (event.motion.xrel<>0) or (event.motion.yrel<>0) then begin
+                     CameraRotationX:=frac(CameraRotationX+(1.0-(event.motion.xrel*(1.0/ScreenWidth))));
+                     CameraRotationY:=frac(CameraRotationY+(1.0-(event.motion.yrel*(1.0/ScreenHeight))));
+                    end;
+                   end;
                   end;
-                  Draw;
-                  SDL_GL_SwapWindow(SurfaceWindow);
+                  SDL_MOUSEWHEEL:begin
+                   ZoomLevel:=Max(1e-4,ZoomLevel+((event.wheel.x+event.wheel.y)*0.1));
+                  end;
+                  SDL_MOUSEBUTTONDOWN:begin
+                   case event.button.button of
+                    SDL_BUTTON_LEFT:begin
+                     ButtonLeftPressed:=true;
+                    end;
+                    SDL_BUTTON_RIGHT:begin
+                    end;
+                   end;
+                  end;
+                  SDL_MOUSEBUTTONUP:begin
+                   case event.button.button of
+                    SDL_BUTTON_LEFT:begin
+                     ButtonLeftPressed:=false;
+                    end;
+                    SDL_BUTTON_RIGHT:begin
+                    end;
+                   end;
+                  end;
                  end;
-
-                finally
-                 FreeAndNil(ShadingShaders[true,true]);
                 end;
-
-               finally
-                FreeAndNil(ShadingShaders[true,false]);
+                Time:=(SDL_GetPerformanceCounter-StartPerformanceCounter)/SDL_GetPerformanceFrequency;
+                if FirstTime then begin
+                 FirstTime:=false;
+                 DeltaTime:=0.0;
+                end else begin
+                 DeltaTime:=Min(Max(Time-LastTime,0.0),1.0);
+                end;
+                LastTime:=Time;
+                begin
+                 // 1 1/3 % (quadratically total-pixel-count-wise) super-sampling on top on FXAA
+                 TempScale:=sqrt(1.33333333);
+                 SceneFBOWidth:=round(ViewPortWidth*TempScale);
+                 SceneFBOHeight:=round(ViewPortHeight*TempScale);
+                 if (HDRSceneFBO.Width<>SceneFBOWidth) or
+                    (HDRSceneFBO.Height<>SceneFBOHeight) then begin
+                  DestroyFrameBuffer(HDRSceneFBO);
+                  HDRSceneFBO.Width:=SceneFBOWidth;
+                  HDRSceneFBO.Height:=SceneFBOHeight;
+                  CreateFrameBuffer(HDRSceneFBO);
+                 end;
+                 if (LDRSceneFBO.Width<>SceneFBOWidth) or
+                    (LDRSceneFBO.Height<>SceneFBOHeight) then begin
+                  DestroyFrameBuffer(LDRSceneFBO);
+                  LDRSceneFBO.Width:=SceneFBOWidth;
+                  LDRSceneFBO.Height:=SceneFBOHeight;
+                  CreateFrameBuffer(LDRSceneFBO);
+                 end;
+                end;
+                if AutomaticRotate then begin
+                 CameraRotationX:=frac(CameraRotationX+(1.0-(DeltaTime*0.1)));
+//                 CameraRotationY:=frac(CameraRotationY+(1.0-(DeltaTime*0.015625)));
+                end;
+                Draw;
+                SDL_GL_SwapWindow(SurfaceWindow);
                end;
 
               finally
-               FreeAndNil(ShadingShaders[false,true]);
+               FreeAndNil(ShadingShaders[true,true]);
               end;
 
              finally
-              FreeAndNil(ShadingShaders[false,false]);
+              FreeAndNil(ShadingShaders[true,false]);
              end;
 
             finally
-             GLTFOpenGL.UnloadResources;
+             FreeAndNil(ShadingShaders[false,true]);
             end;
 
            finally
-            GLTFOpenGL.Clear;
+            FreeAndNil(ShadingShaders[false,false]);
            end;
 
           finally
-           FreeAndNil(GLTFOpenGL);
+           GLTFOpenGL.UnloadResources;
           end;
 
          finally
@@ -947,10 +933,28 @@ begin
       finally
        ofs.Free;
       end;}
-      Main;
+      GLTFOpenGL:=TGLTFOpenGL.Create;
+      try
+
+       GLTFOpenGL.LoadFromDocument(GLTFDocument);
+       try
+
+        FreeAndNil(GLTFDocument);
+
+        Main;
+
+       finally
+        GLTFOpenGL.Clear;
+       end;
+
+      finally
+       FreeAndNil(GLTFOpenGL);
+      end;
+
      finally
       FreeAndNil(GLTFDocument);
      end;
+
     finally
      ms.Free;
     end;
