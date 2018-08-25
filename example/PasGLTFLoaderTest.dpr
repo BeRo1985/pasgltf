@@ -2,7 +2,7 @@ program PasDAELoaderTest;
 {$ifdef fpc}
  {$mode delphi}
 {$endif}
-{$apptype console}
+{-$apptype console}
 {$ifdef win32}
  {$define windows}
 {$endif}
