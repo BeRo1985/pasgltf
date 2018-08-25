@@ -439,8 +439,8 @@ const EmptyMaterialUniformBufferObjectData:TGLTFOpenGL.TMaterial.TUniformBufferO
         MetallicRoughnessNormalScaleOcclusionStrengthFactor:(1.0,1.0,1.0,1.0);
         AlphaCutOff:1.0;
         Flags:0;
-        Reversed0:0;
-        Reversed1:0;
+        Reversed0:$ffffffff;
+        Reversed1:$ffffffff;
        );
 
 function Vector2Add(const a,b:TVector2):TVector2;

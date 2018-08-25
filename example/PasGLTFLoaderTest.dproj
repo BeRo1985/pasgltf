@@ -214,7 +214,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
-        <Debugger_RunParams>&quot;models\kasumi_fbx_mmd_danca_dance\scene.gltf&quot;</Debugger_RunParams>
+        <Debugger_RunParams>SimpleSparseAccessor.gltf</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
