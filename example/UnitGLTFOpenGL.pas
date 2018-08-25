@@ -1854,11 +1854,25 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
   end;
  end;
  procedure InitializeMorphTargetVertexShaderStorageBufferObjects;
+  procedure FillMorphTargetVertexShaderStorageBufferObject(const aMorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
+                                                           const aPrimitive:TMesh.PPrimitive);
+  var TargetIndex,CountVertices:TPasGLTFSizeInt;
+      Target:TMesh.TPrimitive.PTarget;
+  begin
+   CountVertices:=0;
+   for TargetIndex:=0 to length(aPrimitive^.Targets)-1 do begin
+    Target:=@aPrimitive^.Targets[TargetIndex];
+
+    //aMorphTargetVertexShaderStorageBufferObject^.Vertices
+    inc(CountVertices,length(Target^.Vertices));
+   end;
+  end;
  var MeshIndex,
      PrimitiveIndex,
      TargetIndex,
      CountVertices,
-     CountMorphTargetVertexShaderStorageBufferObjects:TPasGLTFSizeInt;
+     CountMorphTargetVertexShaderStorageBufferObjects,
+     Index:TPasGLTFSizeInt;
      Mesh:PMesh;
      Primitive:TMesh.PPrimitive;
      MorphTargetVertexShaderStorageBufferObject:PMorphTargetVertexShaderStorageBufferObject;
@@ -1872,7 +1886,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
      if length(Primitive^.Targets)>0 then begin
       CountVertices:=0;
       for TargetIndex:=0 to length(Primitive^.Targets)-1 do begin
-       inc(CountVertices,length(Primitive^.Targets[0].Vertices));
+       inc(CountVertices,length(Primitive^.Targets[TargetIndex].Vertices));
       end;
       if (CountMorphTargetVertexShaderStorageBufferObjects=0) or
          ((fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1].Size+(CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex)))>134217728) then begin // 128MB = the minimum required SSBO size in the OpenGL specification
@@ -1885,7 +1899,12 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
        Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
        MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects];
        inc(CountMorphTargetVertexShaderStorageBufferObjects);
-       MorphTargetVertexShaderStorageBufferObject^.Count:=CountVertices;
+       MorphTargetVertexShaderStorageBufferObject^.Count:=0;
+       if length(MorphTargetVertexShaderStorageBufferObject^.Vertices)<(MorphTargetVertexShaderStorageBufferObject^.Count+CountVertices) then begin
+        SetLength(MorphTargetVertexShaderStorageBufferObject^.Vertices,(MorphTargetVertexShaderStorageBufferObject^.Count+CountVertices)*2);
+       end;
+       FillMorphTargetVertexShaderStorageBufferObject(MorphTargetVertexShaderStorageBufferObject,Primitive);
+       inc(MorphTargetVertexShaderStorageBufferObject^.Count,CountVertices);
        MorphTargetVertexShaderStorageBufferObject^.Size:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
       end else begin
        MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[CountMorphTargetVertexShaderStorageBufferObjects-1];
@@ -1893,6 +1912,10 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
        Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset:=MorphTargetVertexShaderStorageBufferObject^.Count;
        Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset:=Primitive^.MorphTargetVertexShaderStorageBufferObjectOffset*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
        Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize:=CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex);
+       if length(MorphTargetVertexShaderStorageBufferObject^.Vertices)<(MorphTargetVertexShaderStorageBufferObject^.Count+CountVertices) then begin
+        SetLength(MorphTargetVertexShaderStorageBufferObject^.Vertices,(MorphTargetVertexShaderStorageBufferObject^.Count+CountVertices)*2);
+       end;
+       FillMorphTargetVertexShaderStorageBufferObject(MorphTargetVertexShaderStorageBufferObject,Primitive);
        inc(MorphTargetVertexShaderStorageBufferObject^.Count,CountVertices);
        inc(MorphTargetVertexShaderStorageBufferObject^.Size,CountVertices*SizeOf(TGLTFOpenGL.TMorphTargetVertex));
       end;
@@ -1903,6 +1926,10 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
    end;
   finally
    SetLength(fMorphTargetVertexShaderStorageBufferObjects,CountMorphTargetVertexShaderStorageBufferObjects);
+  end;
+  for Index:=0 to length(fMorphTargetVertexShaderStorageBufferObjects)-1 do begin
+   MorphTargetVertexShaderStorageBufferObject:=@fMorphTargetVertexShaderStorageBufferObjects[Index];
+   SetLength(MorphTargetVertexShaderStorageBufferObject^.Vertices,MorphTargetVertexShaderStorageBufferObject^.Count);
   end;
  end;
 begin
