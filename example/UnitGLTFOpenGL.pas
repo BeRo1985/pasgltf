@@ -1740,6 +1740,52 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
    end;
   end;
  end;
+ procedure ProcessScenes;
+  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
+  var Index,SubIndex:TPasGLTFSizeInt;
+      Matrix:TPasGLTF.TMatrix4x4;
+      Node:PNode;
+      TemporaryVector3:TPasGLTF.TVector3;
+      Mesh:PMesh;
+  begin
+   Node:=@fNodes[aNodeIndex];
+   Matrix:=MatrixMul(
+            MatrixMul(
+             MatrixMul(
+              MatrixFromScale(Node^.Scale),
+              MatrixMul(
+               MatrixFromRotation(Node^.Rotation),
+               MatrixFromTranslation(Node^.Translation))),
+             Node^.Matrix),
+            aMatrix);
+   if Node^.Mesh>=0 then begin
+    Mesh:=@fMeshes[Node^.Mesh];
+    for SubIndex:=0 to 1 do begin
+     TemporaryVector3:=Vector3MatrixMul(Matrix,Mesh^.BoundingBox.MinMax[SubIndex]);
+     fStaticBoundingBox.Min[0]:=Min(fStaticBoundingBox.Min[0],TemporaryVector3[0]);
+     fStaticBoundingBox.Min[1]:=Min(fStaticBoundingBox.Min[1],TemporaryVector3[1]);
+     fStaticBoundingBox.Min[2]:=Min(fStaticBoundingBox.Min[2],TemporaryVector3[2]);
+     fStaticBoundingBox.Max[0]:=Max(fStaticBoundingBox.Max[0],TemporaryVector3[0]);
+     fStaticBoundingBox.Max[1]:=Max(fStaticBoundingBox.Max[1],TemporaryVector3[1]);
+     fStaticBoundingBox.Max[2]:=Max(fStaticBoundingBox.Max[2],TemporaryVector3[2]);
+    end;
+   end;
+   for Index:=0 to length(Node^.Children)-1 do begin
+    ProcessNode(Node^.Children[Index],Matrix);
+   end;
+  end;
+ var SceneIndex,Index:TPasGLTFSizeInt;
+     Scene:PScene;
+ begin
+  fScene:=aDocument.Scene;
+  fStaticBoundingBox:=EmptyBoundingBox;
+  for SceneIndex:=0 to length(fScenes)-1 do begin
+   Scene:=@fScenes[SceneIndex];
+   for Index:=0 to length(Scene^.Nodes)-1 do begin
+    ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
+   end;
+  end;
+ end;
  procedure InitializeSkinShaderStorageBufferObjects;
  var Index,CountMatrices,CountSkinShaderStorageBufferObjects:TPasGLTFSizeInt;
      SourceSkin:TPasGLTF.TSkin;
@@ -1788,49 +1834,20 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
    SetLength(SkinShaderStorageBufferObject^.Skins,SkinShaderStorageBufferObject^.CountSkins);
   end;
  end;
- procedure ProcessScenes;
-  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
-  var Index,SubIndex:TPasGLTFSizeInt;
-      Matrix:TPasGLTF.TMatrix4x4;
-      Node:PNode;
-      TemporaryVector3:TPasGLTF.TVector3;
-      Mesh:PMesh;
-  begin
-   Node:=@fNodes[aNodeIndex];
-   Matrix:=MatrixMul(
-            MatrixMul(
-             MatrixMul(
-              MatrixFromScale(Node^.Scale),
-              MatrixMul(
-               MatrixFromRotation(Node^.Rotation),
-               MatrixFromTranslation(Node^.Translation))),
-             Node^.Matrix),
-            aMatrix);
-   if Node^.Mesh>=0 then begin
-    Mesh:=@fMeshes[Node^.Mesh];
-    for SubIndex:=0 to 1 do begin
-     TemporaryVector3:=Vector3MatrixMul(Matrix,Mesh^.BoundingBox.MinMax[SubIndex]);
-     fStaticBoundingBox.Min[0]:=Min(fStaticBoundingBox.Min[0],TemporaryVector3[0]);
-     fStaticBoundingBox.Min[1]:=Min(fStaticBoundingBox.Min[1],TemporaryVector3[1]);
-     fStaticBoundingBox.Min[2]:=Min(fStaticBoundingBox.Min[2],TemporaryVector3[2]);
-     fStaticBoundingBox.Max[0]:=Max(fStaticBoundingBox.Max[0],TemporaryVector3[0]);
-     fStaticBoundingBox.Max[1]:=Max(fStaticBoundingBox.Max[1],TemporaryVector3[1]);
-     fStaticBoundingBox.Max[2]:=Max(fStaticBoundingBox.Max[2],TemporaryVector3[2]);
-    end;
-   end;
-   for Index:=0 to length(Node^.Children)-1 do begin
-    ProcessNode(Node^.Children[Index],Matrix);
-   end;
-  end;
- var SceneIndex,Index:TPasGLTFSizeInt;
-     Scene:PScene;
+ procedure InitializeMorphTargetVertexShaderStorageBufferObjects;
+ var MeshIndex,PrimitiveIndex:TPasGLTFSizeInt;
+     Mesh:PMesh;
+     Primitive:TMesh.PPrimitive;
  begin
-  fScene:=aDocument.Scene;
-  fStaticBoundingBox:=EmptyBoundingBox;
-  for SceneIndex:=0 to length(fScenes)-1 do begin
-   Scene:=@fScenes[SceneIndex];
-   for Index:=0 to length(Scene^.Nodes)-1 do begin
-    ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
+  for MeshIndex:=0 to length(fMeshes)-1 do begin
+   Mesh:=@fMeshes[MeshIndex];
+   for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
+    Primitive:=@Mesh^.Primitives[PrimitiveIndex];
+    if length(Primitive^.Targets)>0 then begin
+
+    end else begin
+
+    end;
    end;
   end;
  end;
@@ -1845,8 +1862,9 @@ begin
   LoadSkins;
   LoadNodes;
   LoadScenes;
-  InitializeSkinShaderStorageBufferObjects;
   ProcessScenes;
+  InitializeSkinShaderStorageBufferObjects;
+  InitializeMorphTargetVertexShaderStorageBufferObjects;
   fReady:=true;
  end;
 end;
