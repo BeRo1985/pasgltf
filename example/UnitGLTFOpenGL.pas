@@ -321,6 +321,26 @@ type EGLTFOpenGL=class(Exception);
             end;
             PMaterialUniformBufferObject=^TMaterialUniformBufferObject;
             TMaterialUniformBufferObjects=array of TMaterialUniformBufferObject;
+            TNodeShaderStorageBufferObjectDataItem=packed record
+             Matrix:TPasGLTF.TMatrix4x4;
+             // uvec4 MetaData; begin
+              JointOffset:TPasGLTFUInt32;
+              CountVertices:TPasGLTFUInt32;
+              CountMorphTargets:TPasGLTFUInt32;
+              Reversed:TPasGLTFUInt32;
+             // uvec4 MetaData; end
+             MorphTargetWeights:array[0..0] of TPasGLTFFloat;
+            end;
+            PNodeShaderStorageBufferObjectDataItem=^TNodeShaderStorageBufferObjectDataItem;
+            TNodeShaderStorageBufferObjectDataItems=array of TNodeShaderStorageBufferObjectDataItem;
+            TNodeShaderStorageBufferObject=record
+             ShaderStorageBufferObjectHandle:glUInt;
+             Size:TPasGLTFSizeInt;
+             Nodes:TPasGLTFSizeIntDynamicArray;
+             Count:TPasGLTFSizeInt;
+            end;
+            PNodeShaderStorageBufferObject=^TNodeShaderStorageBufferObject;
+            TNodeShaderStorageBufferObjects=array of TNodeShaderStorageBufferObject;
        const EmptyBoundingBox:TBoundingBox=(Min:(Infinity,Infinity,Infinity);Max:(NegInfinity,NegInfinity,NegInfinity));
       private
        fReady:boolean;
@@ -337,6 +357,7 @@ type EGLTFOpenGL=class(Exception);
        fScene:TPasGLTFSizeInt;
        fSkinShaderStorageBufferObjects:TSkinShaderStorageBufferObjects;
        fMorphTargetVertexShaderStorageBufferObjects:TMorphTargetVertexShaderStorageBufferObjects;
+       fNodeShaderStorageBufferObjects:TNodeShaderStorageBufferObjects;
        fMaterialUniformBufferObjects:TMaterialUniformBufferObjects;
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
@@ -833,6 +854,7 @@ begin
  fScene:=-1;
  fSkinShaderStorageBufferObjects:=nil;
  fMorphTargetVertexShaderStorageBufferObjects:=nil;
+ fNodeShaderStorageBufferObjects:=nil;
  fMaterialUniformBufferObjects:=nil;
 end;
 
@@ -858,6 +880,7 @@ begin
   fScenes:=nil;
   fSkinShaderStorageBufferObjects:=nil;
   fMorphTargetVertexShaderStorageBufferObjects:=nil;
+  fNodeShaderStorageBufferObjects:=nil;
   fMaterialUniformBufferObjects:=nil;
  end;
 end;
