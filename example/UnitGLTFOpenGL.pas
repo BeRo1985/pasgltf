@@ -92,8 +92,8 @@ type EGLTFOpenGL=class(Exception);
              TexCoord0:TPasGLTF.TVector2;
              TexCoord1:TPasGLTF.TVector2;
              Color0:TPasGLTF.TVector4;
-             Joints0:TPasGLTF.TInt32Vector4;
-             Joints1:TPasGLTF.TInt32Vector4;
+             Joints0:TPasGLTF.TUInt32Vector4;
+             Joints1:TPasGLTF.TUInt32Vector4;
              Weights0:TPasGLTF.TVector4;
              Weights1:TPasGLTF.TVector4;
             end;
@@ -1198,7 +1198,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
      TemporaryWeights0,
      TemporaryWeights1:TPasGLTF.TVector4DynamicArray;
      TemporaryJoints0,
-     TemporaryJoints1:TPasGLTF.TInt32Vector4DynamicArray;
+     TemporaryJoints1:TPasGLTF.TUInt32Vector4DynamicArray;
      TemporaryTexCoord0,
      TemporaryTexCoord1:TPasGLTF.TVector2DynamicArray;
      TemporaryIndices,
@@ -1297,7 +1297,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['JOINTS_0'];
       if AccessorIndex>=0 then begin
-       TemporaryJoints0:=aDocument.Accessors[AccessorIndex].DecodeAsInt32Vector4Array(true);
+       TemporaryJoints0:=aDocument.Accessors[AccessorIndex].DecodeAsUInt32Vector4Array(true);
       end else begin
        TemporaryJoints0:=nil;
       end;
@@ -1305,7 +1305,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
      begin
       AccessorIndex:=SourceMeshPrimitive.Attributes['JOINTS_1'];
       if AccessorIndex>=0 then begin
-       TemporaryJoints1:=aDocument.Accessors[AccessorIndex].DecodeAsInt32Vector4Array(true);
+       TemporaryJoints1:=aDocument.Accessors[AccessorIndex].DecodeAsUInt32Vector4Array(true);
       end else begin
        TemporaryJoints1:=nil;
       end;
@@ -2120,11 +2120,11 @@ var AllVertices:TAllVertices;
     glEnableVertexAttribArray(TVertexAttributeBindingLocations.Color0);
    end;
    begin
-    glVertexAttribPointer(TVertexAttributeBindingLocations.Joints0,4,GL_INT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Joints0);
+    glVertexAttribIPointer(TVertexAttributeBindingLocations.Joints0,4,GL_UNSIGNED_INT,SizeOf(TVertex),@PVertex(nil)^.Joints0);
     glEnableVertexAttribArray(TVertexAttributeBindingLocations.Joints0);
    end;
    begin
-    glVertexAttribPointer(TVertexAttributeBindingLocations.Joints1,4,GL_INT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.Joints1);
+    glVertexAttribIPointer(TVertexAttributeBindingLocations.Joints1,4,GL_UNSIGNED_INT,SizeOf(TVertex),@PVertex(nil)^.Joints1);
     glEnableVertexAttribArray(TVertexAttributeBindingLocations.Joints1);
    end;
    begin
@@ -2136,7 +2136,7 @@ var AllVertices:TAllVertices;
     glEnableVertexAttribArray(TVertexAttributeBindingLocations.Weights1);
    end;
    begin
-    glVertexAttribPointer(TVertexAttributeBindingLocations.VertexIndex,1,GL_UNSIGNED_INT,GL_FALSE,SizeOf(TVertex),@PVertex(nil)^.VertexIndex);
+    glVertexAttribIPointer(TVertexAttributeBindingLocations.VertexIndex,1,GL_UNSIGNED_INT,SizeOf(TVertex),@PVertex(nil)^.VertexIndex);
     glEnableVertexAttribArray(TVertexAttributeBindingLocations.VertexIndex);
    end;
   end;

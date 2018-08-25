@@ -168,11 +168,11 @@ begin
     'layout(location = 3) in vec2 aTexCoord0;'+#13#10+
     'layout(location = 4) in vec2 aTexCoord1;'+#13#10+
     'layout(location = 5) in vec4 aColor0;'+#13#10+
-    'layout(location = 6) in vec4 aJoints0;'+#13#10+
-    'layout(location = 7) in vec4 aJoints1;'+#13#10+
+    'layout(location = 6) in uvec4 aJoints0;'+#13#10+
+    'layout(location = 7) in uvec4 aJoints1;'+#13#10+
     'layout(location = 8) in vec4 aWeights0;'+#13#10+
     'layout(location = 9) in vec4 aWeights1;'+#13#10+
-    'layout(location = 10) in float aVertexIndex;'+#13#10+
+    'layout(location = 10) in uint aVertexIndex;'+#13#10+
     'out vec3 vCameraRelativePosition;'+#13#10+
     'out vec2 vTexCoord0;'+#13#10+
     'out vec2 vTexCoord1;'+#13#10+
