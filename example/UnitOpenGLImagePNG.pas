@@ -156,6 +156,7 @@ var Stream:TMemoryStream;
     PNG:TPNGImage;
     y,x:longint;
     pin,pout,ain:PAnsiChar;
+    c:longword;
 begin
  result:=false;
  try
@@ -174,20 +175,72 @@ begin
        if not HeaderOnly then begin
         GetMem(ImageData,ImageWidth*ImageHeight*4);
         pout:=ImageData;
-        for y:=0 to ImageHeight-1 do begin
-         pin:=PNG.Scanline[y];
-         ain:=pointer(PNG.AlphaScanline[y]);
-         for x:=0 to ImageWidth-1 do begin
-          pout[0]:=pin[2];
-          pout[1]:=pin[1];
-          pout[2]:=pin[0];
-          if assigned(ain) then begin
-           pout[3]:=ain[x];
-          end else begin
-           pout[3]:=#255;
+        case PNG.Header.ColorType of
+         COLOR_GRAYSCALE,COLOR_GRAYSCALEALPHA:begin
+          for y:=0 to ImageHeight-1 do begin
+           pin:=PNG.Scanline[y];
+           if PNG.Header.ColorType=COLOR_GRAYSCALEALPHA then begin
+            ain:=pointer(PNG.AlphaScanline[y]);
+           end else begin
+            ain:=nil;
+           end;
+           for x:=0 to ImageWidth-1 do begin
+            pout[0]:=pin[0];
+            pout[1]:=pin[0];
+            pout[2]:=pin[0];
+            if assigned(ain) then begin
+             pout[3]:=ain[x];
+            end else begin
+             pout[3]:=#255;
+            end;
+            inc(pin,1);
+            inc(pout,4);
+           end;
           end;
-          inc(pin,3);
-          inc(pout,4);
+         end;
+         COLOR_RGB,COLOR_RGBALPHA:begin
+          for y:=0 to ImageHeight-1 do begin
+           pin:=PNG.Scanline[y];
+           if PNG.Header.ColorType=COLOR_RGBALPHA then begin
+            ain:=pointer(PNG.AlphaScanline[y]);
+           end else begin
+            ain:=nil;
+           end;
+           for x:=0 to ImageWidth-1 do begin
+            pout[0]:=pin[2];
+            pout[1]:=pin[1];
+            pout[2]:=pin[0];
+            if assigned(ain) then begin
+             pout[3]:=ain[x];
+            end else begin
+             pout[3]:=#255;
+            end;
+            inc(pin,3);
+            inc(pout,4);
+           end;
+          end;
+         end;
+         else begin
+          for y:=0 to ImageHeight-1 do begin
+           if PNG.Header.ColorType in [COLOR_PALETTE,COLOR_GRAYSCALEALPHA] then begin
+            ain:=pointer(PNG.AlphaScanline[y]);
+           end else begin
+            ain:=nil;
+           end;
+           for x:=0 to ImageWidth-1 do begin
+            c:=PNG.Pixels[x,y];
+            pout[0]:=ansichar(byte((c shr 0) and $ff));
+            pout[1]:=ansichar(byte((c shr 8) and $ff));
+            pout[2]:=ansichar(byte((c shr 16) and $ff));
+            pout[3]:=ansichar(byte((c shr 24) and $ff));
+            if assigned(ain) then begin
+             pout[3]:=ain[x];
+            end else begin
+             pout[3]:=#255;
+            end;
+            inc(pout,4);
+           end;
+          end;
          end;
         end;
        end;
