@@ -104,7 +104,17 @@ unit UnitOpenGLImageJPEG; // from PasVulkan, so zlib-license and Copyright (C), 
 
 interface
 
-uses SysUtils,Classes,Math{$ifdef fpc},FPImage,FPReadJPEG{$endif},UnitOpenGLImage,dglOpenGL;
+uses SysUtils,Classes,Math,
+     {$ifdef fpc}
+      FPImage,FPWriteJPEG,
+     {$endif}
+     {$ifdef fpc}
+      dynlibs,
+     {$else}
+      Windows,
+     {$endif}
+     UnitOpenGLImage,
+     dglOpenGL;
 
 type ELoadJPEGImage=class(Exception);
 
@@ -114,7 +124,13 @@ function LoadJPEGGLImage(DataPointer:pointer;DataSize:longword;SRGB:boolean):TGL
 
 implementation
 
+const NilLibHandle={$ifdef fpc}NilHandle{$else}THandle(0){$endif};
+
+var TurboJpegLibrary:{$ifdef fpc}TLibHandle{$else}THandle{$endif}=NilLibHandle;
+
 type TtjInitCompress=function:pointer; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+
+     TtjInitDecompress=function:pointer; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
 
      TtjDestroy=function(handle:pointer):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
 
@@ -134,6 +150,27 @@ type TtjInitCompress=function:pointer; {$ifdef Windows}stdcall;{$else}cdecl;{$en
                            jpegQual:longint;
                            flags:longint):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
 
+     TtjDecompressHeader=function(handle:pointer;
+                                  jpegBuf:pointer;
+                                  jpegSize:longword;
+                                  out width:longint;
+                                  out height:longint):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+
+     TtjDecompressHeader2=function(handle:pointer;
+                                   jpegBuf:pointer;
+                                   jpegSize:longword;
+                                   out width:longint;
+                                   out height:longint;
+                                   out jpegSubsamp:longint):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+
+     TtjDecompressHeader3=function(handle:pointer;
+                                   jpegBuf:pointer;
+                                   jpegSize:longword;
+                                   out width:longint;
+                                   out height:longint;
+                                   out jpegSubsamp:longint;
+                                   out jpegColorSpace:longint):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+
      TtjDecompress2=function(handle:pointer;
                              jpegBuf:pointer;
                              jpegSize:longword;
@@ -143,6 +180,17 @@ type TtjInitCompress=function:pointer; {$ifdef Windows}stdcall;{$else}cdecl;{$en
                              height:longint;
                              pixelFormat:longint;
                              flags:longint):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+
+var tjInitCompress:TtjInitCompress=nil;
+    tjInitDecompress:TtjInitDecompress=nil;
+    tjDestroy:TtjDestroy=nil;
+    tjAlloc:TtjAlloc=nil;
+    tjFree:TtjFree=nil;
+    tjCompress2:TtjCompress2=nil;
+    tjDecompressHeader:TtjDecompressHeader=nil;
+    tjDecompressHeader2:TtjDecompressHeader2=nil;
+    tjDecompressHeader3:TtjDecompressHeader3=nil;
+    tjDecompress2:TtjDecompress2=nil;
 
 {$ifndef HasSAR}
 function SARLongint(Value,Shift:longint):longint;
@@ -701,544 +749,572 @@ var Context:PContext;
   end;
  end;
 var Index,SubIndex,Len,MaxSSX,MaxSSY,Value,Remain,Spread,CodeLen,DHTCurrentCount,Code,Coef,
-    NextDataPosition,Count,v0,v1,v2,v3,mbx,mby,sbx,sby,RSTCount,NextRST,x,y,vY,vCb,vCr:longint;
+    NextDataPosition,Count,v0,v1,v2,v3,mbx,mby,sbx,sby,RSTCount,NextRST,x,y,vY,vCb,vCr,
+    tjWidth,tjHeight,tjJpegSubsamp:longint;
     ChunkTag:byte;
     Component:PComponent;
     DHTCounts:array[0..15] of byte;
     Huffman:PHuffmanCode;
     pY,aCb,aCr,oRGBX:PByte;
+    tjHandle:pointer;
 begin
  result:=false;
  ImageData:=nil;
  if (DataSize>=2) and (((PByteArray(DataPointer)^[0] xor $ff) or (PByteArray(DataPointer)^[1] xor $d8))=0) then begin
-  DataPosition:=2;
-  GetMem(Context,SizeOf(TContext));
-  try
-   FillChar(Context^,SizeOf(TContext),#0);
-   Initialize(Context^);
-   try
-    while ((DataPosition+2)<DataSize) and (PByteArray(DataPointer)^[DataPosition]=$ff) do begin
-     ChunkTag:=PByteArray(DataPointer)^[DataPosition+1];
-     inc(DataPosition,2);
-     case ChunkTag of
-      $c0{SQF}:begin
-
-       if (DataPosition+2)>=DataSize then begin
-        RaiseError;
+  if (TurboJpegLibrary<>NilLibHandle) and
+     assigned(tjInitDecompress) and
+     assigned(tjDecompressHeader2) and
+     assigned(tjDecompress2) and
+     assigned(tjDestroy) then begin
+   tjHandle:=tjInitDecompress;
+   if assigned(tjHandle) then begin
+    try
+     if tjDecompressHeader2(tjHandle,DataPointer,DataSize,tjWidth,tjHeight,tjJpegSubsamp)>=0 then begin
+      ImageWidth:=tjWidth;
+      ImageHeight:=tjHeight;
+      if HeaderOnly then begin
+       result:=true;
+      end else begin
+       GetMem(ImageData,ImageWidth*ImageHeight*SizeOf(longword));
+       if tjDecompress2(tjHandle,DataPointer,DataSize,ImageData,tjWidth,0,tjHeight,7{TJPF_RGBA},2048{TJFLAG_FASTDCT})>=0 then begin
+        result:=true;
        end;
-
-       Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
-
-       if ((DataPosition+longword(Len))>=DataSize) or
-          (Len<9) or
-          (PByteArray(DataPointer)^[DataPosition+2]<>8) then begin
-        RaiseError;
-       end;
-
-       inc(DataPosition,2);
-       dec(Len,2);
-
-       Context^.Width:=(word(PByteArray(DataPointer)^[DataPosition+1]) shl 8) or PByteArray(DataPointer)^[DataPosition+2];
-       Context^.Height:=(word(PByteArray(DataPointer)^[DataPosition+3]) shl 8) or PByteArray(DataPointer)^[DataPosition+4];
-       Context^.CountComponents:=PByteArray(DataPointer)^[DataPosition+5];
-
-       if (Context^.Width=0) or (Context^.Height=0) or not (Context^.CountComponents in [1,3]) then begin
-        RaiseError;
-       end;
-
-       inc(DataPosition,6);
-       dec(Len,6);
-
-       if Len<(Context^.CountComponents*3) then begin
-        RaiseError;
-       end;
-
-       MaxSSX:=0;
-       MaxSSY:=0;
-
-       for Index:=0 to Context^.CountComponents-1 do begin
-        Component:=@Context^.Components[Index];
-        Component^.ID:=PByteArray(DataPointer)^[DataPosition+0];
-        Component^.SSX:=PByteArray(DataPointer)^[DataPosition+1] shr 4;
-        Component^.SSY:=PByteArray(DataPointer)^[DataPosition+1] and 15;
-        Component^.QTSel:=PByteArray(DataPointer)^[DataPosition+2];
-        inc(DataPosition,3);
-        dec(Len,3);
-        if (Component^.SSX=0) or ((Component^.SSX and (Component^.SSX-1))<>0) or
-           (Component^.SSY=0) or ((Component^.SSY and (Component^.SSY-1))<>0) or
-           ((Component^.QTSel and $fc)<>0) then begin
-         RaiseError;
-        end;
-        Context^.QTUsed:=Context^.QTUsed or (1 shl Component^.QTSel);
-        MaxSSX:=Max(MaxSSX,Component^.SSX);
-        MaxSSY:=Max(MaxSSY,Component^.SSY);
-       end;
-
-       if Context^.CountComponents=1 then begin
-        Component:=@Context^.Components[0];
-        Component^.SSX:=1;
-        Component^.SSY:=1;
-        MaxSSX:=0;
-        MaxSSY:=0;
-       end;
-
-       Context^.MBSizeX:=MaxSSX shl 3;
-       Context^.MBSizeY:=MaxSSY shl 3;
-
-       Context^.MBWidth:=(Context^.Width+(Context^.MBSizeX-1)) div Context^.MBSizeX;
-       Context^.MBHeight:=(Context^.Height+(Context^.MBSizeY-1)) div Context^.MBSizeY;
-
-       for Index:=0 to Context^.CountComponents-1 do begin
-        Component:=@Context^.Components[Index];
-        Component^.Width:=((Context^.Width*Component^.SSX)+(MaxSSX-1)) div MaxSSX;
-        Component^.Height:=((Context^.Height*Component^.SSY)+(MaxSSY-1)) div MaxSSY;
-        Component^.Stride:=(Context^.MBWidth*Component^.SSX) shl 3;
-        if ((Component^.Width<3) and (Component^.SSX<>MaxSSX)) or
-           ((Component^.Height<3) and (Component^.SSY<>MaxSSY)) then begin
-         RaiseError;
-        end;
-        Count:=Component^.Stride*((Context^.MBHeight*Component^.ssy) shl 3);
-//       Count:=(Component^.Stride*((Context^.MBHeight*Context^.MBSizeY*Component^.ssy) div MaxSSY)) shl 3;
-        if not HeaderOnly then begin
-         SetLength(Component^.Pixels,Count);
-         FillChar(Component^.Pixels[0],Count,#$80);
-        end;
-       end;
-
-       inc(DataPosition,Len);
-
-      end;
-      $c4{DHT}:begin
-
-       if (DataPosition+2)>=DataSize then begin
-        RaiseError;
-       end;
-
-       Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
-
-       if (DataPosition+longword(Len))>=DataSize then begin
-        RaiseError;
-       end;
-
-       inc(DataPosition,2);
-       dec(Len,2);
-
-       while Len>=17 do begin
-
-        Value:=PByteArray(DataPointer)^[DataPosition];
-        if (Value and ($ec or $02))<>0 then begin
-         RaiseError;
-        end;
-
-        Value:=(Value or (Value shr 3)) and 3;
-        for CodeLen:=1 to 16 do begin
-         DHTCounts[CodeLen-1]:=PByteArray(DataPointer)^[DataPosition+longword(CodeLen)];
-        end;
-        inc(DataPosition,17);
-        dec(Len,17);
-
-        Huffman:=@Context^.HuffmanCodeTable[Value,0];
-        Remain:=65536;
-        Spread:=65536;
-        for CodeLen:=1 to 16 do begin
-         Spread:=Spread shr 1;
-         DHTCurrentCount:=DHTCounts[CodeLen-1];
-         if DHTCurrentCount<>0 then begin
-          dec(Remain,DHTCurrentCount shl (16-CodeLen));
-          if (Len<DHTCurrentCount) or
-             (Remain<0) then begin
-           RaiseError;
-          end;
-          for Index:=0 to DHTCurrentCount-1 do begin
-           Code:=PByteArray(DataPointer)^[DataPosition+longword(Index)];
-           for SubIndex:=0 to Spread-1 do begin
-            Huffman^.Bits:=CodeLen;
-            Huffman^.Code:=Code;
-            inc(Huffman);
-           end;
-          end;
-          inc(DataPosition,DHTCurrentCount);
-          dec(Len,DHTCurrentCount);
-         end;
-        end;
-        while Remain>0 do begin
-         dec(Remain);
-         Huffman^.Bits:=0;
-         inc(Huffman);
-        end;
-       end;
-
-       if Len>0 then begin
-        RaiseError;
-       end;
-
-       inc(DataPosition,Len);
-
-      end;
-      $da{SOS}:begin
-
-       if (DataPosition+2)>=DataSize then begin
-        RaiseError;
-       end;
-
-       Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
-
-       if ((DataPosition+longword(Len))>=DataSize) or (Len<2) then begin
-        RaiseError;
-       end;
-
-       inc(DataPosition,2);
-       dec(Len,2);
-
-       if (Len<(4+(2*Context^.CountComponents))) or
-          (PByteArray(DataPointer)^[DataPosition+0]<>Context^.CountComponents) then begin
-        RaiseError;
-       end;
-
-       inc(DataPosition);
-       dec(Len);
-
-       for Index:=0 to Context^.CountComponents-1 do begin
-        Component:=@Context^.Components[Index];
-        if (PByteArray(DataPointer)^[DataPosition+0]<>Component^.ID) or
-           ((PByteArray(DataPointer)^[DataPosition+1] and $ee)<>0) then begin
-         RaiseError;
-        end;
-        Component^.DCTabSel:=PByteArray(DataPointer)^[DataPosition+1] shr 4;
-        Component^.ACTabSel:=(PByteArray(DataPointer)^[DataPosition+1] and 1) or 2;
-        inc(DataPosition,2);
-        dec(Len,2);
-       end;
-
-       if (PByteArray(DataPointer)^[DataPosition+0]<>0) or
-          (PByteArray(DataPointer)^[DataPosition+1]<>63) or
-          (PByteArray(DataPointer)^[DataPosition+2]<>0) then begin
-        RaiseError;
-       end;
-
-       inc(DataPosition,Len);
-
-       if not HeaderOnly then begin
-
-        mbx:=0;
-        mby:=0;
-        RSTCount:=Context^.RSTInterval;
-        NextRST:=0;
-        repeat
-
-         for Index:=0 to Context^.CountComponents-1 do begin
-          Component:=@Context^.Components[Index];
-          for sby:=0 to Component^.ssy-1 do begin
-           for sbx:=0 to Component^.ssx-1 do begin
-            Code:=0;
-            Coef:=0;
-            FillChar(Context^.Block,SizeOf(Context^.Block),#0);
-            inc(Component^.DCPred,GetHuffmanCode(@Context^.HuffmanCodeTable[Component^.DCTabSel],nil));
-            Context^.Block[0]:=Component^.DCPred*Context^.QTable[Component^.QTSel,0];
-            repeat
-             Value:=GetHuffmanCode(@Context^.HuffmanCodeTable[Component^.ACTabSel],@Code);
-             if Code=0 then begin
-              // EOB
-              break;
-             end else if ((Code and $0f)=0) and (Code<>$f0) then begin
-              RaiseError;
-             end else begin
-              inc(Coef,(Code shr 4)+1);
-              if Coef>63 then begin
-               RaiseError;
-              end else begin
-               Context^.Block[ZigZagOrderToRasterOrderConversionTable[Coef]]:=Value*Context^.QTable[Component^.QTSel,Coef];
-              end;
-             end;
-            until Coef>=63;
-            ProcessIDCT(@Context^.Block,
-                        @Component^.Pixels[((((mby*Component^.ssy)+sby)*Component^.Stride)+
-                                            ((mbx*Component^.ssx)+sbx)) shl 3],
-                        Component^.Stride);
-           end;
-          end;
-         end;
-
-         inc(mbx);
-         if mbx>=Context^.MBWidth then begin
-          mbx:=0;
-          inc(mby);
-          if mby>=Context^.MBHeight then begin
-           mby:=0;
-           ImageWidth:=Context^.Width;
-           ImageHeight:=Context^.Height;
-           GetMem(ImageData,(Context^.Width*Context^.Height) shl 2);
-           FillChar(ImageData^,(Context^.Width*Context^.Height) shl 2,#0);
-           for Index:=0 to Context^.CountComponents-1 do begin
-            Component:=@Context^.Components[Index];
-            while (Component^.Width<Context^.Width) or (Component^.Height<Context^.Height) do begin
-             if Component^.Width<Context^.Width then begin
-              if Context^.CoSitedChroma then begin
-               UpsampleHCoSited(Component);
-              end else begin
-               UpsampleHCentered(Component);
-              end;
-             end;
-             if Component^.Height<Context^.Height then begin
-              if Context^.CoSitedChroma then begin
-               UpsampleVCoSited(Component);
-              end else begin
-               UpsampleVCentered(Component);
-              end;
-             end;
-            end;
-            if (Component^.Width<Context^.Width) or (Component^.Height<Context^.Height) then begin
-             RaiseError;
-            end;
-           end;
-           case Context^.CountComponents of
-            3:begin
-             pY:=@Context^.Components[0].Pixels[0];
-             aCb:=@Context^.Components[1].Pixels[0];
-             aCr:=@Context^.Components[2].Pixels[0];
-             oRGBX:=ImageData;
-             for y:=0 to Context^.Height-1 do begin
-              for x:=0 to Context^.Width-1 do begin
-               vY:=PByteArray(pY)^[x] shl 8;
-               vCb:=PByteArray(aCb)^[x]-128;
-               vCr:=PByteArray(aCr)^[x]-128;
-               PByteArray(oRGBX)^[0]:=ClipTable[SARLongint((vY+(vCr*359))+128,8) and $3ff];
-               PByteArray(oRGBX)^[1]:=ClipTable[SARLongint(((vY-(vCb*88))-(vCr*183))+128,8) and $3ff];
-               PByteArray(oRGBX)^[2]:=ClipTable[SARLongint((vY+(vCb*454))+128,8) and $3ff];
-               PByteArray(oRGBX)^[3]:=$ff;
-               inc(oRGBX,4);
-              end;
-              inc(pY,Context^.Components[0].Stride);
-              inc(aCb,Context^.Components[1].Stride);
-              inc(aCr,Context^.Components[2].Stride);
-             end;
-            end;
-            else begin
-             pY:=@Context^.Components[0].Pixels[0];
-             oRGBX:=ImageData;
-             for y:=0 to Context^.Height-1 do begin
-              for x:=0 to Context^.Width-1 do begin
-               vY:=ClipTable[PByteArray(pY)^[x] and $3ff];
-               PByteArray(oRGBX)^[0]:=vY;
-               PByteArray(oRGBX)^[1]:=vY;
-               PByteArray(oRGBX)^[2]:=vY;
-               PByteArray(oRGBX)^[3]:=$ff;
-               inc(oRGBX,4);
-              end;
-              inc(pY,Context^.Components[0].Stride);
-             end;
-            end;
-           end;
-           result:=true;
-           break;
-          end;
-         end;
-
-         if Context^.RSTInterval<>0 then begin
-          dec(RSTCount);
-          if RSTCount=0 then begin
-           Context^.BufBits:=Context^.BufBits and $f8;
-           Value:=GetBits(16);
-           if (((Value and $fff8)<>$ffd0) or ((Value and 7)<>NextRST)) then begin
-            RaiseError;
-           end;
-           NextRST:=(NextRST+1) and 7;
-           RSTCount:=Context^.RSTInterval;
-           for Index:=0 to 2 do begin
-            Context^.Components[Index].DCPred:=0;
-           end;
-          end;
-         end;
-
-        until false;
-
-       end;
-
-       break;
-
-      end;
-      $db{DQT}:begin
-
-       if (DataPosition+2)>=DataSize then begin
-        RaiseError;
-       end;
-
-       Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
-
-       if (DataPosition+longword(Len))>=DataSize then begin
-        RaiseError;
-       end;
-
-       inc(DataPosition,2);
-       dec(Len,2);
-
-       while Len>=65 do begin
-        Value:=PByteArray(DataPointer)^[DataPosition];
-        inc(DataPosition);
-        dec(Len);
-        if (Value and $fc)<>0 then begin
-         RaiseError;
-        end;
-        Context^.QTUsed:=Context^.QTUsed or (1 shl Value);
-        for Index:=0 to 63 do begin
-         Context^.QTable[Value,Index]:=PByteArray(DataPointer)^[DataPosition];
-         inc(DataPosition);
-         dec(Len);
-        end;
-       end;
-
-       inc(DataPosition,Len);
-
-      end;
-      $dd{DRI}:begin
-
-       if (DataPosition+2)>=DataSize then begin
-        RaiseError;
-       end;
-
-       Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
-
-       if ((DataPosition+longword(Len))>=DataSize) or
-          (Len<4) then begin
-        RaiseError;
-       end;
-
-       inc(DataPosition,2);
-       dec(Len,2);
-
-       Context^.RSTInterval:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
-
-       inc(DataPosition,Len);
-
-      end;
-      $e1{EXIF}:begin
-
-       if (DataPosition+2)>=DataSize then begin
-        RaiseError;
-       end;
-
-       Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
-
-       if ((DataPosition+longword(Len))>=DataSize) or
-          (Len<18) then begin
-        RaiseError;
-       end;
-
-       inc(DataPosition,2);
-       dec(Len,2);
-
-       NextDataPosition:=DataPosition+longword(Len);
-
-       if (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+0]))='E') and
-          (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+1]))='x') and
-          (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+2]))='i') and
-          (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+3]))='f') and
-          (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+4]))=#0) and
-          (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+5]))=#0) and
-          (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+6]))=AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+7]))) and
-          (((AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+6]))='I') and
-            (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+8]))='*') and
-            (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+9]))=#0)) or
-           ((AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+6]))='M') and
-            (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+8]))=#0) and
-            (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+9]))='*'))) then begin
-        Context^.EXIFLE:=AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+6]))='I';
-        if Len>=14 then begin
-         if Context^.EXIFLE then begin
-          Value:=(longint(PByteArray(DataPointer)^[DataPosition+10]) shl 0) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+11]) shl 8) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+12]) shl 16) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+13]) shl 24);
-         end else begin
-          Value:=(longint(PByteArray(DataPointer)^[DataPosition+10]) shl 24) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+11]) shl 16) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+12]) shl 8) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+13]) shl 0);
-         end;
-         inc(Value,6);
-         if (Value>=14) and ((Value+2)<Len) then begin
-          inc(DataPosition,Value);
-          dec(Len,Value);
-          if Context^.EXIFLE then begin
-           Count:=(longint(PByteArray(DataPointer)^[DataPosition+0]) shl 0) or
-                  (longint(PByteArray(DataPointer)^[DataPosition+1]) shl 8);
-          end else begin
-           Count:=(longint(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or
-                  (longint(PByteArray(DataPointer)^[DataPosition+1]) shl 0);
-          end;
-          inc(DataPosition,2);
-          dec(Len,2);
-          if Count<=(Len div 12) then begin
-           while Count>0 do begin
-            dec(Count);
-            if Context^.EXIFLE then begin
-             v0:=(longint(PByteArray(DataPointer)^[DataPosition+0]) shl 0) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+1]) shl 8);
-             v1:=(longint(PByteArray(DataPointer)^[DataPosition+2]) shl 0) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+3]) shl 8);
-             v2:=(longint(PByteArray(DataPointer)^[DataPosition+4]) shl 0) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+5]) shl 8) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+6]) shl 16) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+7]) shl 24);
-             v3:=(longint(PByteArray(DataPointer)^[DataPosition+8]) shl 0) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+9]) shl 8);
-            end else begin
-             v0:=(longint(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+1]) shl 0);
-             v1:=(longint(PByteArray(DataPointer)^[DataPosition+2]) shl 8) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+3]) shl 0);
-             v2:=(longint(PByteArray(DataPointer)^[DataPosition+4]) shl 24) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+5]) shl 16) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+6]) shl 8) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+7]) shl 0);
-             v3:=(longint(PByteArray(DataPointer)^[DataPosition+8]) shl 8) or
-                 (longint(PByteArray(DataPointer)^[DataPosition+9]) shl 0);
-            end;
-            if (v0=$0213{YCbCrPositioning}) and (v1=$0003{SHORT}) and (v2=1{LENGTH}) then begin
-             Context^.CoSitedChroma:=v3=2;
-             break;
-            end;
-            inc(DataPosition,12);
-            dec(Len,12);
-           end;
-          end;
-         end;
-        end;
-       end;
-
-       DataPosition:=NextDataPosition;
-
-      end;
-      $e0,$e2..$ef,$fe{Skip}:begin
-       if (DataPosition+2)>=DataSize then begin
-        RaiseError;
-       end;
-       Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
-       if (DataPosition+longword(Len))>=DataSize then begin
-        RaiseError;
-       end;
-       inc(DataPosition,Len);
-      end;
-      else begin
-       RaiseError;
       end;
      end;
-    end;
-   except
-    on e:ELoadJPEGImage do begin
-     result:=false;
-    end;
-    on e:Exception do begin
-     raise;
+    finally
+     tjDestroy(tjHandle);
     end;
    end;
-  finally
-   if assigned(ImageData) and not result then begin
-    FreeMem(ImageData);
-    ImageData:=nil;
+  end else begin
+   DataPosition:=2;
+   GetMem(Context,SizeOf(TContext));
+   try
+    FillChar(Context^,SizeOf(TContext),#0);
+    Initialize(Context^);
+    try
+     while ((DataPosition+2)<DataSize) and (PByteArray(DataPointer)^[DataPosition]=$ff) do begin
+      ChunkTag:=PByteArray(DataPointer)^[DataPosition+1];
+      inc(DataPosition,2);
+      case ChunkTag of
+       $c0{SQF}:begin
+
+        if (DataPosition+2)>=DataSize then begin
+         RaiseError;
+        end;
+
+        Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
+
+        if ((DataPosition+longword(Len))>=DataSize) or
+           (Len<9) or
+           (PByteArray(DataPointer)^[DataPosition+2]<>8) then begin
+         RaiseError;
+        end;
+
+        inc(DataPosition,2);
+        dec(Len,2);
+
+        Context^.Width:=(word(PByteArray(DataPointer)^[DataPosition+1]) shl 8) or PByteArray(DataPointer)^[DataPosition+2];
+        Context^.Height:=(word(PByteArray(DataPointer)^[DataPosition+3]) shl 8) or PByteArray(DataPointer)^[DataPosition+4];
+        Context^.CountComponents:=PByteArray(DataPointer)^[DataPosition+5];
+
+        if (Context^.Width=0) or (Context^.Height=0) or not (Context^.CountComponents in [1,3]) then begin
+         RaiseError;
+        end;
+
+        inc(DataPosition,6);
+        dec(Len,6);
+
+        if Len<(Context^.CountComponents*3) then begin
+         RaiseError;
+        end;
+
+        MaxSSX:=0;
+        MaxSSY:=0;
+
+        for Index:=0 to Context^.CountComponents-1 do begin
+         Component:=@Context^.Components[Index];
+         Component^.ID:=PByteArray(DataPointer)^[DataPosition+0];
+         Component^.SSX:=PByteArray(DataPointer)^[DataPosition+1] shr 4;
+         Component^.SSY:=PByteArray(DataPointer)^[DataPosition+1] and 15;
+         Component^.QTSel:=PByteArray(DataPointer)^[DataPosition+2];
+         inc(DataPosition,3);
+         dec(Len,3);
+         if (Component^.SSX=0) or ((Component^.SSX and (Component^.SSX-1))<>0) or
+            (Component^.SSY=0) or ((Component^.SSY and (Component^.SSY-1))<>0) or
+            ((Component^.QTSel and $fc)<>0) then begin
+          RaiseError;
+         end;
+         Context^.QTUsed:=Context^.QTUsed or (1 shl Component^.QTSel);
+         MaxSSX:=Max(MaxSSX,Component^.SSX);
+         MaxSSY:=Max(MaxSSY,Component^.SSY);
+        end;
+
+        if Context^.CountComponents=1 then begin
+         Component:=@Context^.Components[0];
+         Component^.SSX:=1;
+         Component^.SSY:=1;
+         MaxSSX:=0;
+         MaxSSY:=0;
+        end;
+
+        Context^.MBSizeX:=MaxSSX shl 3;
+        Context^.MBSizeY:=MaxSSY shl 3;
+
+        Context^.MBWidth:=(Context^.Width+(Context^.MBSizeX-1)) div Context^.MBSizeX;
+        Context^.MBHeight:=(Context^.Height+(Context^.MBSizeY-1)) div Context^.MBSizeY;
+
+        for Index:=0 to Context^.CountComponents-1 do begin
+         Component:=@Context^.Components[Index];
+         Component^.Width:=((Context^.Width*Component^.SSX)+(MaxSSX-1)) div MaxSSX;
+         Component^.Height:=((Context^.Height*Component^.SSY)+(MaxSSY-1)) div MaxSSY;
+         Component^.Stride:=(Context^.MBWidth*Component^.SSX) shl 3;
+         if ((Component^.Width<3) and (Component^.SSX<>MaxSSX)) or
+            ((Component^.Height<3) and (Component^.SSY<>MaxSSY)) then begin
+          RaiseError;
+         end;
+         Count:=Component^.Stride*((Context^.MBHeight*Component^.ssy) shl 3);
+ //       Count:=(Component^.Stride*((Context^.MBHeight*Context^.MBSizeY*Component^.ssy) div MaxSSY)) shl 3;
+         if not HeaderOnly then begin
+          SetLength(Component^.Pixels,Count);
+          FillChar(Component^.Pixels[0],Count,#$80);
+         end;
+        end;
+
+        inc(DataPosition,Len);
+
+       end;
+       $c4{DHT}:begin
+
+        if (DataPosition+2)>=DataSize then begin
+         RaiseError;
+        end;
+
+        Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
+
+        if (DataPosition+longword(Len))>=DataSize then begin
+         RaiseError;
+        end;
+
+        inc(DataPosition,2);
+        dec(Len,2);
+
+        while Len>=17 do begin
+
+         Value:=PByteArray(DataPointer)^[DataPosition];
+         if (Value and ($ec or $02))<>0 then begin
+          RaiseError;
+         end;
+
+         Value:=(Value or (Value shr 3)) and 3;
+         for CodeLen:=1 to 16 do begin
+          DHTCounts[CodeLen-1]:=PByteArray(DataPointer)^[DataPosition+longword(CodeLen)];
+         end;
+         inc(DataPosition,17);
+         dec(Len,17);
+
+         Huffman:=@Context^.HuffmanCodeTable[Value,0];
+         Remain:=65536;
+         Spread:=65536;
+         for CodeLen:=1 to 16 do begin
+          Spread:=Spread shr 1;
+          DHTCurrentCount:=DHTCounts[CodeLen-1];
+          if DHTCurrentCount<>0 then begin
+           dec(Remain,DHTCurrentCount shl (16-CodeLen));
+           if (Len<DHTCurrentCount) or
+              (Remain<0) then begin
+            RaiseError;
+           end;
+           for Index:=0 to DHTCurrentCount-1 do begin
+            Code:=PByteArray(DataPointer)^[DataPosition+longword(Index)];
+            for SubIndex:=0 to Spread-1 do begin
+             Huffman^.Bits:=CodeLen;
+             Huffman^.Code:=Code;
+             inc(Huffman);
+            end;
+           end;
+           inc(DataPosition,DHTCurrentCount);
+           dec(Len,DHTCurrentCount);
+          end;
+         end;
+         while Remain>0 do begin
+          dec(Remain);
+          Huffman^.Bits:=0;
+          inc(Huffman);
+         end;
+        end;
+
+        if Len>0 then begin
+         RaiseError;
+        end;
+
+        inc(DataPosition,Len);
+
+       end;
+       $da{SOS}:begin
+
+        if (DataPosition+2)>=DataSize then begin
+         RaiseError;
+        end;
+
+        Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
+
+        if ((DataPosition+longword(Len))>=DataSize) or (Len<2) then begin
+         RaiseError;
+        end;
+
+        inc(DataPosition,2);
+        dec(Len,2);
+
+        if (Len<(4+(2*Context^.CountComponents))) or
+           (PByteArray(DataPointer)^[DataPosition+0]<>Context^.CountComponents) then begin
+         RaiseError;
+        end;
+
+        inc(DataPosition);
+        dec(Len);
+
+        for Index:=0 to Context^.CountComponents-1 do begin
+         Component:=@Context^.Components[Index];
+         if (PByteArray(DataPointer)^[DataPosition+0]<>Component^.ID) or
+            ((PByteArray(DataPointer)^[DataPosition+1] and $ee)<>0) then begin
+          RaiseError;
+         end;
+         Component^.DCTabSel:=PByteArray(DataPointer)^[DataPosition+1] shr 4;
+         Component^.ACTabSel:=(PByteArray(DataPointer)^[DataPosition+1] and 1) or 2;
+         inc(DataPosition,2);
+         dec(Len,2);
+        end;
+
+        if (PByteArray(DataPointer)^[DataPosition+0]<>0) or
+           (PByteArray(DataPointer)^[DataPosition+1]<>63) or
+           (PByteArray(DataPointer)^[DataPosition+2]<>0) then begin
+         RaiseError;
+        end;
+
+        inc(DataPosition,Len);
+
+        if not HeaderOnly then begin
+
+         mbx:=0;
+         mby:=0;
+         RSTCount:=Context^.RSTInterval;
+         NextRST:=0;
+         repeat
+
+          for Index:=0 to Context^.CountComponents-1 do begin
+           Component:=@Context^.Components[Index];
+           for sby:=0 to Component^.ssy-1 do begin
+            for sbx:=0 to Component^.ssx-1 do begin
+             Code:=0;
+             Coef:=0;
+             FillChar(Context^.Block,SizeOf(Context^.Block),#0);
+             inc(Component^.DCPred,GetHuffmanCode(@Context^.HuffmanCodeTable[Component^.DCTabSel],nil));
+             Context^.Block[0]:=Component^.DCPred*Context^.QTable[Component^.QTSel,0];
+             repeat
+              Value:=GetHuffmanCode(@Context^.HuffmanCodeTable[Component^.ACTabSel],@Code);
+              if Code=0 then begin
+               // EOB
+               break;
+              end else if ((Code and $0f)=0) and (Code<>$f0) then begin
+               RaiseError;
+              end else begin
+               inc(Coef,(Code shr 4)+1);
+               if Coef>63 then begin
+                RaiseError;
+               end else begin
+                Context^.Block[ZigZagOrderToRasterOrderConversionTable[Coef]]:=Value*Context^.QTable[Component^.QTSel,Coef];
+               end;
+              end;
+             until Coef>=63;
+             ProcessIDCT(@Context^.Block,
+                         @Component^.Pixels[((((mby*Component^.ssy)+sby)*Component^.Stride)+
+                                             ((mbx*Component^.ssx)+sbx)) shl 3],
+                         Component^.Stride);
+            end;
+           end;
+          end;
+
+          inc(mbx);
+          if mbx>=Context^.MBWidth then begin
+           mbx:=0;
+           inc(mby);
+           if mby>=Context^.MBHeight then begin
+            mby:=0;
+            ImageWidth:=Context^.Width;
+            ImageHeight:=Context^.Height;
+            GetMem(ImageData,(Context^.Width*Context^.Height) shl 2);
+            FillChar(ImageData^,(Context^.Width*Context^.Height) shl 2,#0);
+            for Index:=0 to Context^.CountComponents-1 do begin
+             Component:=@Context^.Components[Index];
+             while (Component^.Width<Context^.Width) or (Component^.Height<Context^.Height) do begin
+              if Component^.Width<Context^.Width then begin
+               if Context^.CoSitedChroma then begin
+                UpsampleHCoSited(Component);
+               end else begin
+                UpsampleHCentered(Component);
+               end;
+              end;
+              if Component^.Height<Context^.Height then begin
+               if Context^.CoSitedChroma then begin
+                UpsampleVCoSited(Component);
+               end else begin
+                UpsampleVCentered(Component);
+               end;
+              end;
+             end;
+             if (Component^.Width<Context^.Width) or (Component^.Height<Context^.Height) then begin
+              RaiseError;
+             end;
+            end;
+            case Context^.CountComponents of
+             3:begin
+              pY:=@Context^.Components[0].Pixels[0];
+              aCb:=@Context^.Components[1].Pixels[0];
+              aCr:=@Context^.Components[2].Pixels[0];
+              oRGBX:=ImageData;
+              for y:=0 to Context^.Height-1 do begin
+               for x:=0 to Context^.Width-1 do begin
+                vY:=PByteArray(pY)^[x] shl 8;
+                vCb:=PByteArray(aCb)^[x]-128;
+                vCr:=PByteArray(aCr)^[x]-128;
+                PByteArray(oRGBX)^[0]:=ClipTable[SARLongint((vY+(vCr*359))+128,8) and $3ff];
+                PByteArray(oRGBX)^[1]:=ClipTable[SARLongint(((vY-(vCb*88))-(vCr*183))+128,8) and $3ff];
+                PByteArray(oRGBX)^[2]:=ClipTable[SARLongint((vY+(vCb*454))+128,8) and $3ff];
+                PByteArray(oRGBX)^[3]:=$ff;
+                inc(oRGBX,4);
+               end;
+               inc(pY,Context^.Components[0].Stride);
+               inc(aCb,Context^.Components[1].Stride);
+               inc(aCr,Context^.Components[2].Stride);
+              end;
+             end;
+             else begin
+              pY:=@Context^.Components[0].Pixels[0];
+              oRGBX:=ImageData;
+              for y:=0 to Context^.Height-1 do begin
+               for x:=0 to Context^.Width-1 do begin
+                vY:=ClipTable[PByteArray(pY)^[x] and $3ff];
+                PByteArray(oRGBX)^[0]:=vY;
+                PByteArray(oRGBX)^[1]:=vY;
+                PByteArray(oRGBX)^[2]:=vY;
+                PByteArray(oRGBX)^[3]:=$ff;
+                inc(oRGBX,4);
+               end;
+               inc(pY,Context^.Components[0].Stride);
+              end;
+             end;
+            end;
+            result:=true;
+            break;
+           end;
+          end;
+
+          if Context^.RSTInterval<>0 then begin
+           dec(RSTCount);
+           if RSTCount=0 then begin
+            Context^.BufBits:=Context^.BufBits and $f8;
+            Value:=GetBits(16);
+            if (((Value and $fff8)<>$ffd0) or ((Value and 7)<>NextRST)) then begin
+             RaiseError;
+            end;
+            NextRST:=(NextRST+1) and 7;
+            RSTCount:=Context^.RSTInterval;
+            for Index:=0 to 2 do begin
+             Context^.Components[Index].DCPred:=0;
+            end;
+           end;
+          end;
+
+         until false;
+
+        end;
+
+        break;
+
+       end;
+       $db{DQT}:begin
+
+        if (DataPosition+2)>=DataSize then begin
+         RaiseError;
+        end;
+
+        Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
+
+        if (DataPosition+longword(Len))>=DataSize then begin
+         RaiseError;
+        end;
+
+        inc(DataPosition,2);
+        dec(Len,2);
+
+        while Len>=65 do begin
+         Value:=PByteArray(DataPointer)^[DataPosition];
+         inc(DataPosition);
+         dec(Len);
+         if (Value and $fc)<>0 then begin
+          RaiseError;
+         end;
+         Context^.QTUsed:=Context^.QTUsed or (1 shl Value);
+         for Index:=0 to 63 do begin
+          Context^.QTable[Value,Index]:=PByteArray(DataPointer)^[DataPosition];
+          inc(DataPosition);
+          dec(Len);
+         end;
+        end;
+
+        inc(DataPosition,Len);
+
+       end;
+       $dd{DRI}:begin
+
+        if (DataPosition+2)>=DataSize then begin
+         RaiseError;
+        end;
+
+        Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
+
+        if ((DataPosition+longword(Len))>=DataSize) or
+           (Len<4) then begin
+         RaiseError;
+        end;
+
+        inc(DataPosition,2);
+        dec(Len,2);
+
+        Context^.RSTInterval:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
+
+        inc(DataPosition,Len);
+
+       end;
+       $e1{EXIF}:begin
+
+        if (DataPosition+2)>=DataSize then begin
+         RaiseError;
+        end;
+
+        Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
+
+        if ((DataPosition+longword(Len))>=DataSize) or
+           (Len<18) then begin
+         RaiseError;
+        end;
+
+        inc(DataPosition,2);
+        dec(Len,2);
+
+        NextDataPosition:=DataPosition+longword(Len);
+
+        if (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+0]))='E') and
+           (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+1]))='x') and
+           (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+2]))='i') and
+           (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+3]))='f') and
+           (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+4]))=#0) and
+           (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+5]))=#0) and
+           (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+6]))=AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+7]))) and
+           (((AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+6]))='I') and
+             (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+8]))='*') and
+             (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+9]))=#0)) or
+            ((AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+6]))='M') and
+             (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+8]))=#0) and
+             (AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+9]))='*'))) then begin
+         Context^.EXIFLE:=AnsiChar(byte(PByteArray(DataPointer)^[DataPosition+6]))='I';
+         if Len>=14 then begin
+          if Context^.EXIFLE then begin
+           Value:=(longint(PByteArray(DataPointer)^[DataPosition+10]) shl 0) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+11]) shl 8) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+12]) shl 16) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+13]) shl 24);
+          end else begin
+           Value:=(longint(PByteArray(DataPointer)^[DataPosition+10]) shl 24) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+11]) shl 16) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+12]) shl 8) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+13]) shl 0);
+          end;
+          inc(Value,6);
+          if (Value>=14) and ((Value+2)<Len) then begin
+           inc(DataPosition,Value);
+           dec(Len,Value);
+           if Context^.EXIFLE then begin
+            Count:=(longint(PByteArray(DataPointer)^[DataPosition+0]) shl 0) or
+                   (longint(PByteArray(DataPointer)^[DataPosition+1]) shl 8);
+           end else begin
+            Count:=(longint(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or
+                   (longint(PByteArray(DataPointer)^[DataPosition+1]) shl 0);
+           end;
+           inc(DataPosition,2);
+           dec(Len,2);
+           if Count<=(Len div 12) then begin
+            while Count>0 do begin
+             dec(Count);
+             if Context^.EXIFLE then begin
+              v0:=(longint(PByteArray(DataPointer)^[DataPosition+0]) shl 0) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+1]) shl 8);
+              v1:=(longint(PByteArray(DataPointer)^[DataPosition+2]) shl 0) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+3]) shl 8);
+              v2:=(longint(PByteArray(DataPointer)^[DataPosition+4]) shl 0) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+5]) shl 8) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+6]) shl 16) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+7]) shl 24);
+              v3:=(longint(PByteArray(DataPointer)^[DataPosition+8]) shl 0) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+9]) shl 8);
+             end else begin
+              v0:=(longint(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+1]) shl 0);
+              v1:=(longint(PByteArray(DataPointer)^[DataPosition+2]) shl 8) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+3]) shl 0);
+              v2:=(longint(PByteArray(DataPointer)^[DataPosition+4]) shl 24) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+5]) shl 16) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+6]) shl 8) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+7]) shl 0);
+              v3:=(longint(PByteArray(DataPointer)^[DataPosition+8]) shl 8) or
+                  (longint(PByteArray(DataPointer)^[DataPosition+9]) shl 0);
+             end;
+             if (v0=$0213{YCbCrPositioning}) and (v1=$0003{SHORT}) and (v2=1{LENGTH}) then begin
+              Context^.CoSitedChroma:=v3=2;
+              break;
+             end;
+             inc(DataPosition,12);
+             dec(Len,12);
+            end;
+           end;
+          end;
+         end;
+        end;
+
+        DataPosition:=NextDataPosition;
+
+       end;
+       $e0,$e2..$ef,$fe{Skip}:begin
+        if (DataPosition+2)>=DataSize then begin
+         RaiseError;
+        end;
+        Len:=(word(PByteArray(DataPointer)^[DataPosition+0]) shl 8) or PByteArray(DataPointer)^[DataPosition+1];
+        if (DataPosition+longword(Len))>=DataSize then begin
+         RaiseError;
+        end;
+        inc(DataPosition,Len);
+       end;
+       else begin
+        RaiseError;
+       end;
+      end;
+     end;
+    except
+     on e:ELoadJPEGImage do begin
+      result:=false;
+     end;
+     on e:Exception do begin
+      raise;
+     end;
+    end;
+   finally
+    if assigned(ImageData) and not result then begin
+     FreeMem(ImageData);
+     ImageData:=nil;
+    end;
+    Finalize(Context^);
+    FreeMem(Context);
    end;
-   Finalize(Context^);
-   FreeMem(Context);
   end;
  end;
 end;
@@ -1294,4 +1370,33 @@ begin
  end;
 end;
 
+procedure LoadTurboJPEG;
+begin
+ TurboJpegLibrary:=LoadLibrary({$ifdef Windows}{$ifdef cpu386}'turbojpeg32.dll'{$else}'turbojpeg64.dll'{$endif}{$else}'turbojpeg.so'{$endif});
+ if TurboJpegLibrary<>NilLibHandle then begin
+  tjInitCompress:=GetProcAddress(TurboJpegLibrary,'tjInitCompress');
+  tjInitDecompress:=GetProcAddress(TurboJpegLibrary,'tjInitDecompress');
+  tjDestroy:=GetProcAddress(TurboJpegLibrary,'tjDestroy');
+  tjAlloc:=GetProcAddress(TurboJpegLibrary,'tjAlloc');
+  tjFree:=GetProcAddress(TurboJpegLibrary,'tjFree');
+  tjCompress2:=GetProcAddress(TurboJpegLibrary,'tjCompress2');
+  tjDecompressHeader:=GetProcAddress(TurboJpegLibrary,'tjDecompressHeader');
+  tjDecompressHeader2:=GetProcAddress(TurboJpegLibrary,'tjDecompressHeader2');
+  tjDecompressHeader3:=GetProcAddress(TurboJpegLibrary,'tjDecompressHeader3');
+  tjDecompress2:=GetProcAddress(TurboJpegLibrary,'tjDecompress2');
+ end;
+end;
+
+procedure UnloadTurboJPEG;
+begin
+ if TurboJpegLibrary<>NilLibHandle then begin
+  FreeLibrary(TurboJpegLibrary);
+  TurboJpegLibrary:=NilLibHandle;
+ end;
+end;
+
+initialization
+ LoadTurboJPEG;
+finalization
+ UnloadTurboJPEG;
 end.
