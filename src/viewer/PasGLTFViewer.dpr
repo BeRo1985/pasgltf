@@ -453,6 +453,8 @@ begin
   ConsoleInstance.Lines.Add(#0#11+'setanimation '+#0#9+'x'+#0#11+'             '+#0#10+'Set animation to '+#0#9+'x'+#0#11+' (number)');
   ConsoleInstance.Lines.Add(#0#11+'resetanimation             '+#0#10+'Reset animation');
   ConsoleInstance.Lines.Add(#0#11+'resetcamera                '+#0#10+'Reset camera');
+  ConsoleInstance.Lines.Add(#0#11+'load '+#0#9+'x'+#0#11+'                     '+#0#10+'Load '+#0#9+'x'+#0#11+' (filename)');
+  ConsoleInstance.Lines.Add(#0#11+'unload                     '+#0#10+'Unload current GLTF/GLB object');
   ConsoleInstance.Lines.Add('');
  end else if (Command='exit') or (Command='quit') then begin
   SDLRunning:=false;
@@ -463,7 +465,7 @@ begin
     ConsoleInstance.Lines.Add(#0#11+IntToStr(Index+1)+'. '+#0#10+GLTFOpenGL.Animations[Index].Name);
    end;
   end;
- end else if (Command='setanimation') then begin
+ end else if Command='setanimation' then begin
   Value:=0;
   while (CommandLinePosition<=CommandLineLength) and (aCommandLine[CommandLinePosition] in ['0'..'9']) do begin
    Value:=(Value*10)+(ord(aCommandLine[CommandLinePosition])-ord('0'));
@@ -471,10 +473,19 @@ begin
   end;
   AnimationIndex:=Value-1;
   AnimationTime:=0.0;
- end else if (Command='resetanimation') then begin
+ end else if Command='resetanimation' then begin
   AnimationTime:=0.0;
- end else if (Command='resetcamera') then begin
+ end else if Command='resetcamera' then begin
   ResetCamera;
+ end else if Command='load' then begin
+  InputFileName:=copy(aCommandLine,CommandLinePosition,(CommandLineLength-CommandLinePosition)+1);
+ end else if Command='unload' then begin
+  if assigned(GLTFOpenGL) then begin
+   GLTFOpenGL.Unload;
+   FreeAndNil(GLTFOpenGL);
+  end;
+  CurrentFileName:='';
+  UpdateTitle;
  end else begin
   ConsoleInstance.Lines.Add(#0#12'Unknown command '#0#14'"'#0#13+Command+#0#14'"'#0#12'');
  end;
