@@ -104,15 +104,7 @@ unit UnitOpenGLImagePNG; // from PasVulkan, so zlib-license and Copyright (C), B
 
 interface
 
-{$ifdef delphi}
-uses SysUtils,Classes,PNGImage,Graphics,UnitOpenGLImage,dglOpenGL;
-{$else}
-{$ifdef fpc}
-uses SysUtils,Classes,FPImage,FPReadPNG,UnitOpenGLImage,UnitOpenGLOpenGL;
-{$else}
-uses UnitOpenGLImage,dglOpenGL;
-{$endif}
-{$endif}
+uses SysUtils,Classes,Math,{$ifdef delphi}PNGImage,{$else}{$ifdef fpc}FPImage,FPReadPNG,{$endif}{$endif}UnitOpenGLImage,dglOpenGL;
 
 type PPNGPixel=^TPNGPixel;
      TPNGPixel=packed record
@@ -162,7 +154,6 @@ type qword=int64;
 function LoadPNGImage(DataPointer:pointer;DataSize:longword;var ImageData:pointer;var ImageWidth,ImageHeight:longint;HeaderOnly:boolean):boolean;
 var Stream:TMemoryStream;
     PNG:TPNGImage;
-    BMP:TBitmap;
     y,x:longint;
     pin,pout,ain:PAnsiChar;
 begin
