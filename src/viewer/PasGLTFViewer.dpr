@@ -35,7 +35,10 @@ uses
   UnitOpenGLEnvMapDrawShader in 'UnitOpenGLEnvMapDrawShader.pas',
   UnitOpenGLAntialiasingShader in 'UnitOpenGLAntialiasingShader.pas',
   UnitOpenGLHDRToLDRShader in 'UnitOpenGLHDRToLDRShader.pas',
-  UnitOpenGLEnvMapGenShader in 'UnitOpenGLEnvMapGenShader.pas';
+  UnitOpenGLEnvMapGenShader in 'UnitOpenGLEnvMapGenShader.pas',
+  UnitFontPNG in 'UnitFontPNG.pas',
+  UnitOpenGLSpriteBatch in 'UnitOpenGLSpriteBatch.pas',
+  UnitOpenGLExtendedBlitRectShader in 'UnitOpenGLExtendedBlitRectShader.pas';
 
 const Title='PasGLTF viewer';
 
@@ -1001,7 +1004,14 @@ if ((Major>4) or ((Major=4) and (Minor>=5))) or
              ShadingShaders[true,true]:=TShadingShader.Create(true,true);
              try
 
-              MainLoop;
+              ExtendedBlitRectShader:=TExtendedBlitRectShader.Create;
+              try
+
+               MainLoop;
+
+              finally
+               FreeAndNil(ExtendedBlitRectShader);
+              end;
 
              finally
               FreeAndNil(ShadingShaders[true,true]);
