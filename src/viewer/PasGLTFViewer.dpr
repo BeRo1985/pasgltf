@@ -495,6 +495,8 @@ end;
 procedure MainLoop;
 var RootPath,TextureFileName:string;
     s:ansistring;
+    c:ansichar;
+    p:pansichar;
     TempScale:TPasGLTFFloat;
 begin
 
@@ -554,6 +556,36 @@ begin
        end;
        SDLK_END:begin
         ConsoleInstance.KeyEnd;
+       end;
+       SDLK_V:begin
+        if (Event.key.keysym.modifier and (KMOD_LCTRL or KMOD_RCTRL))<>0 then begin
+         p:=SDL_GetClipboardText;
+         if assigned(p) then begin
+          try
+           s:=p;
+           for c in s do begin
+            ConsoleInstance.KeyChar(c);
+           end;
+          finally
+           SDL_free(p);
+          end;
+         end;
+        end;
+       end;
+       SDLK_INSERT:begin
+        if (Event.key.keysym.modifier and (KMOD_LSHIFT or KMOD_RSHIFT))<>0 then begin
+         p:=SDL_GetClipboardText;
+         if assigned(p) then begin
+          try
+           s:=p;
+           for c in s do begin
+            ConsoleInstance.KeyChar(c);
+           end;
+          finally
+           SDL_free(p);
+          end;
+         end;
+        end;
        end;
       end;
      end else begin
