@@ -241,39 +241,70 @@ var Image:TFPMemoryImage;
     y,x:longint;
     c:TFPColor;
     pout:PAnsiChar;
+    tjWidth,tjHeight,tjJpegSubsamp:longint;
+    tjHandle:pointer;
 begin
  result:=false;
  try
   Stream:=TMemoryStream.Create;
   try
    if (DataSize>2) and (((byte(PAnsiChar(pointer(DataPointer))[0]) xor $ff)=0) and ((byte(PAnsiChar(pointer(DataPointer))[1]) xor $d8)=0)) then begin
-    if Stream.Write(DataPointer^,DataSize)=longint(DataSize) then begin
-     if Stream.Seek(0,soFromBeginning)=0 then begin
-      Image:=TFPMemoryImage.Create(20,20);
+    if (TurboJpegLibrary<>NilLibHandle) and
+       assigned(tjInitDecompress) and
+       assigned(tjDecompressHeader2) and
+       assigned(tjDecompress2) and
+       assigned(tjDestroy) then begin
+     tjHandle:=tjInitDecompress;
+     if assigned(tjHandle) then begin
       try
-       ReaderJPEG:=TFPReaderJPEG.Create;
-       try
-        Image.LoadFromStream(Stream,ReaderJPEG);
-        ImageWidth:=Image.Width;
-        ImageHeight:=Image.Height;
-        GetMem(ImageData,ImageWidth*ImageHeight*4);
-        pout:=ImageData;
-        for y:=0 to ImageHeight-1 do begin
-         for x:=0 to ImageWidth-1 do begin
-          c:=Image.Colors[x,y];
-          pout[0]:=ansichar(byte((c.red shr 8) and $ff));
-          pout[1]:=ansichar(byte((c.green shr 8) and $ff));
-          pout[2]:=ansichar(byte((c.blue shr 8) and $ff));
-          pout[3]:=AnsiChar(#$ff);
-          inc(pout,4);
+       if tjDecompressHeader2(tjHandle,DataPointer,DataSize,tjWidth,tjHeight,tjJpegSubsamp)>=0 then begin
+        ImageWidth:=tjWidth;
+        ImageHeight:=tjHeight;
+        if HeaderOnly then begin
+         result:=true;
+        end else begin
+         GetMem(ImageData,ImageWidth*ImageHeight*SizeOf(longword));
+         if tjDecompress2(tjHandle,DataPointer,DataSize,ImageData,tjWidth,0,tjHeight,7{TJPF_RGBA},2048{TJFLAG_FASTDCT})>=0 then begin
+          result:=true;
+         end else begin
+          FreeMem(ImageData);
+          ImageData:=nil;
          end;
         end;
-        result:=true;
-       finally
-        ReaderJPEG.Free;
        end;
       finally
-       Image.Free;
+       tjDestroy(tjHandle);
+      end;
+     end;
+    end else begin
+     if Stream.Write(DataPointer^,DataSize)=longint(DataSize) then begin
+      if Stream.Seek(0,soFromBeginning)=0 then begin
+       Image:=TFPMemoryImage.Create(20,20);
+       try
+        ReaderJPEG:=TFPReaderJPEG.Create;
+        try
+         Image.LoadFromStream(Stream,ReaderJPEG);
+         ImageWidth:=Image.Width;
+         ImageHeight:=Image.Height;
+         GetMem(ImageData,ImageWidth*ImageHeight*4);
+         pout:=ImageData;
+         for y:=0 to ImageHeight-1 do begin
+          for x:=0 to ImageWidth-1 do begin
+           c:=Image.Colors[x,y];
+           pout[0]:=ansichar(byte((c.red shr 8) and $ff));
+           pout[1]:=ansichar(byte((c.green shr 8) and $ff));
+           pout[2]:=ansichar(byte((c.blue shr 8) and $ff));
+           pout[3]:=AnsiChar(#$ff);
+           inc(pout,4);
+          end;
+         end;
+         result:=true;
+        finally
+         ReaderJPEG.Free;
+        end;
+       finally
+        Image.Free;
+       end;
       end;
      end;
     end;
