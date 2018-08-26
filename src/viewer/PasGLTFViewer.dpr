@@ -419,11 +419,81 @@ begin
  SDL_SetWindowTitle(SurfaceWindow,PAnsiChar(s));
 end;
 
+procedure ConsoleCommand(const aCommandLine:RawByteString);
+var CommandLineLength,CommandLinePosition,Value,Index:int32;
+    Command:RawByteString;
+begin
+
+ CommandLineLength:=length(aCommandLine);
+
+ CommandLinePosition:=1;
+
+ while (CommandLinePosition<=CommandLineLength) and (aCommandLine[CommandLinePosition] in [#0..#32]) do begin
+  inc(CommandLinePosition);
+ end;
+
+ Command:='';
+ while (CommandLinePosition<=CommandLineLength) and not (aCommandLine[CommandLinePosition] in [#0..#32]) do begin
+  Command:=Command+aCommandLine[CommandLinePosition];
+  inc(CommandLinePosition);
+ end;
+
+ while (CommandLinePosition<=CommandLineLength) and (aCommandLine[CommandLinePosition] in [#0..#32]) do begin
+  inc(CommandLinePosition);
+ end;
+
+ if Command='help' then begin
+  ConsoleInstance.Lines.Add('');
+  ConsoleInstance.Lines.Add(#0#14+'Available commands:');
+  ConsoleInstance.Lines.Add('');
+  ConsoleInstance.Lines.Add(#0#11+'help                       '+#0#10+'This help');
+  ConsoleInstance.Lines.Add(#0#11+'exit                       '+#0#10+'Exit the viewer');
+  ConsoleInstance.Lines.Add(#0#11+'quit                       '+#0#10+'Exit the viewer');
+  ConsoleInstance.Lines.Add(#0#11+'listanimations             '+#0#10+'List all avilable animations');
+  ConsoleInstance.Lines.Add(#0#11+'setanimation '+#0#9+'x'+#0#11+'             '+#0#10+'Set animation to '+#0#9+'x'+#0#11+' (number)');
+  ConsoleInstance.Lines.Add('');
+ end else if (Command='exit') or (Command='quit') then begin
+  SDLRunning:=false;
+ end else if (Command='listanimations') then begin
+  ConsoleInstance.Lines.Add(#0#11+'0. '+#0#10+'Static pose');
+  if assigned(GLTFOpenGL) then begin
+   for Index:=0 to length(GLTFOpenGL.Animations)-1 do begin
+    ConsoleInstance.Lines.Add(#0#11+IntToStr(Index+1)+'. '+#0#10+GLTFOpenGL.Animations[Index].Name);
+   end;
+  end;
+ end else if (Command='setanimation') then begin
+  Value:=0;
+  while (CommandLinePosition<=CommandLineLength) and (aCommandLine[CommandLinePosition] in ['0'..'9']) do begin
+   Value:=(Value*10)+(ord(aCommandLine[CommandLinePosition])-ord('0'));
+   inc(CommandLinePosition);
+  end;
+  AnimationIndex:=Value-1;
+  AnimationTime:=0.0;
+ end else begin
+  ConsoleInstance.Lines.Add(#0#12'Unknown command '#0#14'"'#0#13+Command+#0#14'"'#0#12'');
+ end;
+
+end;
+
 procedure MainLoop;
 var RootPath,TextureFileName:string;
     s:ansistring;
     TempScale:TPasGLTFFloat;
 begin
+
+ ConsoleInstance.Lines.Add(#0#15+Title);
+ ConsoleInstance.Lines.Add(#0#15+'Version '+Version);
+ ConsoleInstance.Lines.Add(#0#15+Copyright);
+ ConsoleInstance.Lines.Add('');
+ ConsoleInstance.Lines.Add(#0#14'  OpenGL vendor: '+GLGetString(GL_VENDOR));
+ ConsoleInstance.Lines.Add(#0#14'OpenGL renderer: '+GLGetString(GL_RENDERER));
+ ConsoleInstance.Lines.Add(#0#14' OpenGL version: '+GLGetString(GL_VERSION));
+ ConsoleInstance.Lines.Add('');
+ ConsoleInstance.Lines.Add(#0#12'Use the '#0#14'"'#0#13'help'#0#14'"'#0#12' command for help...');
+ ConsoleInstance.Lines.Add('');
+
+ ConsoleCommandHook:=ConsoleCommand;
+
  SDLRunning:=true;
  while SDLRunning do begin
 

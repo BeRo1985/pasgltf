@@ -40,6 +40,8 @@ type TPoint=record
       x,y:longint;
      end;
 
+     TConsoleCommand=procedure(const aCommandLine:RawByteString);
+
      TCursorInfo=record
       CursorShape:byte;
       CurPos:TPoint;
@@ -136,6 +138,7 @@ type TPoint=record
 
 var ConsoleInstance:TConsole;
     ConsoleInstanceLast,ConsoleInstanceNow:int64;
+    ConsoleCommandHook:TConsoleCommand=nil;
     
 implementation
 
@@ -1034,7 +1037,8 @@ begin
   HistoryPosition:=History.Count;
  end;
  Lines.Add(#0#15+'>'+Line);
- if OK then begin
+ if OK and assigned(ConsoleCommandHook) then begin
+  ConsoleCommandHook(Line);
  end;
  LinePosition:=1;
  LineFirstPosition:=1;
