@@ -38,7 +38,8 @@ uses
   UnitOpenGLEnvMapGenShader in 'UnitOpenGLEnvMapGenShader.pas',
   UnitFontPNG in 'UnitFontPNG.pas',
   UnitOpenGLSpriteBatch in 'UnitOpenGLSpriteBatch.pas',
-  UnitOpenGLExtendedBlitRectShader in 'UnitOpenGLExtendedBlitRectShader.pas';
+  UnitOpenGLExtendedBlitRectShader in 'UnitOpenGLExtendedBlitRectShader.pas',
+  UnitConsole in 'UnitConsole.pas';
 
 const Title='PasGLTF viewer';
 
@@ -328,6 +329,9 @@ begin
   glDrawArrays(GL_TRIANGLES,0,3);
   glBindVertexArray(0);
   AntialiasingShader.Unbind;
+  glDisable(GL_BLEND);
+  ConsoleInstance.Draw(DeltaTime,ViewPortX,ViewPortY,ViewPortWidth,ViewPortHeight);
+  glEnable(GL_DEPTH_TEST);
  end;
 end;
 
@@ -438,40 +442,78 @@ begin
     SDL_RENDER_TARGETS_RESET,SDL_RENDER_DEVICE_RESET:begin
     end;
     SDL_KEYDOWN:begin
+     if ConsoleInstance.Focus then begin
+      case Event.key.keysym.sym of
+       SDLK_LEFT:begin
+        ConsoleInstance.KeyLeft;
+       end;
+       SDLK_RIGHT:begin
+        ConsoleInstance.KeyRight;
+       end;
+       SDLK_UP:begin
+        ConsoleInstance.KeyUp;
+       end;
+       SDLK_DOWN:begin
+        ConsoleInstance.KeyDown;
+       end;
+       SDLK_BACKSPACE:begin
+        ConsoleInstance.KeyBackspace;
+       end;
+       SDLK_DELETE:begin
+        ConsoleInstance.KeyDelete;
+       end;
+       SDLK_HOME:begin
+        ConsoleInstance.KeyBegin;
+       end;
+       SDLK_END:begin
+        ConsoleInstance.KeyEnd;
+       end;
+      end;
+     end else begin
+      case Event.key.keysym.sym of
+       SDLK_B:begin
+        dec(AnimationIndex);
+        if (AnimationIndex<-1) and assigned(GLTFOpenGL) then begin
+         AnimationIndex:=length(GLTFOpenGL.Animations)-1;
+        end;
+        AnimationTime:=0.0;
+        UpdateTitle;
+       end;
+       SDLK_N:begin
+        inc(AnimationIndex);
+        if assigned(GLTFOpenGL) and (AnimationIndex>=length(GLTFOpenGL.Animations)) then begin
+         AnimationIndex:=-1;
+        end;
+        AnimationTime:=0.0;
+        UpdateTitle;
+       end;
+       SDLK_T:begin
+        AnimationTime:=0.0;
+        UpdateTitle;
+       end;
+       SDLK_M:begin
+        WrapCursor:=not WrapCursor;
+        SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
+        UpdateTitle;
+       end;
+       SDLK_R:begin
+        ResetCamera;
+        UpdateTitle;
+       end;
+      end;
+     end;
      case Event.key.keysym.sym of
       SDLK_ESCAPE:begin
 //     BackKey;
-       SDLRunning:=false;
-       break;
-      end;
-      SDLK_B:begin
-       dec(AnimationIndex);
-       if (AnimationIndex<-1) and assigned(GLTFOpenGL) then begin
-        AnimationIndex:=length(GLTFOpenGL.Animations)-1;
+       if ConsoleInstance.Focus then begin
+        ConsoleInstance.KeyEscape;
+       end else begin
+        SDLRunning:=false;
+        break;
        end;
-       AnimationTime:=0.0;
-       UpdateTitle;
       end;
-      SDLK_N:begin
-       inc(AnimationIndex);
-       if assigned(GLTFOpenGL) and (AnimationIndex>=length(GLTFOpenGL.Animations)) then begin
-        AnimationIndex:=-1;
-       end;
-       AnimationTime:=0.0;
-       UpdateTitle;
-      end;
-      SDLK_T:begin
-       AnimationTime:=0.0;
-       UpdateTitle;
-      end;
-      SDLK_M:begin
-       WrapCursor:=not WrapCursor;
-       SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
-       UpdateTitle;
-      end;
-      SDLK_R:begin
-       ResetCamera;
-       UpdateTitle;
+      SDLK_F8,SDLK_CARET,SDLK_BACKQUOTE:begin
+       ConsoleInstance.Focus:=not ConsoleInstance.Focus;
       end;
       SDLK_SPACE:begin
        AutomaticRotate:=not AutomaticRotate;
@@ -487,6 +529,8 @@ begin
         end;
         SDL_ShowCursor(ord(not FullScreen) and 1);
         SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
+       end else if ConsoleInstance.Focus then begin
+        ConsoleInstance.KeyEnter;
        end;
        UpdateTitle;
       end;
@@ -499,6 +543,13 @@ begin
      end;
     end;
     SDL_KEYUP:begin
+    end;
+    SDL_TEXTINPUT:begin
+     if ConsoleInstance.Focus then begin
+      if (Event.tedit.text[0] in ([$20..$7f]-[ord('^'),ord('`')])) and (Event.tedit.text[1]=0) then begin
+       ConsoleInstance.KeyChar(ansichar(byte(Event.tedit.text[0] and $ff)));
+      end;
+     end;
     end;
     SDL_DROPFILE:begin
      if assigned(Event.drop.FileName) then begin
@@ -1007,7 +1058,16 @@ if ((Major>4) or ((Major=4) and (Minor>=5))) or
               ExtendedBlitRectShader:=TExtendedBlitRectShader.Create;
               try
 
-               MainLoop;
+               ConsoleInstance:=TConsole.Create;
+               try
+
+                ConsoleInstance.Upload;
+
+                MainLoop;
+
+               finally
+                FreeAndNil(ConsoleInstance);
+               end;
 
               finally
                FreeAndNil(ExtendedBlitRectShader);

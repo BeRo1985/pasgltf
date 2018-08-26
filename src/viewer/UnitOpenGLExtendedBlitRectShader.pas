@@ -158,6 +158,9 @@ end;
 procedure TExtendedBlitRectShader.BindAttributes;
 begin
  inherited BindAttributes;
+ glBindAttribLocation(ProgramHandle,0,pointer(pansichar('aPosition')));
+ glBindAttribLocation(ProgramHandle,1,pointer(pansichar('aTexCoord')));
+ glBindAttribLocation(ProgramHandle,2,pointer(pansichar('aColor')));
 end;
 
 procedure TExtendedBlitRectShader.BindVariables;

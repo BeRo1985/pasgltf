@@ -174,7 +174,7 @@ begin
         GetMem(ImageData,ImageWidth*ImageHeight*4);
         pout:=ImageData;
         case PNG.Header.ColorType of
-         COLOR_GRAYSCALE,COLOR_GRAYSCALEALPHA:begin
+{        COLOR_GRAYSCALE,COLOR_GRAYSCALEALPHA:begin
           for y:=0 to ImageHeight-1 do begin
            pin:=PNG.Scanline[y];
            if PNG.Header.ColorType=COLOR_GRAYSCALEALPHA then begin
@@ -195,7 +195,7 @@ begin
             inc(pout,4);
            end;
           end;
-         end;
+         end;}
          COLOR_RGB,COLOR_RGBALPHA:begin
           for y:=0 to ImageHeight-1 do begin
            pin:=PNG.Scanline[y];
