@@ -128,7 +128,7 @@ type TShadingShader=class(TShader)
        uBRDFLUTTexture:glInt;
        uEnvMapTexture:glInt;
        uEnvMapMaxLevel:glInt;
-       constructor Create(const aSkinned,aAlphaTest:boolean);
+       constructor Create(const aSkinned,aAlphaTest,aShadowMap:boolean);
        destructor Destroy; override;
        procedure BindAttributes; override;
        procedure BindVariables; override;
@@ -136,7 +136,7 @@ type TShadingShader=class(TShader)
 
 implementation
 
-constructor TShadingShader.Create(const aSkinned,aAlphaTest:boolean);
+constructor TShadingShader.Create(const aSkinned,aAlphaTest,aShadowMap:boolean);
 var f0,f1,f2,f,v:ansistring;
 begin
  if aSkinned then begin
@@ -172,8 +172,13 @@ begin
     'layout(location = 7) in uvec4 aJoints1;'+#13#10+
     'layout(location = 8) in vec4 aWeights0;'+#13#10+
     'layout(location = 9) in vec4 aWeights1;'+#13#10+
-    'layout(location = 10) in uint aVertexIndex;'+#13#10+
-    'out vec3 vCameraRelativePosition;'+#13#10+
+    'layout(location = 10) in uint aVertexIndex;'+#13#10;
+ if aShadowMap then begin
+  v:=v+'out vec3 vWorldSpacePosition;'+#13#10;
+ end else begin
+  v:=v+'out vec3 vCameraRelativePosition;'+#13#10;
+ end;
+ v:=v+
     'out vec2 vTexCoord0;'+#13#10+
     'out vec2 vTexCoord1;'+#13#10+
     'out vec3 vNormal;'+#13#10+
@@ -184,6 +189,7 @@ begin
     '  mat4 inverseViewMatrix;'+#13#10+
     '  mat4 modelMatrix;'+#13#10+
     '  mat4 viewProjectionMatrix;'+#13#10+
+    '  mat4 shadowMapMatrix;'+#13#10+
     '} uFrameGlobals;'+#13#10+
     'struct MorphTargetVertex {'+#13#10+
     '  vec4 position;'+#13#10+
@@ -220,13 +226,23 @@ begin
     '  vTexCoord0 = aTexCoord0;'+#13#10+
     '  vTexCoord1 = aTexCoord1;'+#13#10+
     '  vColor = aColor0;'+#13#10+
-    '  vec4 worldSpacePosition = modelMatrix * vec4(position, 1.0);'+#13#10+
-    '  vCameraRelativePosition = (worldSpacePosition.xyz / worldSpacePosition.w) - uFrameGlobals.inverseViewMatrix[3].xyz;'+#13#10+
+    '  vec4 worldSpacePosition = modelMatrix * vec4(position, 1.0);'+#13#10;
+ if aShadowMap then begin
+  v:=v+'  vWorldSpacePosition = worldSpacePosition.xyz / worldSpacePosition.w;'+#13#10;
+ end else begin
+  v:=v+'  vCameraRelativePosition = (worldSpacePosition.xyz / worldSpacePosition.w) - uFrameGlobals.inverseViewMatrix[3].xyz;'+#13#10;
+ end;
+ v:=v+
     '  gl_Position = uFrameGlobals.viewProjectionMatrix * worldSpacePosition;'+#13#10+
     '}'+#13#10;
  f:='#version 430'+#13#10+
-    'layout(location = 0) out vec4 oOutput;'+#13#10+
-    'in vec3 vCameraRelativePosition;'+#13#10+
+    'layout(location = 0) out vec4 oOutput;'+#13#10;
+ if aShadowMap then begin
+  f:=f+'in vec3 vWorldSpacePosition;'+#13#10;
+ end else begin
+  f:=f+'in vec3 vCameraRelativePosition;'+#13#10;
+ end;
+ f:=f+
     'in vec2 vTexCoord0;'+#13#10+
     'in vec2 vTexCoord1;'+#13#10+
     'in vec3 vNormal;'+#13#10+
@@ -242,6 +258,12 @@ begin
     'uniform samplerCube uEnvMapTexture;'+#13#10+
     'uniform int uEnvMapMaxLevel;'+#13#10+
     'uniform vec3 uLightDirection;'+#13#10+
+    'layout(std140, binding = '+IntToStr(uboFrameGlobals)+') uniform uboFrameGlobals {'+#13#10+
+    '  mat4 inverseViewMatrix;'+#13#10+
+    '  mat4 modelMatrix;'+#13#10+
+    '  mat4 viewProjectionMatrix;'+#13#10+
+    '  mat4 shadowMapMatrix;'+#13#10+
+    '} uFrameGlobals;'+#13#10+
     'layout(std140, binding = '+IntToStr(uboMaterial)+') uniform uboMaterial {'+#13#10+
     '  vec4 baseColorFactor;'+#13#10+
     '  vec4 specularFactor;'+#13#10+
@@ -334,107 +356,117 @@ begin
     'void main(){'+#13#10+
     '  vec4 color = vec4(0.0);'+#13#10+
     '  uint flags = uMaterial.alphaCutOffFlagsTex0Tex1.y,'+#13#10+
-    '       shadingModel = (flags >> 0u) & 0xfu;'+#13#10+
-    '  switch(shadingModel){'+#13#10+
-    '    case smPBRMetallicRoughness:'+#13#10+
-    '    case smPBRSpecularGlossiness:{'+#13#10+
-    '      vec4 diffuseColorAlpha, specularColorRoughness;'+#13#10+
-    '      switch(shadingModel){'+#13#10+
-    '        case smPBRMetallicRoughness:{'+#13#10+
-    '          const vec3 f0 = vec3(0.04);'+#13#10+ // dielectricSpecular
-    '          vec4 baseColor = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) *'+#13#10+
-    '                           uMaterial.baseColorFactor;'+#13#10+
-    '          vec2 metallicRoughness = clamp(textureFetch(uMetallicRoughnessTexture, 1, vec4(1.0)).zy *'+#13#10+
-    '                                         uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.xy,'+#13#10+
-    '                                         vec2(0.0, 1e-3),'+#13#10+
-    '                                         vec2(1.0));'+#13#10+
-    '          diffuseColorAlpha = vec4((baseColor.xyz * (vec3(1.0) - f0) * (1.0 - metallicRoughness.x)) * PI,'+#13#10+
-    '                                   baseColor.w);'+#13#10+
-    '          specularColorRoughness = vec4(mix(f0, baseColor.xyz, metallicRoughness.x) * PI,'+#13#10+
-    '                                        metallicRoughness.y);'+#13#10+
-    '          break;'+#13#10+
-    '        }'+#13#10+
-    '        case smPBRSpecularGlossiness:{'+#13#10+
-    '          vec4 specularGlossiness = textureFetchSRGB(uMetallicRoughnessTexture, 1, vec4(1.0)) *'+#13#10+
-    '                                    vec4(uMaterial.specularFactor.xyz,'+#13#10+
-    '                                         uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.y);'+#13#10+
-    '          diffuseColorAlpha = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) *'+#13#10+
-    '                              uMaterial.baseColorFactor *'+#13#10+
-    '                              vec2((1.0 - max(max(specularGlossiness.x,'+#13#10+
-    '                                                  specularGlossiness.y),'+#13#10+
-    '                                              specularGlossiness.z)) * PI,'+#13#10+
-    '                                   1.0).xxxy;'+#13#10+
-    '          specularColorRoughness = vec4(specularGlossiness.xyz * PI,'+#13#10+
-    '                                        clamp(1.0 - specularGlossiness.w, 1e-3, 1.0));'+#13#10+
-    '          break;'+#13#10+
-    '        }'+#13#10+
-    '      }'+#13#10+
-    '      vec3 normal;'+#13#10+
-    '      if((texCoordIndices.x & 0x00000f00u) != 0x00000f00u){'+#13#10+
-    '        vec4 normalTexture = textureFetch(uNormalTexture, 2, vec2(0.0, 1.0).xxyx);'+#13#10+
-    '        normal = normalize(mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal)) * normalize((normalTexture.xyz - vec3(0.5)) * (vec2(uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.z, 1.0).xxy * 2.0)));'+#13#10+
-    '      }else{'+#13#10+
-    '        normal = normalize(vNormal);'+#13#10+
-    '      }'+#13#10+
-    '      normal *= (((flags & (1u << 5u)) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
-    '      vec4 occlusionTexture = textureFetch(uOcclusionTexture, 3, vec4(1.0));'+#13#10+
-    '      vec4 emissiveTexture = textureFetchSRGB(uEmissiveTexture, 4, vec4(0.0)); '+#13#10+
-    '      float cavity = clamp(mix(1.0, occlusionTexture.x, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
-    '            transparency = 0.0,'+#13#10+
-    '            refractiveAngle = 0.0,'+#13#10+
-    '            ambientOcclusion = 1.0,'+#13#10+
-    '            shadow = 1.0,'+#13#10+
-    '            reflectance = max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z);'+#13#10+
-    '      vec3 viewDirection = normalize(vCameraRelativePosition);'+#13#10+
-{   '      color.xyz += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
-    '                                  pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
-    '                                  -uLightDirection,'+#13#10+
-    '                                  normal.xyz,'+#13#10+
-    '                                  diffuseColorAlpha.xyz,'+#13#10+
-    '                                  specularColorRoughness.xyz,'+#13#10+
-    '                                  -viewDirection,'+#13#10+
-    '                                  refractiveAngle,'+#13#10+
-    '                                  transparency,'+#13#10+
-    '                                  specularColorRoughness.w,'+#13#10+
-    '                                  cavity) +'+#13#10+
-    '                   (((('+#13#10+
-    '                       // Sky light'+#13#10+
-    '                       (max(0.0, 0.6 + (0.4 * normal.y)) * vec3(0.05, 0.20, 0.45)) +'+#13#10+
-    '                       // Backlight'+#13#10+
-    '                       (max(0.0, 0.2 + (0.8 * dot(normal.xyz, normalize(vec3(uLightDirection.xz, 0.0).xzy)))) * vec3(0.20, 0.25, 0.25))'+#13#10+
-    '                     ) * ambientOcclusion) +'+#13#10+
-    '                     // Bounce light'+#13#10+
-    '                     (clamp(-normal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
-    '                    ) * diffuseLambert(diffuseColorAlpha.xyz) * cavity));'+#13#10+ (*{}
-(* )'      color.xyz += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
-    '                                 pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
-    '                                 -uLightDirection,'+#13#10+
-    '                                 normal.xyz,'+#13#10+
-    '                                 diffuseColorAlpha.xyz,'+#13#10+
-    '                                 specularColorRoughness.xyz,'+#13#10+
-    '                                 -viewDirection,'+#13#10+
-    '                                 refractiveAngle,'+#13#10+
-    '                                 transparency,'+#13#10+
-    '                                 specularColorRoughness.w,'+#13#10+
-    '                                 cavity);'+#13#10+(**)
-    '      {'+#13#10+
-    '        float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
-    '              ao = cavity * ambientOcclusion,'+#13#10+
-    '              specularOcclusion = clamp((pow(NdotV + ao, specularColorRoughness.w * specularColorRoughness.w) - 1.0) + ao, 0.0, 1.0);'+#13#10+
-    '      	 vec2 brdf = textureLod(uBRDFLUTTexture, vec2(specularColorRoughness.w, NdotV), 0.0).xy;'+#13#10+
-    '        color.xyz += ((textureLod(uEnvMapTexture, normalize(reflect(viewDirection, normal.xyz)),'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(specularColorRoughness.w))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColorRoughness.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z) * 50.0, 0.0, 1.0))) * specularOcclusion) +'+#13#10+
-    '                      (textureLod(uEnvMapTexture, normal.xyz, float(uEnvMapMaxLevel)).xyz * diffuseColorAlpha.xyz * ao)) * OneOverPI;'+#13#10+
-    '      }'+#13#10+
-    '      color = vec4(vec3(color.xyz + (emissiveTexture.xyz * uMaterial.emissiveFactor.xyz)), diffuseColorAlpha.w);'+#13#10+
-    '      break;'+#13#10+
-    '    }'+#13#10+
-    '    case smUnlit:{'+#13#10+
-    '      color = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) * uMaterial.baseColorFactor;'+#13#10+
-    '      break;'+#13#10+
-    '    }'+#13#10+
-    '  }'+#13#10+
-    '  float alpha = color.w * vColor.w;'+#13#10+
-    '  oOutput = vec4(color.xyz * vColor.xyz, mix(1.0, alpha, float(int(uint((flags >> 4u) & 1u)))));'+#13#10;
+    '       shadingModel = (flags >> 0u) & 0xfu;'+#13#10;
+ if aShadowMap then begin
+  f:=f+
+       '  vec4 t = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
+       '  float d = t.z / t.w;'+#13#10+
+       '  float s = d * d;'+#13#10+
+       '  vec4 m = vec4(d, s, s * d, s * s);'+#13#10+
+       '  float alpha = textureFetch(uBaseColorTexture, 0, vec4(1.0)).w * uMaterial.baseColorFactor.w * vColor.w;'+#13#10;
+ end else begin
+  f:=f+
+     '  switch(shadingModel){'+#13#10+
+     '    case smPBRMetallicRoughness:'+#13#10+
+     '    case smPBRSpecularGlossiness:{'+#13#10+
+     '      vec4 diffuseColorAlpha, specularColorRoughness;'+#13#10+
+     '      switch(shadingModel){'+#13#10+
+     '        case smPBRMetallicRoughness:{'+#13#10+
+     '          const vec3 f0 = vec3(0.04);'+#13#10+ // dielectricSpecular
+     '          vec4 baseColor = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) *'+#13#10+
+     '                           uMaterial.baseColorFactor;'+#13#10+
+     '          vec2 metallicRoughness = clamp(textureFetch(uMetallicRoughnessTexture, 1, vec4(1.0)).zy *'+#13#10+
+     '                                         uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.xy,'+#13#10+
+     '                                         vec2(0.0, 1e-3),'+#13#10+
+     '                                         vec2(1.0));'+#13#10+
+     '          diffuseColorAlpha = vec4((baseColor.xyz * (vec3(1.0) - f0) * (1.0 - metallicRoughness.x)) * PI,'+#13#10+
+     '                                   baseColor.w);'+#13#10+
+     '          specularColorRoughness = vec4(mix(f0, baseColor.xyz, metallicRoughness.x) * PI,'+#13#10+
+     '                                        metallicRoughness.y);'+#13#10+
+     '          break;'+#13#10+
+     '        }'+#13#10+
+     '        case smPBRSpecularGlossiness:{'+#13#10+
+     '          vec4 specularGlossiness = textureFetchSRGB(uMetallicRoughnessTexture, 1, vec4(1.0)) *'+#13#10+
+     '                                    vec4(uMaterial.specularFactor.xyz,'+#13#10+
+     '                                         uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.y);'+#13#10+
+     '          diffuseColorAlpha = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) *'+#13#10+
+     '                              uMaterial.baseColorFactor *'+#13#10+
+     '                              vec2((1.0 - max(max(specularGlossiness.x,'+#13#10+
+     '                                                  specularGlossiness.y),'+#13#10+
+     '                                              specularGlossiness.z)) * PI,'+#13#10+
+     '                                   1.0).xxxy;'+#13#10+
+     '          specularColorRoughness = vec4(specularGlossiness.xyz * PI,'+#13#10+
+     '                                        clamp(1.0 - specularGlossiness.w, 1e-3, 1.0));'+#13#10+
+     '          break;'+#13#10+
+     '        }'+#13#10+
+     '      }'+#13#10+
+     '      vec3 normal;'+#13#10+
+     '      if((texCoordIndices.x & 0x00000f00u) != 0x00000f00u){'+#13#10+
+     '        vec4 normalTexture = textureFetch(uNormalTexture, 2, vec2(0.0, 1.0).xxyx);'+#13#10+
+     '        normal = normalize(mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal)) * normalize((normalTexture.xyz - vec3(0.5)) * (vec2(uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.z, 1.0).xxy * 2.0)));'+#13#10+
+     '      }else{'+#13#10+
+     '        normal = normalize(vNormal);'+#13#10+
+     '      }'+#13#10+
+     '      normal *= (((flags & (1u << 5u)) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
+     '      vec4 occlusionTexture = textureFetch(uOcclusionTexture, 3, vec4(1.0));'+#13#10+
+     '      vec4 emissiveTexture = textureFetchSRGB(uEmissiveTexture, 4, vec4(0.0)); '+#13#10+
+     '      float cavity = clamp(mix(1.0, occlusionTexture.x, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
+     '            transparency = 0.0,'+#13#10+
+     '            refractiveAngle = 0.0,'+#13#10+
+     '            ambientOcclusion = 1.0,'+#13#10+
+     '            shadow = 1.0,'+#13#10+
+     '            reflectance = max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z);'+#13#10+
+     '      vec3 viewDirection = normalize(vCameraRelativePosition);'+#13#10+
+ {   '      color.xyz += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
+     '                                  pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
+     '                                  -uLightDirection,'+#13#10+
+     '                                  normal.xyz,'+#13#10+
+     '                                  diffuseColorAlpha.xyz,'+#13#10+
+     '                                  specularColorRoughness.xyz,'+#13#10+
+     '                                  -viewDirection,'+#13#10+
+     '                                  refractiveAngle,'+#13#10+
+     '                                  transparency,'+#13#10+
+     '                                  specularColorRoughness.w,'+#13#10+
+     '                                  cavity) +'+#13#10+
+     '                   (((('+#13#10+
+     '                       // Sky light'+#13#10+
+     '                       (max(0.0, 0.6 + (0.4 * normal.y)) * vec3(0.05, 0.20, 0.45)) +'+#13#10+
+     '                       // Backlight'+#13#10+
+     '                       (max(0.0, 0.2 + (0.8 * dot(normal.xyz, normalize(vec3(uLightDirection.xz, 0.0).xzy)))) * vec3(0.20, 0.25, 0.25))'+#13#10+
+     '                     ) * ambientOcclusion) +'+#13#10+
+     '                     // Bounce light'+#13#10+
+     '                     (clamp(-normal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
+     '                    ) * diffuseLambert(diffuseColorAlpha.xyz) * cavity));'+#13#10+ (*{}
+ (* )'      color.xyz += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
+     '                                 pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
+     '                                 -uLightDirection,'+#13#10+
+     '                                 normal.xyz,'+#13#10+
+     '                                 diffuseColorAlpha.xyz,'+#13#10+
+     '                                 specularColorRoughness.xyz,'+#13#10+
+     '                                 -viewDirection,'+#13#10+
+     '                                 refractiveAngle,'+#13#10+
+     '                                 transparency,'+#13#10+
+     '                                 specularColorRoughness.w,'+#13#10+
+     '                                 cavity);'+#13#10+(**)
+     '      {'+#13#10+
+     '        float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
+     '              ao = cavity * ambientOcclusion,'+#13#10+
+     '              specularOcclusion = clamp((pow(NdotV + ao, specularColorRoughness.w * specularColorRoughness.w) - 1.0) + ao, 0.0, 1.0);'+#13#10+
+     '      	 vec2 brdf = textureLod(uBRDFLUTTexture, vec2(specularColorRoughness.w, NdotV), 0.0).xy;'+#13#10+
+     '        color.xyz += ((textureLod(uEnvMapTexture, normalize(reflect(viewDirection, normal.xyz)),'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(specularColorRoughness.w))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColorRoughness.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z) * 50.0, 0.0, 1.0))) * specularOcclusion) +'+#13#10+
+     '                      (textureLod(uEnvMapTexture, normal.xyz, float(uEnvMapMaxLevel)).xyz * diffuseColorAlpha.xyz * ao)) * OneOverPI;'+#13#10+
+     '      }'+#13#10+
+     '      color = vec4(vec3(color.xyz + (emissiveTexture.xyz * uMaterial.emissiveFactor.xyz)), diffuseColorAlpha.w);'+#13#10+
+     '      break;'+#13#10+
+     '    }'+#13#10+
+     '    case smUnlit:{'+#13#10+
+     '      color = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) * uMaterial.baseColorFactor;'+#13#10+
+     '      break;'+#13#10+
+     '    }'+#13#10+
+     '  }'+#13#10+
+     '  float alpha = color.w * vColor.w;'+#13#10+
+     '  oOutput = vec4(color.xyz * vColor.xyz, mix(1.0, alpha, float(int(uint((flags >> 4u) & 1u)))));'+#13#10;
+ end;
  if aAlphaTest then begin
   f:=f+'  if(alpha < uintBitsToFloat(uMaterial.alphaCutOffFlagsTex0Tex1.x)){'+#13#10+
        '    discard;'+#13#10+
