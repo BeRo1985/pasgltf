@@ -107,7 +107,7 @@
         <DCC_DcpOutput>.\DelphiOutput\$(Platform)\$(Config)</DCC_DcpOutput>
         <DCC_DcuOutput>.\DelphiOutput\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_BplOutput>.\DelphiOutput\$(Platform)\$(Config)</DCC_BplOutput>
-        <DCC_ExeOutput>.\DelphiOutput\$(Platform)\$(Config)</DCC_ExeOutput>
+        <DCC_ExeOutput>.\..\..\bin\</DCC_ExeOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
         <Android_SplashImage426>$(BDS)\bin\Artwork\Android\FM_SplashImage_426x320.png</Android_SplashImage426>
