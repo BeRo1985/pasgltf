@@ -409,7 +409,18 @@ type EGLTFOpenGL=class(Exception);
                       const aTime:TPasGLTFFloat=0.0;
                       const aScene:TPasGLTFSizeInt=-1;
                       const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
+      public
        property StaticBoundingBox:TBoundingBox read fStaticBoundingBox;
+       property Animations:TAnimations read fAnimations;
+       property Materials:TMaterials read fMaterials;
+       property Meshes:TMeshes read fMeshes;
+       property Skins:TSkins read fSkins;
+       property Nodes:TNodes read fNodes;
+       property Images:TImages read fImages;
+       property Samplers:TSamplers read fSamplers;
+       property Textures:TTextures read fTextures;
+       property Scenes:TScenes read fScenes;
+       property Scene:TPasGLTFSizeInt read fScene;
       published
        property GetURI:TGetURI read fGetURI write fGetURI;
        property RootPath:String read fRootPath write fRootPath;

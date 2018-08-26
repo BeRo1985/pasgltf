@@ -116,6 +116,8 @@ var StartPerformanceCounter:Int64=0;
 
     ButtonLeftPressed:boolean=false;
 
+    AnimationIndex:int32=0;
+
     ZoomLevel:TPasGLTFFloat=1.0;
 
     CameraRotationX:TPasGLTFFloat=0.0;
@@ -272,7 +274,7 @@ var Event:TSDL_Event;
                      ShadingShaders[false,true],
                      ShadingShaders[true,false],
                      ShadingShaders[true,true],
-                     0,
+                     AnimationIndex,
                      Time);
     end;
     t1:=SDL_GetPerformanceCounter;
@@ -740,6 +742,18 @@ begin
                      SDLRunning:=false;
                      break;
                     end;
+                    SDLK_B:begin
+                     dec(AnimationIndex);
+                     if (AnimationIndex<-1) and assigned(GLTFOpenGL) then begin
+                      AnimationIndex:=length(GLTFOpenGL.Animations)-1;
+                     end;
+                    end;
+                    SDLK_N:begin
+                     inc(AnimationIndex);
+                     if assigned(GLTFOpenGL) and (AnimationIndex>=length(GLTFOpenGL.Animations)) then begin
+                      AnimationIndex:=-1;
+                     end;
+                    end;
                     SDLK_M:begin
                      WrapCursor:=not WrapCursor;
                      SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
@@ -794,6 +808,7 @@ begin
                      SDL_free(Event.drop.FileName);
                     end;
                     ResetCamera;
+                    AnimationIndex:=0;
                    end;
                   end;
                   SDL_WINDOWEVENT:begin
