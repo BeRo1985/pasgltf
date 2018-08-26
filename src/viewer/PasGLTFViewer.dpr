@@ -39,6 +39,8 @@ uses
 
 const Title='PasGLTF viewer';
 
+      Version='2018.08.26.16.00.0000';
+
       Copyright='Copyright (C) 2018, Benjamin ''BeRo'' Rosseaux';
 
 // Force usage of dedicated GPU for OpenGL with Delphi and FreePascal/Lazarus on Multi-GPU systems such as Notebooks on Windows
@@ -376,7 +378,7 @@ end;
 procedure UpdateTitle;
 var s:TPasGLTFUTF8String;
 begin
- s:=Title;
+ s:=Title+' - Version '+Version+' - '+Copyright;
  if length(CurrentFileName)>0 then begin
   s:=s+' - '+ExtractFileName(CurrentFileName);
   if assigned(GLTFOpenGL) then begin
@@ -407,7 +409,6 @@ begin
    end;
   end;
  end;
- s:=s+' - '+Copyright;
  SDL_SetWindowTitle(SurfaceWindow,PAnsiChar(s));
 end;
 
@@ -711,7 +712,7 @@ for Index:=0 downto 0 do begin
   SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,1);
   SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,1 shl MultiSampleCounter);
  end;
- SurfaceWindow:=SDL_CreateWindow(pansichar(Title+' - '+Copyright),(BestWidth-ScreenWidth) div 2,(BestHeight-ScreenHeight) div 2,ScreenWidth,ScreenHeight,SDL_WINDOW_OPENGL or SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE or VideoFlags);
+ SurfaceWindow:=SDL_CreateWindow(pansichar(Title+' - Version '+Version+' - '+Copyright),(BestWidth-ScreenWidth) div 2,(BestHeight-ScreenHeight) div 2,ScreenWidth,ScreenHeight,SDL_WINDOW_OPENGL or SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE or VideoFlags);
  if assigned(SurfaceWindow) then begin
   SDL_EventState(SDL_DROPFILE,SDL_ENABLE);
   SurfaceContext:=SDL_GL_CreateContext(SurfaceWindow);
