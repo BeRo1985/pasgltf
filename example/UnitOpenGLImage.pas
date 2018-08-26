@@ -468,7 +468,7 @@ begin
   if assigned(IsFloat) then begin
    IsFloat^:=false;
   end;
-  result:=LoadJPEGImage(DataPointer,DataSize,ImageData,ImageWidth,ImageHeight);
+  result:=LoadJPEGImage(DataPointer,DataSize,ImageData,ImageWidth,ImageHeight,HeaderOnly);
  end;
  if assigned(IsFloat) then begin
   IsFloat^:=IsFloatTemp;
