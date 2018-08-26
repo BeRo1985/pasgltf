@@ -332,7 +332,12 @@ var Factor:int64;
 begin
  ScreenWidth:=NewWidth;
  ScreenHeight:=NewHeight;
- begin
+ if true then begin
+  ViewPortX:=0;
+  ViewPortY:=0;
+  ViewPortWidth:=ScreenWidth;
+  ViewPortHeight:=ScreenHeight;
+ end else begin
   Factor:=int64($100000000);
   rw:=VirtualCanvasWidth;
   rh:=VirtualCanvasHeight;
