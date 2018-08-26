@@ -92,6 +92,8 @@ var InputFileName:TPasGLTFUTF8String='';
 
     GLTFOpenGL:TGLTFOpenGL=nil;
 
+    GLTFInstance:TGLTFOpenGL.TInstance=nil;
+
     ShadingShaders:array[boolean,boolean] of TShadingShader;
 
     BRDFLUTShader:TBRDFLUTShader;
@@ -203,6 +205,11 @@ var ModelMatrix,
     ShadingShader:TShadingShader;
     t0,t1:int64;
 begin
+ if assigned(GLTFInstance) then begin
+  GLTFInstance.Animation:=AnimationIndex;
+  GLTFInstance.AnimationTime:=AnimationTime;
+  GLTFInstance.Update;
+ end;
  begin
   glBindFrameBuffer(GL_FRAMEBUFFER,HDRSceneFBO.FBOs[0]);
   glDrawBuffer(GL_COLOR_ATTACHMENT0);
@@ -280,16 +287,14 @@ begin
     ShadingShader.Unbind;
    end;
    t0:=SDL_GetPerformanceCounter;
-   if assigned(GLTFOpenGL) then begin
-    GLTFOpenGL.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
-                    TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
-                    TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
-                    ShadingShaders[false,false],
-                    ShadingShaders[false,true],
-                    ShadingShaders[true,false],
-                    ShadingShaders[true,true],
-                    AnimationIndex,
-                    AnimationTime);
+   if assigned(GLTFInstance) then begin
+    GLTFInstance.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
+                      TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
+                      TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
+                      ShadingShaders[false,false],
+                      ShadingShaders[false,true],
+                      ShadingShaders[true,false],
+                      ShadingShaders[true,true]);
    end;
    t1:=SDL_GetPerformanceCounter;
 //  write(#13,(t1-t0)/SDL_GetPerformanceFrequency:1:5);
@@ -481,6 +486,7 @@ begin
  end else if Command='load' then begin
   InputFileName:=copy(aCommandLine,CommandLinePosition,(CommandLineLength-CommandLinePosition)+1);
  end else if Command='unload' then begin
+  FreeAndNil(GLTFInstance);
   if assigned(GLTFOpenGL) then begin
    GLTFOpenGL.Unload;
    FreeAndNil(GLTFOpenGL);
@@ -767,6 +773,7 @@ begin
 
   if length(InputFileName)>0 then begin
    try
+    FreeAndNil(GLTFInstance);
     if assigned(GLTFOpenGL) then begin
      GLTFOpenGL.Unload;
      FreeAndNil(GLTFOpenGL);
@@ -777,6 +784,7 @@ begin
      GLTFOpenGL.RootPath:=IncludeTrailingPathDelimiter(ExtractFilePath(FileName));
      GLTFOpenGL.LoadFromFile(FileName);
      GLTFOpenGL.Upload;
+     GLTFInstance:=GLTFOpenGL.AcquireInstance;
      CurrentFileName:=FileName;
     except
      on e:EPasGLTF do begin
@@ -786,6 +794,7 @@ begin
                                PAnsiChar('Exception'),
                                PAnsiChar(s),
                                SurfaceWindow);
+      FreeAndNil(GLTFInstance);
       GLTFOpenGL.Unload;
       FreeAndNil(GLTFOpenGL);
       CurrentFileName:='';
@@ -797,6 +806,7 @@ begin
                                PAnsiChar('Exception'),
                                PAnsiChar(s),
                                SurfaceWindow);
+      FreeAndNil(GLTFInstance);
       GLTFOpenGL.Unload;
       FreeAndNil(GLTFOpenGL);
       CurrentFileName:='';
@@ -1158,9 +1168,6 @@ if ((Major>4) or ((Major=4) and (Minor>=5))) or
         AntialiasingShader:=TAntialiasingShader.Create;
         try
 
-         if assigned(GLTFOpenGL) then begin
-          GLTFOpenGL.Upload;
-         end;
          try
 
           ShadingShaders[false,false]:=TShadingShader.Create(false,false);
@@ -1212,9 +1219,13 @@ if ((Major>4) or ((Major=4) and (Minor>=5))) or
          finally
           if assigned(GLTFOpenGL) then begin
            try
-            GLTFOpenGL.Unload;
+            FreeAndNil(GLTFInstance);
            finally
-            FreeAndNil(GLTFOpenGL);
+            try
+             GLTFOpenGL.Unload;
+            finally
+             FreeAndNil(GLTFOpenGL);
+            end;
            end;
           end;
          end;
