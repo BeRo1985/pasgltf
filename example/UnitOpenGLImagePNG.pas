@@ -1,4 +1,4 @@
-unit UnitOpenGLImagePNG;
+unit UnitOpenGLImagePNG; // from PasVulkan, so zlib-license and Copyright (C), Benjamin 'BeRo' Rosseaux (benjamin@rosseaux.de)
 {$ifdef fpc}
  {$mode delphi}
  {$ifdef cpui386}
