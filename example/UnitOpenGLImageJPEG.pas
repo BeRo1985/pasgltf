@@ -207,9 +207,22 @@ asm
 end;
 {$endif}
 {$else}
-{$ifdef cpuarm} assembler; //inline;
+{$ifdef cpux64} assembler;
 asm
- mov r0,r0,asr R1
+{$ifndef fpc}
+ .NOFRAME
+{$endif}
+{$ifdef Windows}
+ mov eax,ecx
+ mov ecx,edx
+ sar eax,cl
+{$else}
+ push rcx
+ mov eax,edi
+ mov ecx,esi
+ sar eax,cl
+ pop rcx
+{$endif}
 end;// ['r0','R1'];
 {$else}{$ifdef CAN_INLINE}inline;{$endif}
 begin
@@ -778,6 +791,9 @@ begin
        GetMem(ImageData,ImageWidth*ImageHeight*SizeOf(longword));
        if tjDecompress2(tjHandle,DataPointer,DataSize,ImageData,tjWidth,0,tjHeight,7{TJPF_RGBA},2048{TJFLAG_FASTDCT})>=0 then begin
         result:=true;
+       end else begin
+        FreeMem(ImageData);
+        ImageData:=nil;
        end;
       end;
      end;
