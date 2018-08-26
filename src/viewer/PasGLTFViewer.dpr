@@ -133,6 +133,8 @@ var InputFileName:TPasGLTFUTF8String='';
 
     ButtonLeftPressed:boolean=false;
 
+    SceneIndex:int32=-1;
+
     AnimationIndex:int32=0;
 
     ZoomLevel:TPasGLTFFloat=1.0;
@@ -206,6 +208,7 @@ var ModelMatrix,
     t0,t1:int64;
 begin
  if assigned(GLTFInstance) then begin
+  GLTFInstance.Scene:=SceneIndex;
   GLTFInstance.Animation:=AnimationIndex;
   GLTFInstance.AnimationTime:=AnimationTime;
   GLTFInstance.Update;
@@ -455,6 +458,8 @@ begin
   ConsoleInstance.Lines.Add(#0#11+'help                       '+#0#10+'This help');
   ConsoleInstance.Lines.Add(#0#11+'exit                       '+#0#10+'Exit the viewer');
   ConsoleInstance.Lines.Add(#0#11+'quit                       '+#0#10+'Exit the viewer');
+  ConsoleInstance.Lines.Add(#0#11+'listscenes                 '+#0#10+'List all avilable scenes');
+  ConsoleInstance.Lines.Add(#0#11+'setscene '+#0#9+'x'+#0#11+'                 '+#0#10+'Set scene to '+#0#9+'x'+#0#11+' (number)');
   ConsoleInstance.Lines.Add(#0#11+'listanimations             '+#0#10+'List all avilable animations');
   ConsoleInstance.Lines.Add(#0#11+'setanimation '+#0#9+'x'+#0#11+'             '+#0#10+'Set animation to '+#0#9+'x'+#0#11+' (number)');
   ConsoleInstance.Lines.Add(#0#11+'resetanimation             '+#0#10+'Reset animation');
@@ -464,6 +469,19 @@ begin
   ConsoleInstance.Lines.Add('');
  end else if (Command='exit') or (Command='quit') then begin
   SDLRunning:=false;
+ end else if (Command='listscenes') then begin
+  if assigned(GLTFOpenGL) then begin
+   for Index:=0 to length(GLTFOpenGL.Scenes)-1 do begin
+    ConsoleInstance.Lines.Add(#0#11+IntToStr(Index+1)+'. '+#0#10+GLTFOpenGL.Scenes[Index].Name);
+   end;
+  end;
+ end else if Command='setscene' then begin
+  Value:=0;
+  while (CommandLinePosition<=CommandLineLength) and (aCommandLine[CommandLinePosition] in ['0'..'9']) do begin
+   Value:=(Value*10)+(ord(aCommandLine[CommandLinePosition])-ord('0'));
+   inc(CommandLinePosition);
+  end;
+  SceneIndex:=Value-1;
  end else if (Command='listanimations') then begin
   ConsoleInstance.Lines.Add(#0#11+'0. '+#0#10+'Static pose');
   if assigned(GLTFOpenGL) then begin
@@ -814,6 +832,7 @@ begin
      end;
     end;
     ResetCamera;
+    SceneIndex:=GLTFOpenGL.Scene;
     AnimationIndex:=0;
     AnimationTime:=0.0;
     UpdateTitle;
