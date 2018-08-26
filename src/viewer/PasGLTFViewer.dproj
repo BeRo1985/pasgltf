@@ -223,9 +223,9 @@
         <DCCReference Include="dglOpenGL.pas"/>
         <DCCReference Include="UnitSDL2.pas"/>
         <DCCReference Include="UnitStaticLinking.pas"/>
-        <DCCReference Include="..\externals\pasdblstrutils\src\PasDblStrUtils.pas"/>
-        <DCCReference Include="..\externals\pasjson\src\PasJSON.pas"/>
-        <DCCReference Include="..\src\PasGLTF.pas"/>
+        <DCCReference Include="..\..\externals\pasdblstrutils\src\PasDblStrUtils.pas"/>
+        <DCCReference Include="..\..\externals\pasjson\src\PasJSON.pas"/>
+        <DCCReference Include="..\PasGLTF.pas"/>
         <DCCReference Include="UnitGLTFOpenGL.pas"/>
         <DCCReference Include="UnitOpenGLImage.pas"/>
         <DCCReference Include="UnitOpenGLImageJPEG.pas"/>
