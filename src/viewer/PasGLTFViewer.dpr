@@ -246,7 +246,8 @@ begin
   ProjectionMatrix:=Matrix4x4ProjectionReversedZ(45.0,ViewPortWidth/ViewPortHeight,1e-3);
   glClipControl(GL_LOWER_LEFT,GL_ZERO_TO_ONE);
   glDepthFunc(GL_GEQUAL);
-  LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
+  LightDirection:=Vector3Norm(Vector3(0.0,-1.0,0.0));
+//LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
   SkyBoxViewProjectionMatrix:=Matrix4x4TermMul(Matrix4x4Rotation(ViewMatrix),ProjectionMatrix);
   begin
    glDisable(GL_DEPTH_TEST);

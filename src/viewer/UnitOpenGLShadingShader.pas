@@ -392,7 +392,7 @@ begin
     '                                  normal.xyz,'+#13#10+
     '                                  diffuseColorAlpha.xyz,'+#13#10+
     '                                  specularColorRoughness.xyz,'+#13#10+
-    '                                  viewDirection,'+#13#10+
+    '                                  -viewDirection,'+#13#10+
     '                                  refractiveAngle,'+#13#10+
     '                                  transparency,'+#13#10+
     '                                  specularColorRoughness.w,'+#13#10+
@@ -406,13 +406,13 @@ begin
     '                     // Bounce light'+#13#10+
     '                     (clamp(-normal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
     '                    ) * diffuseLambert(diffuseColorAlpha.xyz) * cavity));'+#13#10+ (*{}
-(*) '      color.xyz += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
+(* )'      color.xyz += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
     '                                 pow(vec3(shadow), vec3(1.05, 1.02, 1.0)),'+#13#10+
     '                                 -uLightDirection,'+#13#10+
     '                                 normal.xyz,'+#13#10+
     '                                 diffuseColorAlpha.xyz,'+#13#10+
     '                                 specularColorRoughness.xyz,'+#13#10+
-    '                                 viewDirection,'+#13#10+
+    '                                 -viewDirection,'+#13#10+
     '                                 refractiveAngle,'+#13#10+
     '                                 transparency,'+#13#10+
     '                                 specularColorRoughness.w,'+#13#10+
@@ -422,8 +422,8 @@ begin
     '              ao = cavity * ambientOcclusion,'+#13#10+
     '              specularOcclusion = clamp((pow(NdotV + ao, specularColorRoughness.w * specularColorRoughness.w) - 1.0) + ao, 0.0, 1.0);'+#13#10+
     '      	 vec2 brdf = textureLod(uBRDFLUTTexture, vec2(specularColorRoughness.w, NdotV), 0.0).xy;'+#13#10+
-    '        color.xyz += textureLod(uEnvMapTexture, normalize(reflect(viewDirection, normal.xyz)),'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(specularColorRoughness.w))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColorRoughness.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z) * 50.0, 0.0, 1.0))) * specularOcclusion;'+#13#10+
-    '        color.xyz += textureLod(uEnvMapTexture, normal.xyz, float(uEnvMapMaxLevel)).xyz * diffuseColorAlpha.xyz * ao;'+#13#10+
+    '        color.xyz += ((textureLod(uEnvMapTexture, normalize(reflect(viewDirection, normal.xyz)),'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(specularColorRoughness.w))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColorRoughness.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z) * 50.0, 0.0, 1.0))) * specularOcclusion) +'+#13#10+
+    '                      (textureLod(uEnvMapTexture, normal.xyz, float(uEnvMapMaxLevel)).xyz * diffuseColorAlpha.xyz * ao)) * OneOverPI;'+#13#10+
     '      }'+#13#10+
     '      color = vec4(vec3(color.xyz + (emissiveTexture.xyz * uMaterial.emissiveFactor.xyz)), diffuseColorAlpha.w);'+#13#10+
     '      break;'+#13#10+
