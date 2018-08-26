@@ -104,7 +104,7 @@ unit UnitOpenGLImagePNG; // from PasVulkan, so zlib-license and Copyright (C), B
 
 interface
 
-{$ifdef delphibla}
+{$ifdef delphi}
 uses SysUtils,Classes,PNGImage,Graphics,UnitOpenGLImage,dglOpenGL;
 {$else}
 {$ifdef fpc}
@@ -158,7 +158,7 @@ type qword=int64;
 {$endif}
 {$endif}
 
-{$ifdef delphibla}
+{$ifdef delphi}
 function LoadPNGImage(DataPointer:pointer;DataSize:longword;var ImageData:pointer;var ImageWidth,ImageHeight:longint;HeaderOnly:boolean):boolean;
 var Stream:TMemoryStream;
     PNG:TPNGImage;
@@ -178,19 +178,13 @@ begin
       PNG:=TPNGImage.Create;
       try
        PNG.LoadFromStream(Stream);
-       BMP:=TBitmap.Create;
-       try
-        BMP.Pixelformat:=pf32bit;
-        BMP.HandleType:=bmDIB;
-        BMP.Width:=PNG.Width;
-        BMP.Height:=PNG.Height;
-        BMP.Canvas.Draw(0,0,PNG);
-        ImageWidth:=BMP.Width;
-        ImageHeight:=BMP.Height;
+       ImageWidth:=PNG.Width;
+       ImageHeight:=PNG.Height;
+       if not HeaderOnly then begin
         GetMem(ImageData,ImageWidth*ImageHeight*4);
         pout:=ImageData;
         for y:=0 to ImageHeight-1 do begin
-         pin:=BMP.Scanline[y];
+         pin:=PNG.Scanline[y];
          ain:=pointer(PNG.AlphaScanline[y]);
          for x:=0 to ImageWidth-1 do begin
           pout[0]:=pin[2];
@@ -201,14 +195,12 @@ begin
           end else begin
            pout[3]:=#255;
           end;
-          inc(pin,4);
+          inc(pin,3);
           inc(pout,4);
          end;
         end;
-        result:=true;
-       finally
-        BMP.Free;
        end;
+       result:=true;
       finally
        PNG.Free;
       end;
