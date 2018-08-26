@@ -34,6 +34,63 @@ type EGLTFOpenGL=class(Exception);
               );
             end;
             PBoundingBox=^TBoundingBox;
+            TInstance=class
+             public
+              type TNode=record
+                    public
+                     type TOverwriteFlag=
+                           (
+                            Translation,
+                            Rotation,
+                            Scale,
+                            Weights
+                           );
+                          TOverwriteFlags=set of TOverwriteFlag;
+                    public
+                     OverwriteFlags:TOverwriteFlags;
+                     OverwriteTranslation:TPasGLTF.TVector3;
+                     OverwriteRotation:TPasGLTF.TVector4;
+                     OverwriteScale:TPasGLTF.TVector3;
+                     OverwriteWeights:TPasGLTFFloatDynamicArray;
+                     WorkWeights:TPasGLTFFloatDynamicArray;
+                     WorkMatrix:TPasGLTF.TMatrix4x4;
+                   end;
+                   PNode=^TNode;
+                   TNodes=array of TNode;
+                   TSkin=record
+                    Used:boolean;
+                   end;
+                   PSkin=^TSkin;
+                   TSkins=array of TSkin;
+             private
+              fParent:TGLTFOpenGL;
+              fScene:TPasGLTFSizeInt;
+              fAnimation:TPasGLTFSizeInt;
+              fAnimationTime:TPasGLTFFloat;
+              fNodes:TNodes;
+              fSkins:TSkins;
+              procedure SetScene(const aScene:TPasGLTFSizeInt);
+              procedure SetAnimation(const aAnimation:TPasGLTFSizeInt);
+             public
+              constructor Create(const aParent:TGLTFOpenGL); reintroduce;
+              destructor Destroy; override;
+              procedure Update;
+              procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
+                             const aViewMatrix:TPasGLTF.TMatrix4x4;
+                             const aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                             const aNonSkinnedNormalShadingShader:TShadingShader;
+                             const aNonSkinnedAlphaTestShadingShader:TShadingShader;
+                             const aSkinnedNormalShadingShader:TShadingShader;
+                             const aSkinnedAlphaTestShadingShader:TShadingShader;
+                             const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
+              property Scene:TPasGLTFSizeInt read fScene write SetScene;
+              property Animation:TPasGLTFSizeInt read fAnimation write SetAnimation;
+              property AnimationTime:TPasGLTFFloat read fAnimationTime write fAnimationTime;
+              property Nodes:TNodes read fNodes;
+              property Skins:TSkins read fSkins;
+             published
+              property Parent:TGLTFOpenGL read fParent;
+            end;
             TAnimation=record
              public
               type TChannel=record
@@ -3301,6 +3358,737 @@ begin
    for Index:=0 to length(Scene^.Nodes)-1 do begin
     ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
    end;
+   ProcessNodeMeshPrimitiveShaderStorageBufferObjects;
+   ProcessSkins;
+   glCullFace(GL_BACK);
+   CullFace:=-1;
+   Blend:=-1;
+   CurrentShader:=nil;
+   for AlphaMode:=TPasGLTF.TMaterial.TAlphaMode.Opaque to TPasGLTF.TMaterial.TAlphaMode.Blend do begin
+    if (aAlphaModes=[]) or (AlphaMode in aAlphaModes) then begin
+     case AlphaMode of
+      TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
+       NonSkinnedShadingShader:=aNonSkinnedNormalShadingShader;
+       SkinnedShadingShader:=aSkinnedNormalShadingShader;
+      end;
+      TPasGLTF.TMaterial.TAlphaMode.Mask:begin
+       NonSkinnedShadingShader:=aNonSkinnedAlphaTestShadingShader;
+       SkinnedShadingShader:=aSkinnedAlphaTestShadingShader;
+      end;
+      TPasGLTF.TMaterial.TAlphaMode.Blend:begin
+       NonSkinnedShadingShader:=aNonSkinnedNormalShadingShader;
+       SkinnedShadingShader:=aSkinnedNormalShadingShader;
+      end;
+      else begin
+       NonSkinnedShadingShader:=nil;
+       Assert(false);
+      end;
+     end;
+     for Index:=0 to length(Scene^.Nodes)-1 do begin
+      DrawNode(Scene^.Nodes[Index],AlphaMode);
+     end;
+    end;
+   end;
+   glUseProgram(0);
+   glBindVertexArray(0);
+   glBindBuffer(GL_ARRAY_BUFFER,0);
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
+   glActiveTexture(GL_TEXTURE0);
+  end;
+ end;
+end;
+
+{ TGLTFOpenGL.TInstance }
+
+constructor TGLTFOpenGL.TInstance.Create(const aParent:TGLTFOpenGL);
+var Index:TPasGLTFSizeInt;
+    InstanceNode:TGLTFOpenGL.TInstance.PNode;
+    Node:TGLTFOpenGL.PNode;
+begin
+ inherited Create;
+ fParent:=aParent;
+ fScene:=-1;
+ fAnimation:=-1;
+ fNodes:=nil;
+ fSkins:=nil;
+ SetLength(fNodes,length(fParent.fNodes));
+ SetLength(fSkins,length(fParent.fSkins));
+ for Index:=0 to length(fParent.fNodes)-1 do begin
+  InstanceNode:=@fNodes[Index];
+  Node:=@fParent.fNodes[Index];
+  SetLength(InstanceNode^.WorkWeights,length(Node^.Weights));
+  SetLength(InstanceNode^.OverwriteWeights,length(Node^.Weights));
+ end;
+end;
+
+destructor TGLTFOpenGL.TInstance.Destroy;
+begin
+ fNodes:=nil;
+ fSkins:=nil;
+ inherited Destroy;
+end;
+
+procedure TGLTFOpenGL.TInstance.SetScene(const aScene:TPasGLTFSizeInt);
+begin
+ fScene:=Min(Max(aScene,-1),length(fParent.fScenes)-1);
+end;
+
+procedure TGLTFOpenGL.TInstance.SetAnimation(const aAnimation:TPasGLTFSizeInt);
+begin
+ fAnimation:=Min(Max(aAnimation,-1),length(fParent.fAnimations)-1);
+end;
+
+procedure TGLTFOpenGL.TInstance.Update;
+var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
+    CurrentShader:TShader;
+    CurrentSkinShaderStorageBufferObjectHandle:glUInt;
+    CullFace,Blend:TPasGLTFInt32;
+ procedure ResetNode(const aNodeIndex:TPasGLTFSizeInt);
+ var Index:TPasGLTFSizeInt;
+     InstanceNode:TGLTFOpenGL.TInstance.PNode;
+     Node:TGLTFOpenGL.PNode;
+ begin
+  InstanceNode:=@fNodes[aNodeIndex];
+  Node:=@fParent.fNodes[aNodeIndex];
+  InstanceNode^.OverwriteFlags:=[];
+  for Index:=0 to length(Node^.Children)-1 do begin
+   ResetNode(Node^.Children[Index]);
+  end;
+ end;
+ procedure ProcessAnimation(const aAnimationIndex:TPasGLTFSizeInt);
+  function CubicSplineInterpolate(const t,y0,y1,y2,y3:TPasGLTFFloat):TPasGLTFFloat;
+  var t2,n:TPasGLTFFloat;
+  begin
+   t2:=t*t;
+   n:=((y3-y2)-y0)+y1;
+   result:=(n*t*t2)+(((y0-y1)-n)*t2)+((y2-y0)*t)+y1;
+  end;
+ var ChannelIndex,
+     InputTimeArrayIndex,
+     WeightIndex,
+     CountWeights,
+     l,r,m:TPasGLTFSizeInt;
+     Animation:TGLTFOpenGL.PAnimation;
+     AnimationChannel:TGLTFOpenGL.TAnimation.PChannel;
+     Node:TGLTFOpenGL.TInstance.PNode;
+     Time,Factor,Scalar,Value:TPasGLTFFloat;
+     Vector3:TPasGLTF.TVector3;
+     Vector4:TPasGLTF.TVector4;
+     Vector3s:array[-1..2] of TPasGLTF.PVector3;
+     Vector4s:array[-1..2] of TPasGLTF.PVector4;
+     TimeIndices:array[-1..2] of TPasGLTFSizeInt;
+ begin
+
+  Animation:=@fParent.fAnimations[aAnimationIndex];
+
+  for ChannelIndex:=0 to length(Animation^.Channels)-1 do begin
+
+   AnimationChannel:=@Animation^.Channels[ChannelIndex];
+
+   if (AnimationChannel^.Node>=0) and (length(AnimationChannel^.InputTimeArray)>0) then begin
+
+    TimeIndices[1]:=length(AnimationChannel^.InputTimeArray)-1;
+
+    Time:=AnimationChannel^.InputTimeArray[TimeIndices[1]];
+    Time:=AnimationTime-(floor(AnimationTime/Time)*Time);
+
+    if (AnimationChannel^.Last<=0) or (Time<AnimationChannel^.InputTimeArray[AnimationChannel.Last-1]) then begin
+     l:=0;
+    end else begin
+     l:=AnimationChannel^.Last-1;
+    end;
+
+    for InputTimeArrayIndex:=Min(Max(l,0),length(AnimationChannel^.InputTimeArray)-1) to Min(Max(l+3,0),length(AnimationChannel^.InputTimeArray)-1) do begin
+     if AnimationChannel^.InputTimeArray[InputTimeArrayIndex]>Time then begin
+      l:=InputTimeArrayIndex-1;
+      break;
+     end;
+    end;
+
+    r:=length(AnimationChannel^.InputTimeArray);
+    if ((l+1)<r) and (Time<AnimationChannel^.InputTimeArray[l+1]) then begin
+     inc(l);
+    end else begin
+     while l<r do begin
+      m:=l+((r-l) shr 1);
+      Value:=AnimationChannel^.InputTimeArray[m];
+      if Value<=Time then begin
+       l:=m+1;
+       if Time<AnimationChannel^.InputTimeArray[l] then begin
+        break;
+       end;
+      end else begin
+       r:=m;
+      end;
+     end;
+    end;
+
+    for InputTimeArrayIndex:=Min(Max(l,0),length(AnimationChannel^.InputTimeArray)-1) to length(AnimationChannel^.InputTimeArray)-1 do begin
+     if AnimationChannel^.InputTimeArray[InputTimeArrayIndex]>Time then begin
+      TimeIndices[1]:=InputTimeArrayIndex;
+      break;
+     end;
+    end;
+
+    AnimationChannel^.Last:=TimeIndices[1];
+
+    if TimeIndices[1]>=0 then begin
+
+     TimeIndices[0]:=Max(0,TimeIndices[1]-1);
+     TimeIndices[-1]:=Max(0,TimeIndices[0]-1);
+     TimeIndices[2]:=Min(Max(TimeIndices[1]+1,0),length(AnimationChannel^.InputTimeArray)-1);
+
+     if SameValue(TimeIndices[0],TimeIndices[1]) then begin
+      Factor:=0.0;
+     end else begin
+      Factor:=(Time-AnimationChannel^.InputTimeArray[TimeIndices[0]])/(AnimationChannel^.InputTimeArray[TimeIndices[1]]-AnimationChannel^.InputTimeArray[TimeIndices[0]]);
+      if Factor<0.0 then begin
+       Factor:=0.0;
+      end else if Factor>1.0 then begin
+       Factor:=1.0;
+      end;
+     end;
+
+     Node:=@fNodes[AnimationChannel^.Node];
+
+     case AnimationChannel^.Target of
+      TAnimation.TChannel.TTarget.Translation,
+      TAnimation.TChannel.TTarget.Scale:begin
+       case AnimationChannel^.Interpolation of
+        TAnimation.TChannel.TInterpolation.Linear:begin
+         Vector3s[0]:=@AnimationChannel^.OutputVector3Array[TimeIndices[0]];
+         Vector3s[1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[1]];
+         Vector3[0]:=(Vector3s[0]^[0]*(1.0-Factor))+(Vector3s[1]^[0]*Factor);
+         Vector3[1]:=(Vector3s[0]^[1]*(1.0-Factor))+(Vector3s[1]^[1]*Factor);
+         Vector3[2]:=(Vector3s[0]^[2]*(1.0-Factor))+(Vector3s[1]^[2]*Factor);
+        end;
+        TAnimation.TChannel.TInterpolation.Step:begin
+         Vector3:=AnimationChannel^.OutputVector3Array[TimeIndices[0]];
+        end;
+        TAnimation.TChannel.TInterpolation.CubicSpline:begin
+         Vector3s[-1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[-1]];
+         Vector3s[0]:=@AnimationChannel^.OutputVector3Array[TimeIndices[0]];
+         Vector3s[1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[1]];
+         Vector3s[2]:=@AnimationChannel^.OutputVector3Array[TimeIndices[2]];
+         Vector3[0]:=CubicSplineInterpolate(Factor,Vector3s[-1]^[0],Vector3s[0]^[0],Vector3s[1]^[0],Vector3s[2]^[0]);
+         Vector3[1]:=CubicSplineInterpolate(Factor,Vector3s[-1]^[1],Vector3s[0]^[1],Vector3s[1]^[1],Vector3s[2]^[1]);
+         Vector3[2]:=CubicSplineInterpolate(Factor,Vector3s[-1]^[2],Vector3s[0]^[2],Vector3s[1]^[2],Vector3s[2]^[2]);
+        end;
+        else begin
+         Assert(false);
+        end;
+       end;
+       case AnimationChannel^.Target of
+        TAnimation.TChannel.TTarget.Translation:begin
+         Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Translation);
+         Node^.OverwriteTranslation:=Vector3;
+        end;
+        TAnimation.TChannel.TTarget.Scale:begin
+         Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Scale);
+         Node^.OverwriteScale:=Vector3;
+        end;
+       end;
+      end;
+      TAnimation.TChannel.TTarget.Rotation:begin
+       case AnimationChannel^.Interpolation of
+        TAnimation.TChannel.TInterpolation.Linear:begin
+         Vector4:=QuaternionSlerp(AnimationChannel^.OutputVector4Array[TimeIndices[0]],
+                                  AnimationChannel^.OutputVector4Array[TimeIndices[1]],
+                                  Factor);
+        end;
+        TAnimation.TChannel.TInterpolation.Step:begin
+         Vector4:=AnimationChannel^.OutputVector4Array[TimeIndices[0]];
+        end;
+        TAnimation.TChannel.TInterpolation.CubicSpline:begin
+         // Kochanek–Bartels spline with cubic-spline-mode constant parameter values
+         Vector4:=QuaternionKochanekBartelsSplineInterpolate(Factor,
+                                                             -1.0,
+                                                             0,
+                                                             1.0,
+                                                             2.0,
+                                                             AnimationChannel^.OutputVector4Array[TimeIndices[-1]],
+                                                             AnimationChannel^.OutputVector4Array[TimeIndices[0]],
+                                                             AnimationChannel^.OutputVector4Array[TimeIndices[1]],
+                                                             AnimationChannel^.OutputVector4Array[TimeIndices[2]],
+                                                             0.0,0.0,0.0,
+                                                             0.0,0.0,0.0);
+        end;
+        else begin
+         Assert(false);
+        end;
+       end;
+       Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Rotation);
+       Node^.OverwriteRotation:=Vector4;
+      end;
+      TAnimation.TChannel.TTarget.Weights:begin
+       Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Weights);
+       CountWeights:=length(Node^.WorkWeights);
+       case AnimationChannel^.Interpolation of
+        TAnimation.TChannel.TInterpolation.Linear:begin
+         for WeightIndex:=0 to CountWeights-1 do begin
+          Node^.OverwriteWeights[WeightIndex]:=(AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex]*(1.0-Factor))+
+                                               (AnimationChannel^.OutputScalarArray[(TimeIndices[1]*CountWeights)+WeightIndex]*Factor);
+         end;
+        end;
+        TAnimation.TChannel.TInterpolation.Step:begin
+         for WeightIndex:=0 to CountWeights-1 do begin
+          Node^.OverwriteWeights[WeightIndex]:=AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex];
+         end;
+        end;
+        TAnimation.TChannel.TInterpolation.CubicSpline:begin
+         for WeightIndex:=0 to CountWeights-1 do begin
+          Node^.OverwriteWeights[WeightIndex]:=CubicSplineInterpolate(Factor,
+                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[-1]*CountWeights)+WeightIndex],
+                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex],
+                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[1]*CountWeights)+WeightIndex],
+                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[2]*CountWeights)+WeightIndex]);
+         end;
+        end;
+        else begin
+         Assert(false);
+        end;
+       end;
+
+      end;
+     end;
+
+
+    end;
+
+   end;
+
+  end;
+
+ end;
+ procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
+ var Index:TPasGLTFSizeInt;
+     Matrix:TPasGLTF.TMatrix4x4;
+     InstanceNode:TGLTFOpenGL.TInstance.PNode;
+     Node:TGLTFOpenGL.PNode;
+     Translation,Scale:TVector3;
+     Rotation:TVector4;
+ begin
+  InstanceNode:=@fNodes[aNodeIndex];
+  Node:=@fParent.fNodes[aNodeIndex];
+  if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Translation in InstanceNode^.OverwriteFlags then begin
+   Translation:=Node^.OverwriteTranslation;
+  end else begin
+   Translation:=Node^.Translation;
+  end;
+  if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Scale in InstanceNode^.OverwriteFlags then begin
+   Scale:=Node^.OverwriteScale;
+  end else begin
+   Scale:=Node^.Scale;
+  end;
+  if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Rotation in InstanceNode^.OverwriteFlags then begin
+   Rotation:=Node^.OverwriteRotation;
+  end else begin
+   Rotation:=Node^.Rotation;
+  end;
+  if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Weights in InstanceNode^.OverwriteFlags then begin
+   for Index:=0 to Min(length(InstanceNode^.WorkWeights),length(InstanceNode^.OverwriteWeights))-1 do begin
+    InstanceNode^.WorkWeights[Index]:=InstanceNode^.OverwriteWeights[Index];
+   end;
+  end else begin
+   for Index:=0 to Min(length(InstanceNode^.WorkWeights),length(Node^.Weights))-1 do begin
+    InstanceNode^.WorkWeights[Index]:=Node^.Weights[Index];
+   end;
+  end;
+  Matrix:=MatrixMul(
+           MatrixMul(
+            MatrixMul(
+             MatrixFromScale(Scale),
+             MatrixMul(
+              MatrixFromRotation(Rotation),
+              MatrixFromTranslation(Translation))),
+            Node^.Matrix),
+           aMatrix);
+  InstanceNode^.WorkMatrix:=Matrix;
+  if (Node^.Mesh>=0) and (Node^.Mesh<length(fParent.fMeshes)) then begin
+   if (fAnimation>=0) and (Node^.Skin>=0) and (Node^.Skin<length(fSkins)) then begin
+    fSkins[Node^.Skin].Used:=true;
+   end;
+  end;
+  for Index:=0 to length(Node^.Children)-1 do begin
+   ProcessNode(Node^.Children[Index],Matrix);
+  end;
+ end;
+var Index:TPasGLTFSizeInt;
+    Scene:TGLTFOpenGL.PScene;
+    AlphaMode:TPasGLTF.TMaterial.TAlphaMode;
+begin
+ if fParent.fReady and fParent.fUploaded then begin
+  if fScene<0 then begin
+   if fParent.fScene<0 then begin
+    Scene:=@fParent.fScenes[0];
+   end else if fParent.fScene<length(fParent.fScenes) then begin
+    Scene:=@fParent.fScenes[fParent.fScene];
+   end else begin
+    Scene:=nil;
+   end;
+  end else if fScene<length(fParent.fScenes) then begin
+   Scene:=@fParent.fScenes[fScene];
+  end else begin
+   Scene:=nil;
+  end;
+  if assigned(Scene) then begin
+   CurrentSkinShaderStorageBufferObjectHandle:=0;
+   for Index:=0 to length(Scene^.Nodes)-1 do begin
+    ResetNode(Scene^.Nodes[Index]);
+   end;
+   for Index:=0 to length(fSkins)-1 do begin
+    fSkins[Index].Used:=false;
+   end;
+   if (fAnimation>=0) and (fAnimation<length(fParent.fAnimations)) then begin
+    ProcessAnimation(fAnimation);
+   end;
+   for Index:=0 to length(Scene^.Nodes)-1 do begin
+    ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
+   end;
+  end;
+ end;
+end;
+
+procedure TGLTFOpenGL.TInstance.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
+                                     const aViewMatrix:TPasGLTF.TMatrix4x4;
+                                     const aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                                     const aNonSkinnedNormalShadingShader:TShadingShader;
+                                     const aNonSkinnedAlphaTestShadingShader:TShadingShader;
+                                     const aSkinnedNormalShadingShader:TShadingShader;
+                                     const aSkinnedAlphaTestShadingShader:TShadingShader;
+                                     const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
+var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
+    CurrentShader:TShader;
+    CurrentSkinShaderStorageBufferObjectHandle:glUInt;
+    CullFace,Blend:TPasGLTFInt32;
+ procedure UseShader(const aShader:TShader);
+ begin
+  if CurrentShader<>aShader then begin
+   CurrentShader:=aShader;
+   if assigned(CurrentShader) then begin
+    CurrentShader.Bind;
+   end;
+  end;
+ end;
+ procedure ProcessNodeMeshPrimitiveShaderStorageBufferObjects;
+  procedure ProcessNodeMeshPrimitiveShaderStorageBufferObject(const aNodeMeshPrimitiveShaderStorageBufferObject:TGLTFOpenGL.PNodeMeshPrimitiveShaderStorageBufferObject);
+   procedure Process(const aInstanceNode:TGLTFOpenGL.TInstance.PNode;
+                     const aNode:TGLTFOpenGL.PNode;
+                     const aPrimitive:TMesh.PPrimitive;
+                     const aData:pointer);
+   var WeightIndex:TPasGLTFSizeInt;
+       NodeMeshPrimitiveShaderStorageBufferObject:TGLTFOpenGL.PNodeMeshPrimitiveShaderStorageBufferObject;
+       NodeMeshPrimitiveShaderStorageBufferObjectItem:TGLTFOpenGL.PNodeMeshPrimitiveShaderStorageBufferObjectDataItem;
+       SkinShaderStorageBufferObject:TGLTFOpenGL.PSkinShaderStorageBufferObject;
+       Skin:TGLTFOpenGL.PSkin;
+   begin
+    NodeMeshPrimitiveShaderStorageBufferObjectItem:=aData;
+    NodeMeshPrimitiveShaderStorageBufferObjectItem^.Matrix:=aNode^.WorkMatrix;
+    NodeMeshPrimitiveShaderStorageBufferObjectItem^.Reversed:=0;
+    if (fAnimation>=0) and
+       ((aNode^.Skin>=0) and (aNode^.Skin<length(fParent.fSkins))) and
+       (fParent.fSkins[aNode^.Skin].SkinShaderStorageBufferObjectIndex>=0) then begin
+     Skin:=@fParent.fSkins[aNode^.Skin];
+     SkinShaderStorageBufferObject:=@fParent.fSkinShaderStorageBufferObjects[Skin^.SkinShaderStorageBufferObjectIndex];
+     NodeMeshPrimitiveShaderStorageBufferObjectItem^.JointOffset:=Skin^.SkinShaderStorageBufferObjectOffset;
+    end else begin
+     NodeMeshPrimitiveShaderStorageBufferObjectItem^.JointOffset:=0;
+    end;
+    NodeMeshPrimitiveShaderStorageBufferObjectItem^.CountVertices:=length(aPrimitive^.Vertices);
+    NodeMeshPrimitiveShaderStorageBufferObjectItem^.CountMorphTargets:=length(aPrimitive^.Targets);
+    for WeightIndex:=0 to length(aPrimitive^.Targets)-1 do begin
+     NodeMeshPrimitiveShaderStorageBufferObjectItem^.MorphTargetWeights[WeightIndex]:=aInstanceNode^.WorkWeights[WeightIndex];
+    end;
+   end;
+  var Index,SubIndex:TPasGLTFSizeInt;
+      Data:pointer;
+      Item:TGLTFOpenGL.PNodeMeshPrimitiveShaderStorageBufferObjectItem;
+      InstanceNode:TGLTFOpenGL.TInstance.PNode;
+      Node:TGLTFOpenGL.PNode;
+      MeshPrimitiveMetaData:TGLTFOpenGL.TNode.PMeshPrimitiveMetaData;
+      Mesh:TGLTFOpenGL.PMesh;
+  begin
+   glBindBuffer(GL_SHADER_STORAGE_BUFFER,aNodeMeshPrimitiveShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+   Data:=glMapBufferRange(GL_SHADER_STORAGE_BUFFER,0,aNodeMeshPrimitiveShaderStorageBufferObject^.Size,GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
+   if assigned(Data) then begin
+    for Index:=0 to length(aNodeMeshPrimitiveShaderStorageBufferObject^.Items)-1 do begin
+     Item:=@aNodeMeshPrimitiveShaderStorageBufferObject^.Items[Index];
+     InstanceNode:=@fNodes[Item^.Node];
+     Node:=@fParent.fNodes[Item^.Node];
+     Mesh:=@fParent.fMeshes[Item^.Mesh];
+     for SubIndex:=0 to length(Node^.MeshPrimitiveMetaDataArray)-1 do begin
+      MeshPrimitiveMetaData:=@Node^.MeshPrimitiveMetaDataArray[SubIndex];
+      Process(InstanceNode,
+              Node,
+              @Mesh^.Primitives[SubIndex],
+              @PPasGLTFUint8Array(Data)^[MeshPrimitiveMetaData^.ShaderStorageBufferObjectByteOffset]);
+     end;
+    end;
+    glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+   end;
+  end;
+ var Index:TPasGLTFSizeInt;
+ begin
+  for Index:=0 to length(fParent.fNodeMeshPrimitiveShaderStorageBufferObjects)-1 do begin
+   ProcessNodeMeshPrimitiveShaderStorageBufferObject(@fParent.fNodeMeshPrimitiveShaderStorageBufferObjects[Index]);
+  end;
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
+ end;
+ procedure ProcessSkins;
+  procedure ProcessSkinShaderStorageBufferObjects;
+   procedure ProcessSkinShaderStorageBufferObject(const aSkinShaderStorageBufferObject:TGLTFOpenGL.PSkinShaderStorageBufferObject);
+    procedure ProcessSkin(const aSkin:TGLTFOpenGL.PSkin;const aData:pointer);
+    var JointIndex:TPasGLTFSizeInt;
+        Skin:TGLTFOpenGL.PSkin;
+        SkinShaderStorageBufferObject:TGLTFOpenGL.PSkinShaderStorageBufferObject;
+        UniformBufferObjectMatrix:TPasGLTF.PMatrix4x4;
+    begin
+     UniformBufferObjectMatrix:=aData;
+     for JointIndex:=0 to length(aSkin^.Joints)-1 do begin
+      UniformBufferObjectMatrix^:=MatrixMul(aSkin^.InverseBindMatrices[JointIndex],fNodes[aSkin^.Joints[JointIndex]].WorkMatrix);
+      inc(UniformBufferObjectMatrix);
+     end;
+    end;
+   var Index:TPasGLTFSizeInt;
+       Used:boolean;
+       Data:pointer;
+       Skin:TGLTFOpenGL.PSkin;
+   begin
+    Used:=false;
+    for Index:=0 to length(aSkinShaderStorageBufferObject^.Skins)-1 do begin
+     if fSkins[aSkinShaderStorageBufferObject^.Skins[Index]].Used then begin
+      Used:=true;
+      break;
+     end;
+    end;
+    if Used then begin
+     glBindBuffer(GL_SHADER_STORAGE_BUFFER,aSkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+     Data:=glMapBufferRange(GL_SHADER_STORAGE_BUFFER,0,aSkinShaderStorageBufferObject^.Size,GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
+     if assigned(Data) then begin
+      for Index:=0 to length(aSkinShaderStorageBufferObject^.Skins)-1 do begin
+       Skin:=@fSkins[aSkinShaderStorageBufferObject^.Skins[Index]];
+       if Skin^.Used then begin
+        ProcessSkin(Skin,@PPasGLTFUint8Array(Data)^[Skin^.SkinShaderStorageBufferObjectByteOffset]);
+       end;
+      end;
+      glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
+     end;
+    end;
+   end;
+  var Index:TPasGLTFSizeInt;
+  begin
+   for Index:=0 to length(fParent.fSkinShaderStorageBufferObjects)-1 do begin
+    ProcessSkinShaderStorageBufferObject(@fParent.fSkinShaderStorageBufferObjects[Index]);
+   end;
+   glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
+  end;
+ begin
+  ProcessSkinShaderStorageBufferObjects;
+ end;
+ procedure DrawNode(const aNodeIndex:TPasGLTFSizeInt;const aAlphaMode:TPasGLTF.TMaterial.TAlphaMode);
+ var ShadingShader:TShadingShader;
+     InstanceNode:TGLTFOpenGL.TInstance.PNode;
+     Node:TGLTFOpenGL.PNode;
+  procedure DrawMesh(const aMesh:TGLTFOpenGL.TMesh);
+  var PrimitiveIndex:TPasGLTFSizeInt;
+      Primitive:TGLTFOpenGL.TMesh.PPrimitive;
+      Material:TGLTFOpenGL.PMaterial;
+      MorphTargetVertexShaderStorageBufferObject:TGLTFOpenGL.PMorphTargetVertexShaderStorageBufferObject;
+      MeshPrimitiveMetaData:TGLTFOpenGL.TNode.PMeshPrimitiveMetaData;
+      DoDraw:boolean;
+  begin
+   for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
+    Primitive:=@aMesh.Primitives[PrimitiveIndex];
+    DoDraw:=false;
+    if (Primitive^.Material>=0) and (Primitive^.Material<length(fParent.fMaterials)) then begin
+     Material:=@fParent.fMaterials[Primitive^.Material];
+     if Material^.AlphaMode=aAlphaMode then begin
+      case aAlphaMode of
+       TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
+        if Blend<>0 then begin
+         Blend:=0;
+         glDisable(GL_BLEND);
+        end;
+       end;
+       TPasGLTF.TMaterial.TAlphaMode.Mask:begin
+        if Blend<>0 then begin
+         Blend:=0;
+         glDisable(GL_BLEND);
+        end;
+       end;
+       TPasGLTF.TMaterial.TAlphaMode.Blend:begin
+        if Blend<>1 then begin
+         Blend:=1;
+         glEnable(GL_BLEND);
+         glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
+        end;
+       end;
+       else begin
+        Assert(false);
+       end;
+      end;
+      if Material^.DoubleSided then begin
+       if CullFace<>0 then begin
+        CullFace:=0;
+        glDisable(GL_CULL_FACE);
+       end;
+      end else begin
+       if CullFace<>1 then begin
+        CullFace:=1;
+        glEnable(GL_CULL_FACE);
+       end;
+      end;
+      case Material^.ShadingModel of
+       TGLTFOpenGL.TMaterial.TShadingModel.PBRMetallicRoughness:begin
+        if (Material^.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material^.PBRMetallicRoughness.BaseColorTexture.Index<length(fParent.fTextures)) then begin
+         glActiveTexture(GL_TEXTURE0);
+         glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
+        end;
+        if (Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fParent.fTextures)) then begin
+         glActiveTexture(GL_TEXTURE1);
+         glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index].Handle);
+        end;
+       end;
+       TGLTFOpenGL.TMaterial.TShadingModel.PBRSpecularGlossiness:begin
+        if (Material^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (Material^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fParent.fTextures)) then begin
+         glActiveTexture(GL_TEXTURE0);
+         glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRSpecularGlossiness.DiffuseTexture.Index].Handle);
+        end;
+        if (Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fParent.fTextures)) then begin
+         glActiveTexture(GL_TEXTURE1);
+         glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index].Handle);
+        end;
+       end;
+       TGLTFOpenGL.TMaterial.TShadingModel.Unlit:begin
+        if (Material^.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material^.PBRMetallicRoughness.BaseColorTexture.Index<length(fParent.fTextures)) then begin
+         glActiveTexture(GL_TEXTURE0);
+         glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
+        end;
+       end;
+       else begin
+        Assert(false);
+       end;
+      end;
+      if (Material^.NormalTexture.Index>=0) and (Material^.NormalTexture.Index<length(fParent.fTextures)) then begin
+       glActiveTexture(GL_TEXTURE2);
+       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.NormalTexture.Index].Handle);
+      end;
+      if (Material^.OcclusionTexture.Index>=0) and (Material^.OcclusionTexture.Index<length(fParent.fTextures)) then begin
+       glActiveTexture(GL_TEXTURE3);
+       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.OcclusionTexture.Index].Handle);
+      end;
+      if (Material^.EmissiveTexture.Index>=0) and (Material^.EmissiveTexture.Index<length(fParent.fTextures)) then begin
+       glActiveTexture(GL_TEXTURE4);
+       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.EmissiveTexture.Index].Handle);
+      end;
+      glBindBufferRange(GL_UNIFORM_BUFFER,
+                        TShadingShader.uboMaterial,
+                        fParent.fMaterialUniformBufferObjects[Material^.UniformBufferObjectIndex].UniformBufferObjectHandle,
+                        Material^.UniformBufferObjectOffset,
+                        SizeOf(TMaterial.TUniformBufferObjectData));
+      DoDraw:=true;
+     end;
+    end else begin
+     if aAlphaMode=TPasGLTF.TMaterial.TAlphaMode.Opaque then begin
+      if Blend<>0 then begin
+       Blend:=0;
+       glDisable(GL_BLEND);
+      end;
+      if CullFace<>1 then begin
+       CullFace:=1;
+       glEnable(GL_CULL_FACE);
+      end;
+      glBindBufferRange(GL_UNIFORM_BUFFER,
+                        TShadingShader.uboMaterial,
+                        fParent.fMaterialUniformBufferObjects[0].UniformBufferObjectHandle,
+                        0,
+                        SizeOf(TMaterial.TUniformBufferObjectData));
+      DoDraw:=true;
+     end;
+    end;
+    if DoDraw then begin
+     if Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex>=0 then begin
+      MorphTargetVertexShaderStorageBufferObject:=@fParent.fMorphTargetVertexShaderStorageBufferObjects[Primitive^.MorphTargetVertexShaderStorageBufferObjectIndex];
+      glBindBufferRange(GL_SHADER_STORAGE_BUFFER,
+                        TShadingShader.ssboMorphTargetVertices,
+                        MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle,
+                        Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset,
+                        Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize);
+     end;
+     MeshPrimitiveMetaData:=@Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex];
+     glBindBufferRange(GL_SHADER_STORAGE_BUFFER,
+                       TShadingShader.ssboNodeMeshPrimitiveMetaData,
+                       fParent.fNodeMeshPrimitiveShaderStorageBufferObjects[MeshPrimitiveMetaData^.ShaderStorageBufferObjectIndex].ShaderStorageBufferObjectHandle,
+                       MeshPrimitiveMetaData^.ShaderStorageBufferObjectByteOffset,
+                       MeshPrimitiveMetaData^.ShaderStorageBufferObjectByteSize);
+     glDrawElements(Primitive^.PrimitiveMode,
+                    Primitive^.CountIndices,
+                    GL_UNSIGNED_INT,
+                    @PPasGLTFUInt32Array(nil)^[Primitive^.StartBufferIndexOffset]);
+    end;
+   end;
+  end;
+ var Index:TPasGLTFSizeInt;
+     Skin:TGLTFOpenGL.PSkin;
+     SkinShaderStorageBufferObject:TGLTFOpenGL.PSkinShaderStorageBufferObject;
+ begin
+  Node:=@fNodes[aNodeIndex];
+  if (Node^.Mesh>=0) and (Node^.Mesh<length(fParent.fMeshes)) then begin
+   if (fAnimation>=0) and
+      ((Node^.Skin>=0) and (Node^.Skin<length(fParent.fSkins))) and
+      (fParent.fSkins[Node^.Skin].SkinShaderStorageBufferObjectIndex>=0) then begin
+    Skin:=@fSkins[Node^.Skin];
+    SkinShaderStorageBufferObject:=@fParent.fSkinShaderStorageBufferObjects[Skin^.SkinShaderStorageBufferObjectIndex];
+    if CurrentSkinShaderStorageBufferObjectHandle<>SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle then begin
+     CurrentSkinShaderStorageBufferObjectHandle:=SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle;
+     glBindBufferBase(GL_SHADER_STORAGE_BUFFER,
+                      TShadingShader.ssboJointMatrices,
+                      SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
+    enD;
+    ShadingShader:=SkinnedShadingShader;
+   end else begin
+    ShadingShader:=NonSkinnedShadingShader;
+   end;
+   UseShader(ShadingShader);
+   DrawMesh(fParent.fMeshes[Node^.Mesh]);
+  end;
+  for Index:=0 to length(Node^.Children)-1 do begin
+   DrawNode(Node^.Children[Index],aAlphaMode);
+  end;
+ end;
+ procedure UpdateFrameGlobalsUniformBufferObject;
+ var p:PFrameGlobalsUniformBufferObjectData;
+ begin
+  glBindBuffer(GL_UNIFORM_BUFFER,fParent.fFrameGlobalsUniformBufferObjectHandle);
+  p:=glMapBufferRange(GL_UNIFORM_BUFFER,0,SizeOf(TFrameGlobalsUniformBufferObjectData),GL_MAP_WRITE_BIT or GL_MAP_INVALIDATE_BUFFER_BIT);
+  if assigned(p) then begin
+   p^.InverseViewMatrix:=MatrixInverse(aViewMatrix);
+   p^.ModelMatrix:=aModelMatrix;
+   p^.ViewProjectionMatrix:=MatrixMul(aViewMatrix,aProjectionMatrix);
+   glUnmapBuffer(GL_UNIFORM_BUFFER);
+  end;
+  glBindBufferBase(GL_UNIFORM_BUFFER,
+                   TShadingShader.uboFrameGlobals,
+                   fParent.fFrameGlobalsUniformBufferObjectHandle);
+ end;
+var Index:TPasGLTFSizeInt;
+    Scene:PScene;
+    AlphaMode:TPasGLTF.TMaterial.TAlphaMode;
+begin
+ if fParent.fReady and fParent.fUploaded then begin
+  if fScene<0 then begin
+   Scene:=@fParent.fScenes[0];
+  end else if fScene<length(fParent.fScenes) then begin
+   Scene:=@fParent.fScenes[fScene];
+  end else begin
+   Scene:=nil;
+  end;
+  if assigned(Scene) then begin
+   CurrentSkinShaderStorageBufferObjectHandle:=0;
+   UpdateFrameGlobalsUniformBufferObject;
+   glBindVertexArray(fParent.fVertexArrayHandle);
+   glBindBuffer(GL_ARRAY_BUFFER,fParent.fVertexBufferObjectHandle);
+   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fParent.fIndexBufferObjectHandle);
    ProcessNodeMeshPrimitiveShaderStorageBufferObjects;
    ProcessSkins;
    glCullFace(GL_BACK);
