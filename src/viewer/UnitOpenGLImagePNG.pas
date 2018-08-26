@@ -113,8 +113,6 @@ type PPNGPixel=^TPNGPixel;
 
 function LoadPNGImage(DataPointer:pointer;DataSize:longword;var ImageData:pointer;var ImageWidth,ImageHeight:longint;HeaderOnly:boolean):boolean;
 
-function LoadPNGGLImage(DataPointer:pointer;DataSize:longword;SRGB:boolean):TGLImage;
-
 implementation
 
 {$ifdef android}
@@ -1927,56 +1925,4 @@ end;
 {$endif}
 {$ifend}
 
-function LoadPNGGLImage(DataPointer:pointer;DataSize:longword;SRGB:boolean):TGLImage;
-var ImageData:pointer;
-    ImageWidth,ImageHeight:longint;
-begin
- result:=nil;
- ImageData:=nil;
- if LoadPNGImage(DataPointer,DataSize,ImageData,ImageWidth,ImageHeight,false) then begin
-  if assigned(ImageData) then begin
-   try
-    result:=TGLImage.Create;
-    result.TextureDimensions:=2;
-    result.GLTarget:=GL_TEXTURE_2D;
-    result.Compressed:=false;
-    result.GenerateMipmaps:=true;
-    result.DoSwizzle:=false;
-    result.GLType:=GL_UNSIGNED_BYTE;
-    result.GLTypeSize:=1;
-    result.GLFormat:=GL_RGBA;
-    if SRGB then begin
-     result.GLInternalFormat:=GL_SRGB8_ALPHA8;
-    end else begin
-     result.GLInternalFormat:=GL_RGBA;
-    end;
-    result.GLBaseInternalFormat:=GL_RGBA;
-    result.PixelWidth:=ImageWidth;
-    result.PixelHeight:=ImageHeight;
-    result.PixelDepth:=1;
-    result.NumberOfArrayElements:=1;
-    result.NumberOfFaces:=1;
-    result.NumberOfMipmapLevels:=1;
-    result.BytesOfKeyValueData:=0;
-    SetLength(result.MipMapLevels,1);
-    result.MipMapLevels[0].ImageSize:=ImageWidth*ImageHeight*4;
-    result.MipMapLevels[0].PixelWidth:=result.PixelWidth;
-    result.MipMapLevels[0].PixelHeight:=result.PixelHeight;
-    result.MipMapLevels[0].PixelDepth:=result.PixelDepth;
-    SetLength(result.MipMapLevels[0].Faces,1);
-    result.MipMapLevels[0].Faces[0].PixelWidth:=result.PixelWidth;
-    result.MipMapLevels[0].Faces[0].PixelHeight:=result.PixelHeight;
-    result.MipMapLevels[0].Faces[0].PixelDepth:=result.PixelDepth;
-    result.MipMapLevels[0].Faces[0].DataSize:=ImageWidth*ImageHeight*4;
-    SetLength(result.MipMapLevels[0].Faces[0].Data,(result.MipMapLevels[0].Faces[0].DataSize+3) and not 3);
-    Move(ImageData^,result.MipMapLevels[0].Faces[0].Data[0],result.MipMapLevels[0].Faces[0].DataSize);
-   finally
-    FreeMem(ImageData);
-   end;
-  end;
- end;
-end;
-
-initialization
-finalization
 end.
