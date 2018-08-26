@@ -39,6 +39,8 @@ uses
 
 const Title='PasGLTF viewer';
 
+      Copyright='Copyright (C) 2018, Benjamin ''BeRo'' Rosseaux';
+
 // Force usage of dedicated GPU for OpenGL with Delphi and FreePascal/Lazarus on Multi-GPU systems such as Notebooks on Windows
 // Insert that into your main source file, which is for example the .dpr (Delphi) or .lpr (Lazarus) file
 
@@ -77,6 +79,8 @@ const VirtualCanvasWidth=1280;
       VirtualCanvasHeight=720;
 
 var InputFileName:TPasGLTFUTF8String='';
+
+    CurrentFileName:TPasGLTFUTF8String='';
 
     StartPerformanceCounter:Int64=0;
 
@@ -364,6 +368,44 @@ begin
  end;
 end;
 
+procedure UpdateTitle;
+var s:TPasGLTFUTF8String;
+begin
+ s:=Title;
+ if length(CurrentFileName)>0 then begin
+  s:=s+' - '+ExtractFileName(CurrentFileName);
+  if assigned(GLTFOpenGL) then begin
+   s:=s+' - Animation: '+IntToStr(AnimationIndex+1)+' / '+IntToStr(length(GLTFOpenGL.Animations));
+   begin
+    s:=s+' - Automatic rotation: ';
+    if AutomaticRotate then begin
+     s:=s+' on';
+    end else begin
+     s:=s+' off';
+    end;
+   end;
+   begin
+    s:=s+' - ';
+    if Fullscreen then begin
+     s:=s+' Fullscreen';
+    end else begin
+     s:=s+' Window mode';
+    end;
+   end;
+   begin
+    s:=s+' - Mouse action: ';
+    if ButtonLeftPressed then begin
+     s:=s+' Rotate and zoom';
+    end else begin
+     s:=s+' None';
+    end;
+   end;
+  end;
+ end;
+ s:=s+' - '+Copyright;
+ SDL_SetWindowTitle(SurfaceWindow,PAnsiChar(s));
+end;
+
 procedure MainLoop;
 var RootPath,TextureFileName:string;
     s:ansistring;
@@ -399,6 +441,7 @@ begin
         AnimationIndex:=length(GLTFOpenGL.Animations)-1;
        end;
        AnimationTime:=0.0;
+       UpdateTitle;
       end;
       SDLK_N:begin
        inc(AnimationIndex);
@@ -406,19 +449,24 @@ begin
         AnimationIndex:=-1;
        end;
        AnimationTime:=0.0;
+       UpdateTitle;
       end;
       SDLK_T:begin
        AnimationTime:=0.0;
+       UpdateTitle;
       end;
       SDLK_M:begin
        WrapCursor:=not WrapCursor;
        SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
+       UpdateTitle;
       end;
       SDLK_R:begin
        ResetCamera;
+       UpdateTitle;
       end;
       SDLK_SPACE:begin
        AutomaticRotate:=not AutomaticRotate;
+       UpdateTitle;
       end;
       SDLK_RETURN:begin
        if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
@@ -431,6 +479,7 @@ begin
         SDL_ShowCursor(ord(not FullScreen) and 1);
         SDL_SetRelativeMouseMode(ord(WrapCursor or FullScreen) and 1);
        end;
+       UpdateTitle;
       end;
       SDLK_F4:begin
        if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
@@ -475,6 +524,7 @@ begin
      case event.button.button of
       SDL_BUTTON_LEFT:begin
        ButtonLeftPressed:=true;
+       UpdateTitle;
       end;
       SDL_BUTTON_RIGHT:begin
       end;
@@ -484,6 +534,7 @@ begin
      case event.button.button of
       SDL_BUTTON_LEFT:begin
        ButtonLeftPressed:=false;
+       UpdateTitle;
       end;
       SDL_BUTTON_RIGHT:begin
       end;
@@ -546,8 +597,7 @@ begin
      GLTFOpenGL.RootPath:=IncludeTrailingPathDelimiter(ExtractFilePath(FileName));
      GLTFOpenGL.LoadFromFile(FileName);
      GLTFOpenGL.Upload;
-     s:=Title+' - '+ExtractFileName(FileName);
-     SDL_SetWindowTitle(SurfaceWindow,PAnsiChar(s));
+     CurrentFileName:=FileName;
     except
      on e:EPasGLTF do begin
       s:=E.ClassName+': '+E.Message;
@@ -558,6 +608,7 @@ begin
                                SurfaceWindow);
       GLTFOpenGL.Unload;
       FreeAndNil(GLTFOpenGL);
+      CurrentFileName:='';
      end;
      on e:Exception do begin
       s:=E.ClassName+': '+E.Message;
@@ -568,12 +619,14 @@ begin
                                SurfaceWindow);
       GLTFOpenGL.Unload;
       FreeAndNil(GLTFOpenGL);
+      CurrentFileName:='';
       raise;
      end;
     end;
     ResetCamera;
     AnimationIndex:=0;
     AnimationTime:=0.0;
+    UpdateTitle;
    finally
     InputFileName:='';
    end;
@@ -653,7 +706,7 @@ for Index:=0 downto 0 do begin
   SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,1);
   SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,1 shl MultiSampleCounter);
  end;
- SurfaceWindow:=SDL_CreateWindow(pansichar(Title),(BestWidth-ScreenWidth) div 2,(BestHeight-ScreenHeight) div 2,ScreenWidth,ScreenHeight,SDL_WINDOW_OPENGL or SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE or VideoFlags);
+ SurfaceWindow:=SDL_CreateWindow(pansichar(Title+' - '+Copyright),(BestWidth-ScreenWidth) div 2,(BestHeight-ScreenHeight) div 2,ScreenWidth,ScreenHeight,SDL_WINDOW_OPENGL or SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE or VideoFlags);
  if assigned(SurfaceWindow) then begin
   SDL_EventState(SDL_DROPFILE,SDL_ENABLE);
   SurfaceContext:=SDL_GL_CreateContext(SurfaceWindow);
