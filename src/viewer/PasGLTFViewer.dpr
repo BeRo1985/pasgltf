@@ -385,7 +385,7 @@ end;
 procedure UpdateTitle;
 var s:TPasGLTFUTF8String;
 begin
- s:=Title+' - Version '+Version+' - '+Copyright;
+ s:=Title+' - Version '+Version+' - '+Copyright+' - F8 = console';
  if length(CurrentFileName)>0 then begin
   s:=s+' - '+ExtractFileName(CurrentFileName);
   if assigned(GLTFOpenGL) then begin
@@ -451,6 +451,8 @@ begin
   ConsoleInstance.Lines.Add(#0#11+'quit                       '+#0#10+'Exit the viewer');
   ConsoleInstance.Lines.Add(#0#11+'listanimations             '+#0#10+'List all avilable animations');
   ConsoleInstance.Lines.Add(#0#11+'setanimation '+#0#9+'x'+#0#11+'             '+#0#10+'Set animation to '+#0#9+'x'+#0#11+' (number)');
+  ConsoleInstance.Lines.Add(#0#11+'resetanimation             '+#0#10+'Reset animation');
+  ConsoleInstance.Lines.Add(#0#11+'resetcamera                '+#0#10+'Reset camera');
   ConsoleInstance.Lines.Add('');
  end else if (Command='exit') or (Command='quit') then begin
   SDLRunning:=false;
@@ -469,6 +471,10 @@ begin
   end;
   AnimationIndex:=Value-1;
   AnimationTime:=0.0;
+ end else if (Command='resetanimation') then begin
+  AnimationTime:=0.0;
+ end else if (Command='resetcamera') then begin
+  ResetCamera;
  end else begin
   ConsoleInstance.Lines.Add(#0#12'Unknown command '#0#14'"'#0#13+Command+#0#14'"'#0#12'');
  end;
@@ -836,7 +842,7 @@ for Index:=0 downto 0 do begin
   SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS,1);
   SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES,1 shl MultiSampleCounter);
  end;
- SurfaceWindow:=SDL_CreateWindow(pansichar(Title+' - Version '+Version+' - '+Copyright),(BestWidth-ScreenWidth) div 2,(BestHeight-ScreenHeight) div 2,ScreenWidth,ScreenHeight,SDL_WINDOW_OPENGL or SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE or VideoFlags);
+ SurfaceWindow:=SDL_CreateWindow(pansichar(Title+' - Version '+Version+' - '+Copyright+' - F8 = console'),(BestWidth-ScreenWidth) div 2,(BestHeight-ScreenHeight) div 2,ScreenWidth,ScreenHeight,SDL_WINDOW_OPENGL or SDL_WINDOW_SHOWN or SDL_WINDOW_RESIZABLE or VideoFlags);
  if assigned(SurfaceWindow) then begin
   SDL_EventState(SDL_DROPFILE,SDL_ENABLE);
   SurfaceContext:=SDL_GL_CreateContext(SurfaceWindow);
