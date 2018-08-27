@@ -260,6 +260,7 @@ type EGLTFOpenGL=class(Exception);
               Primitives:TPrimitives;
               BoundingBox:TBoundingBox;
               Weights:TPasGLTFFloatDynamicArray;
+//            JointWeights:TPasGLTFFloatDynamicArray;
             end;
             PMesh=^TMesh;
             TMeshes=array of TMesh;
@@ -907,6 +908,26 @@ begin
  end;
 end;
 
+function MatrixScale(const a:TPasGLTF.TMatrix4x4;const s:TPasGLTFFloat):TPasGLTF.TMatrix4x4;
+begin
+ result[0]:=a[0]*s;
+ result[1]:=a[1]*s;
+ result[2]:=a[2]*s;
+ result[3]:=a[3]*s;
+ result[4]:=a[4]*s;
+ result[5]:=a[5]*s;
+ result[6]:=a[6]*s;
+ result[7]:=a[7]*s;
+ result[8]:=a[8]*s;
+ result[9]:=a[9]*s;
+ result[10]:=a[10]*s;
+ result[11]:=a[11]*s;
+ result[12]:=a[12]*s;
+ result[13]:=a[13]*s;
+ result[14]:=a[14]*s;
+ result[15]:=a[15]*s;
+end;
+
 { TGLTFModel }
 
 constructor TGLTFOpenGL.Create;
@@ -1234,6 +1255,8 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
      VertexIndex,
      TargetIndex,
      WeightIndex,
+     JointIndex,
+     OtherJointIndex,
      OldCount,
      MaxCountTargets:TPasGLTFSizeInt;
      SourceMesh:TPasGLTF.TMesh;
@@ -1279,6 +1302,8 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
    SetLength(DestinationMesh^.Primitives,SourceMesh.Primitives.Count);
 
    DestinationMesh^.BoundingBox:=EmptyBoundingBox;
+
+//DestinationMesh^.JointWeights:=nil;
 
    MaxCountTargets:=0;
 
@@ -1605,6 +1630,30 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
        Vertex^.Weights1:=TemporaryWeights1[VertexIndex];
       end;
       Vertex^.VertexIndex:=VertexIndex;
+{     for WeightIndex:=0 to 3 do begin
+       if Vertex^.Weights0[WeightIndex]>0 then begin
+        JointIndex:=Vertex^.Joints0[WeightIndex];
+        OldCount:=length(DestinationMesh^.JointWeights);
+        if OldCount<=JointIndex then begin
+         SetLength(DestinationMesh^.JointWeights,(JointIndex+1)*2);
+         for OtherJointIndex:=OldCount to length(DestinationMesh^.JointWeights)-1 do begin
+          DestinationMesh^.JointWeights[OtherJointIndex]:=0.0;
+         end;
+        end;
+        DestinationMesh^.JointWeights[JointIndex]:=Max(DestinationMesh^.JointWeights[JointIndex],Vertex^.Weights0[WeightIndex]);
+       end;
+       if Vertex^.Weights1[WeightIndex]>0 then begin
+        JointIndex:=Vertex^.Joints1[WeightIndex];
+        OldCount:=length(DestinationMesh^.JointWeights);
+        if OldCount<=JointIndex then begin
+         SetLength(DestinationMesh^.JointWeights,(JointIndex+1)*2);
+         for OtherJointIndex:=OldCount to length(DestinationMesh^.JointWeights)-1 do begin
+          DestinationMesh^.JointWeights[OtherJointIndex]:=0.0;
+         end;
+        end;
+        DestinationMesh^.JointWeights[JointIndex]:=Max(DestinationMesh^.JointWeights[JointIndex],Vertex^.Weights1[WeightIndex]);
+       end;
+      end;}
      end;
     end;
 
@@ -3043,6 +3092,58 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
  end;
  procedure UpdateDynamicBoundingBox(const aScene:TGLTFOpenGL.PScene);
   procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt);
+  var Index:TPasGLTFSizeInt;
+      Matrix:TPasGLTF.TMatrix4x4;
+      InstanceNode:TGLTFOpenGL.TInstance.PNode;
+      Node:TGLTFOpenGL.PNode;
+      Mesh:TGLTFOpenGL.PMesh;
+      Center,Extents,NewCenter,NewExtents:TVector3;
+      SourceBoundingBox:TGLTFOpenGL.PBoundingBox;
+      BoundingBox:TGLTFOpenGL.TBoundingBox;
+  begin
+   InstanceNode:=@fNodes[aNodeIndex];
+   Node:=@fParent.fNodes[aNodeIndex];
+   if Node^.Mesh>=0 then begin
+    Mesh:=@fParent.fMeshes[Node^.Mesh];
+    SourceBoundingBox:=@Mesh^.BoundingBox;
+    Matrix:=InstanceNode^.WorkMatrix;
+    Center[0]:=(SourceBoundingBox^.Min[0]+SourceBoundingBox^.Max[0])*0.5;
+    Center[1]:=(SourceBoundingBox^.Min[1]+SourceBoundingBox^.Max[1])*0.5;
+    Center[2]:=(SourceBoundingBox^.Min[2]+SourceBoundingBox^.Max[2])*0.5;
+    Extents[0]:=(SourceBoundingBox^.Max[0]-SourceBoundingBox^.Min[0])*0.5;
+    Extents[1]:=(SourceBoundingBox^.Max[1]-SourceBoundingBox^.Min[1])*0.5;
+    Extents[2]:=(SourceBoundingBox^.Max[2]-SourceBoundingBox^.Min[2])*0.5;
+    NewCenter[0]:=(Matrix[0]*Center[0])+(Matrix[4]*Center[1])+(Matrix[8]*Center[2])+Matrix[12];
+    NewCenter[1]:=(Matrix[1]*Center[0])+(Matrix[5]*Center[1])+(Matrix[9]*Center[2])+Matrix[13];
+    NewCenter[2]:=(Matrix[2]*Center[0])+(Matrix[6]*Center[1])+(Matrix[10]*Center[2])+Matrix[14];
+    NewExtents[0]:=abs(Matrix[0]*Extents[0])+abs(Matrix[4]*Extents[1])+abs(Matrix[8]*Extents[2]);
+    NewExtents[1]:=abs(Matrix[1]*Extents[0])+abs(Matrix[5]*Extents[1])+abs(Matrix[9]*Extents[2]);
+    NewExtents[2]:=abs(Matrix[2]*Extents[0])+abs(Matrix[6]*Extents[1])+abs(Matrix[10]*Extents[2]);
+    BoundingBox.Min[0]:=NewCenter[0]-NewExtents[0];
+    BoundingBox.Min[1]:=NewCenter[1]-NewExtents[1];
+    BoundingBox.Min[2]:=NewCenter[2]-NewExtents[2];
+    BoundingBox.Max[0]:=NewCenter[0]+NewExtents[0];
+    BoundingBox.Max[1]:=NewCenter[1]+NewExtents[1];
+    BoundingBox.Max[2]:=NewCenter[2]+NewExtents[2];
+    fDynamicBoundingBox.Min[0]:=Min(fDynamicBoundingBox.Min[0],BoundingBox.Min[0]);
+    fDynamicBoundingBox.Min[1]:=Min(fDynamicBoundingBox.Min[1],BoundingBox.Min[1]);
+    fDynamicBoundingBox.Min[2]:=Min(fDynamicBoundingBox.Min[2],BoundingBox.Min[2]);
+    fDynamicBoundingBox.Max[0]:=Max(fDynamicBoundingBox.Max[0],BoundingBox.Max[0]);
+    fDynamicBoundingBox.Max[1]:=Max(fDynamicBoundingBox.Max[1],BoundingBox.Max[1]);
+    fDynamicBoundingBox.Max[2]:=Max(fDynamicBoundingBox.Max[2],BoundingBox.Max[2]);
+   end;
+   for Index:=0 to length(Node^.Children)-1 do begin
+    ProcessNode(Node^.Children[Index]);
+   end;
+  end;
+ var Index:TPasGLTFSizeInt;
+ begin
+  fDynamicBoundingBox:=EmptyBoundingBox;
+  for Index:=0 to length(aScene^.Nodes)-1 do begin
+   ProcessNode(aScene^.Nodes[Index]);
+  end;
+ end;
+{  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt);
   var Index,CountJoints,JointIndex:TPasGLTFSizeInt;
       Matrix,InverseMatrix:TPasGLTF.TMatrix4x4;
       InstanceNode:TGLTFOpenGL.TInstance.PNode;
@@ -3077,7 +3178,11 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     Matrix:=InstanceNode^.WorkMatrix;
     for JointIndex:=-1 to CountJoints-1 do begin
      if JointIndex>=0 then begin
-//    Matrix:=MatrixMul(MatrixMul(Skin^.InverseBindMatrices[JointIndex],fNodes[Skin^.Joints[JointIndex]].WorkMatrix),InverseMatrix);
+      if (JointIndex<length(Mesh^.JointWeights)) and (Mesh^.JointWeights[JointIndex]>0.0) then begin
+       Matrix:=MatrixMul(MatrixScale(MatrixMul(MatrixMul(Skin^.InverseBindMatrices[JointIndex],fNodes[Skin^.Joints[JointIndex]].WorkMatrix),InverseMatrix),Mesh^.JointWeights[JointIndex]),InstanceNode^.WorkMatrix);
+      end else begin
+       continue;
+      end;
      end;
      NewCenter[0]:=(Matrix[0]*Center[0])+(Matrix[4]*Center[1])+(Matrix[8]*Center[2])+Matrix[12];
      NewCenter[1]:=(Matrix[1]*Center[0])+(Matrix[5]*Center[1])+(Matrix[9]*Center[2])+Matrix[13];
@@ -3109,7 +3214,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
   for Index:=0 to length(aScene^.Nodes)-1 do begin
    ProcessNode(aScene^.Nodes[Index]);
   end;
- end;
+ end;}
 var Index:TPasGLTFSizeInt;
     Scene:TGLTFOpenGL.PScene;
 begin
