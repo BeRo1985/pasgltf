@@ -502,6 +502,17 @@ const EmptyMaterialUniformBufferObjectData:TGLTFOpenGL.TMaterial.TUniformBufferO
         Reversed1:$ffffffff;
        );
 
+function CompareFloats(const a,b:TPasGLTFFloat):TPasGLTFInt32;
+begin
+ if a<b then begin
+  result:=-1;
+ end else if a>b then begin
+  result:=1;
+ end else begin
+  result:=0;
+ end;
+end;
+
 function Vector2Add(const a,b:TVector2):TVector2;
 begin
  result[0]:=a[0]+b[0];
@@ -3305,11 +3316,16 @@ begin
     finally
      SetLength(TimeArray,TimeArraySize);
     end;
+    if TimeArraySize>1 then begin
+     TPasGLTFTypedSort<TPasGLTFFloat>.IntroSort(@TimeArray[0],0,TimeArraySize-1,CompareFloats);
+    end;
     for TimeArrayIndex:=0 to TimeArraySize-1 do begin
      fAnimationTime:=TimeArray[TimeArrayIndex];
-     Update;
-     for Index:=0 to length(Scene^.Nodes)-1 do begin
-      ProcessNode(Scene^.Nodes[Index]);
+     if (TimeArrayIndex=0) or not SameValue(TimeArray[TimeArrayIndex-1],fAnimationTime) then begin
+      Update;
+      for Index:=0 to length(Scene^.Nodes)-1 do begin
+       ProcessNode(Scene^.Nodes[Index]);
+      end;
      end;
     end;
    finally
