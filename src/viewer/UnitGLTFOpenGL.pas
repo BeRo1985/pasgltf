@@ -3364,7 +3364,7 @@ procedure TGLTFOpenGL.TInstance.UpdateWorstCaseStaticBoundingBox;
         end;
        end;
       end;
-      Position:=Vector3MatrixMul(MatrixMul(InstanceNode^.WorkMatrix,Matrix),Position);
+      Position:=Vector3MatrixMul(MatrixMul(Matrix,InstanceNode^.WorkMatrix),Position);
      end else begin
       Position:=Vector3MatrixMul(InstanceNode^.WorkMatrix,Position);
      end;
