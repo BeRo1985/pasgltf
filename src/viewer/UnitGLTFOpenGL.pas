@@ -76,6 +76,7 @@ type EGLTFOpenGL=class(Exception);
               fNodes:TNodes;
               fSkins:TSkins;
               fDynamicBoundingBox:TBoundingBox;
+              fWorstCaseStaticBoundingBox:TBoundingBox;
               procedure SetScene(const aScene:TPasGLTFSizeInt);
               procedure SetAnimation(const aAnimation:TPasGLTFSizeInt);
               function GetScene:TGLTFOpenGL.PScene;
@@ -84,6 +85,7 @@ type EGLTFOpenGL=class(Exception);
               destructor Destroy; override;
               procedure Update;
               procedure UpdateDynamicBoundingBox;
+              procedure UpdateWorstCaseStaticBoundingBox;
               procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                              const aViewMatrix:TPasGLTF.TMatrix4x4;
                              const aProjectionMatrix:TPasGLTF.TMatrix4x4;
@@ -3251,6 +3253,68 @@ begin
  if assigned(Scene) then begin
   for Index:=0 to length(Scene^.Nodes)-1 do begin
    ProcessNode(Scene^.Nodes[Index]);
+  end;
+ end;
+end;
+
+procedure TGLTFOpenGL.TInstance.UpdateWorstCaseStaticBoundingBox;
+ procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt);
+ var Index:TPasGLTFSizeInt;
+     Matrix:TPasGLTF.TMatrix4x4;
+     InstanceNode:TGLTFOpenGL.TInstance.PNode;
+     Node:TGLTFOpenGL.PNode;
+     Mesh:TGLTFOpenGL.PMesh;
+     Center,Extents,NewCenter,NewExtents:TVector3;
+     SourceBoundingBox:TGLTFOpenGL.PBoundingBox;
+     BoundingBox:TGLTFOpenGL.TBoundingBox;
+ begin
+  InstanceNode:=@fNodes[aNodeIndex];
+  Node:=@fParent.fNodes[aNodeIndex];
+  if Node^.Mesh>=0 then begin
+   Mesh:=@fParent.fMeshes[Node^.Mesh];
+  end;
+ end;
+var Index,TimeArraySize,TimeArrayIndex:TPasGLTFSizeInt;
+    Scene:TGLTFOpenGL.PScene;
+    Animation:TGLTFOpenGL.PAnimation;
+    AnimationChannel:TGLTFOpenGL.TAnimation.PChannel;
+    TimeArray:TPasGLTFFloatDynamicArray;
+begin
+ fWorstCaseStaticBoundingBox:=EmptyBoundingBox;
+ Scene:=GetScene;
+ if assigned(Scene) then begin
+  if (fAnimation<0) or (fAnimation>=length(fParent.fAnimations)) then begin
+   UpdateDynamicBoundingBox;
+   fWorstCaseStaticBoundingBox:=fDynamicBoundingBox;
+  end else begin
+   Animation:=@fParent.Animations[fAnimation];
+   TimeArray:=nil;
+   try
+    TimeArraySize:=0;
+    try
+     for Index:=0 to length(Animation^.Channels)-1 do begin
+      AnimationChannel:=@Animation^.Channels[Index];
+      if length(AnimationChannel^.InputTimeArray)>0 then begin
+       if length(TimeArray)<(TimeArraySize+length(AnimationChannel^.InputTimeArray)) then begin
+        SetLength(TimeArray,(TimeArraySize+length(AnimationChannel^.InputTimeArray))*2);
+       end;
+       Move(AnimationChannel^.InputTimeArray[0],TimeArray[TimeArraySize],length(AnimationChannel^.InputTimeArray)*SizeOf(TPasGLTFFloat));
+       inc(TimeArraySize,length(AnimationChannel^.InputTimeArray));
+      end;
+     end;
+    finally
+     SetLength(TimeArray,TimeArraySize);
+    end;
+    for TimeArrayIndex:=0 to TimeArraySize-1 do begin
+     fAnimationTime:=TimeArray[TimeArrayIndex];
+     Update;
+     for Index:=0 to length(Scene^.Nodes)-1 do begin
+      ProcessNode(Scene^.Nodes[Index]);
+     end;
+    end;
+   finally
+    TimeArray:=nil;
+   end;
   end;
  end;
 end;
