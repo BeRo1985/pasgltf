@@ -3270,19 +3270,57 @@ end;
 
 procedure TGLTFOpenGL.TInstance.UpdateWorstCaseStaticBoundingBox;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt);
- var Index:TPasGLTFSizeInt;
+ var Index,
+     PrimitiveIndex,
+     VertexIndex,
+     MorphTargetWeightIndex:TPasGLTFSizeInt;
      Matrix:TPasGLTF.TMatrix4x4;
      InstanceNode:TGLTFOpenGL.TInstance.PNode;
      Node:TGLTFOpenGL.PNode;
+     InstanceSkin:TGLTFOpenGL.TInstance.PSkin;
+     Skin:TGLTFOpenGL.PSkin;
      Mesh:TGLTFOpenGL.PMesh;
-     Center,Extents,NewCenter,NewExtents:TVector3;
-     SourceBoundingBox:TGLTFOpenGL.PBoundingBox;
-     BoundingBox:TGLTFOpenGL.TBoundingBox;
+     Primitive:TGLTFOpenGL.TMesh.PPrimitive;
+     Vertex:TGLTFOpenGL.PVertex;
+     Position:TVector3;
+     MorphTargetVertexPosition:PVector3;
+     HasMorphTargets:boolean;
  begin
   InstanceNode:=@fNodes[aNodeIndex];
   Node:=@fParent.fNodes[aNodeIndex];
   if Node^.Mesh>=0 then begin
    Mesh:=@fParent.fMeshes[Node^.Mesh];
+   HasMorphTargets:=length(InstanceNode^.WorkWeights)>0;
+   if Node^.Skin>=0 then begin
+    InstanceSkin:=@fSkins[Node^.Skin];
+    Skin:=@fParent.fSkins[Node^.Skin];
+   end else begin
+    InstanceSkin:=nil;
+    Skin:=nil;
+   end;
+   for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
+    Primitive:=@Mesh^.Primitives[PrimitiveIndex];
+    for VertexIndex:=0 to length(Primitive^.Vertices)-1 do begin
+     Vertex:=@Primitive^.Vertices[VertexIndex];
+     Position:=Vertex^.Position;
+     if HasMorphTargets then begin
+      for MorphTargetWeightIndex:=0 to length(InstanceNode^.WorkWeights)-1 do begin
+       MorphTargetVertexPosition:=@Primitive^.Targets[MorphTargetWeightIndex].Vertices[VertexIndex].Position;
+       Position:=Vector3Add(Position,Vector3Scale(MorphTargetVertexPosition^,InstanceNode^.WorkWeights[MorphTargetWeightIndex]));
+      end;
+     end;
+     if assigned(Skin) then begin
+
+     end;
+     Position:=Vector3MatrixMul(InstanceNode^.WorkMatrix,Position);
+     fWorstCaseStaticBoundingBox.Min[0]:=Min(fWorstCaseStaticBoundingBox.Min[0],Position[0]);
+     fWorstCaseStaticBoundingBox.Min[1]:=Min(fWorstCaseStaticBoundingBox.Min[1],Position[1]);
+     fWorstCaseStaticBoundingBox.Min[2]:=Min(fWorstCaseStaticBoundingBox.Min[2],Position[2]);
+     fWorstCaseStaticBoundingBox.Max[0]:=Max(fWorstCaseStaticBoundingBox.Max[0],Position[0]);
+     fWorstCaseStaticBoundingBox.Max[1]:=Max(fWorstCaseStaticBoundingBox.Max[1],Position[1]);
+     fWorstCaseStaticBoundingBox.Max[2]:=Max(fWorstCaseStaticBoundingBox.Max[2],Position[2]);
+    end;
+   end;
   end;
  end;
 var Index,TimeArraySize,TimeArrayIndex:TPasGLTFSizeInt;
