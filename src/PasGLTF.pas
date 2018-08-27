@@ -459,6 +459,17 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
 
      EPasGLTFInvalidBase64=class(EPasGLTF);
 
+     TPasGLTFTypedSort<T>=class
+      public
+       type TPasGLTFTypedSortCompareFunction=function(const a,b:T):TPasGLTFInt32;
+{$ifndef fpc}
+      private
+       class function BSRDWord(aValue:TPasGLTFUInt32):TPasGLTFInt32; static;
+{$endif}
+      public
+       class procedure IntroSort(const pItems:TPasGLTFPointer;const pLeft,pRight:TPasGLTFSizeInt;const pCompareFunc:TPasGLTFTypedSortCompareFunction); static;
+     end;
+
      TPasGLTFDynamicArray<T>=class
       private
        type TValueEnumerator=record
@@ -1409,6 +1420,181 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
      end;
 
 implementation
+
+{$ifndef fpc}
+class function TPasGLTFTypedSort<T>.BSRDWord(aValue:TPasGLTFUInt32):TPasGLTFInt32;
+const BSRDebruijn32Multiplicator=TPasGLTFUInt32($07c4acdd);
+      BSRDebruijn32Shift=27;
+      BSRDebruijn32Mask=31;
+      BSRDebruijn32Table:array[0..31] of TPasGLTFInt32=(0,9,1,10,13,21,2,29,11,14,16,18,22,25,3,30,8,12,20,28,15,17,24,7,19,27,23,6,26,5,4,31);
+var Value:TPasGLTFUInt32;
+begin
+ if aValue=0 then begin
+  result:=255;
+ end else begin
+  Value:=aValue or (aValue shr 1);
+  Value:=Value or (Value shr 2);
+  Value:=Value or (Value shr 4);
+  Value:=Value or (Value shr 8);
+  Value:=Value or (Value shr 16);
+  result:=BSRDebruijn32Table[((Value*BSRDebruijn32Multiplicator) shr BSRDebruijn32Shift) and BSRDebruijn32Mask];
+ end;
+end;
+{$endif}
+
+class procedure TPasGLTFTypedSort<T>.IntroSort(const pItems:TPasGLTFPointer;const pLeft,pRight:TPasGLTFSizeInt;const pCompareFunc:TPasGLTFTypedSortCompareFunction);
+type TItem=T;
+     PItem=^TItem;
+     TItemArray=array[0..65535] of TItem;
+     PItemArray=^TItemArray;
+     TStackItem=record
+      Left:TPasGLTFSizeInt;
+      Right:TPasGLTFSizeInt;
+      Depth:TPasGLTFInt32;
+     end;
+     PStackItem=^TStackItem;
+var Left,Right,i,j,Middle,Size,Parent,Child,Pivot,iA,iB,iC:TPasGLTFSizeInt;
+    Depth:TPasGLTFInt32;
+    StackItem:PStackItem;
+    Stack:array[0..31] of TStackItem;
+    Temp:T;
+begin
+ if pLeft<pRight then begin
+  StackItem:=@Stack[0];
+  StackItem^.Left:=pLeft;
+  StackItem^.Right:=pRight;
+  if (TPasGLTFInt64(pRight)-TPasGLTFInt64(pLeft))<=TPasGLTFInt64(High(TPasGLTFUInt32)) then begin
+   StackItem^.Depth:=BSRDWord((pRight-pLeft)+1) shl 1;
+   if StackItem^.Depth>31 then begin
+    StackItem^.Depth:=31;
+   end;
+  end else begin
+   StackItem^.Depth:=31;
+  end;
+  inc(StackItem);
+  while {%H-}TPasGLTFPtrUInt(TPasGLTFPointer(StackItem))>TPasGLTFPtrUInt(TPasGLTFPointer(@Stack[0])) do begin
+   dec(StackItem);
+   Left:=StackItem^.Left;
+   Right:=StackItem^.Right;
+   Depth:=StackItem^.Depth;
+   Size:=(Right-Left)+1;
+   if Size<16 then begin
+    // Insertion sort
+    iA:=Left;
+    iB:=iA+1;
+    while iB<=Right do begin
+     iC:=iB;
+     while (iA>=Left) and
+           (iC>=Left) and
+           (pCompareFunc(PItemArray(pItems)^[iA],PItemArray(pItems)^[iC])>0) do begin
+      Temp:=PItemArray(pItems)^[iA];
+      PItemArray(pItems)^[iA]:=PItemArray(pItems)^[iC];
+      PItemArray(pItems)^[iC]:=Temp;
+      dec(iA);
+      dec(iC);
+     end;
+     iA:=iB;
+     inc(iB);
+    end;
+   end else begin
+    if (Depth=0) or ({%H-}TPasGLTFPtrUInt(TPasGLTFPointer(StackItem))>=TPasGLTFPtrUInt(TPasGLTFPointer(@Stack[high(Stack)-1]))) then begin
+     // Heap sort
+     i:=Size div 2;
+     repeat
+      if i>0 then begin
+       dec(i);
+      end else begin
+       dec(Size);
+       if Size>0 then begin
+        Temp:=PItemArray(pItems)^[Left+Size];
+        PItemArray(pItems)^[Left+Size]:=PItemArray(pItems)^[Left];
+        PItemArray(pItems)^[Left]:=Temp;
+       end else begin
+        break;
+       end;
+      end;
+      Parent:=i;
+      repeat
+       Child:=(Parent*2)+1;
+       if Child<Size then begin
+        if (Child<(Size-1)) and (pCompareFunc(PItemArray(pItems)^[Left+Child],PItemArray(pItems)^[Left+Child+1])<0) then begin
+         inc(Child);
+        end;
+        if pCompareFunc(PItemArray(pItems)^[Left+Parent],PItemArray(pItems)^[Left+Child])<0 then begin
+         Temp:=PItemArray(pItems)^[Left+Parent];
+         PItemArray(pItems)^[Left+Parent]:=PItemArray(pItems)^[Left+Child];
+         PItemArray(pItems)^[Left+Child]:=Temp;
+         Parent:=Child;
+         continue;
+        end;
+       end;
+       break;
+      until false;
+     until false;
+    end else begin
+     // Quick sort width median-of-three optimization
+     Middle:=Left+((Right-Left) shr 1);
+     if (Right-Left)>3 then begin
+      if pCompareFunc(PItemArray(pItems)^[Left],PItemArray(pItems)^[Middle])>0 then begin
+       Temp:=PItemArray(pItems)^[Left];
+       PItemArray(pItems)^[Left]:=PItemArray(pItems)^[Middle];
+       PItemArray(pItems)^[Middle]:=Temp;
+      end;
+      if pCompareFunc(PItemArray(pItems)^[Left],PItemArray(pItems)^[Right])>0 then begin
+       Temp:=PItemArray(pItems)^[Left];
+       PItemArray(pItems)^[Left]:=PItemArray(pItems)^[Right];
+       PItemArray(pItems)^[Right]:=Temp;
+      end;
+      if pCompareFunc(PItemArray(pItems)^[Middle],PItemArray(pItems)^[Right])>0 then begin
+       Temp:=PItemArray(pItems)^[Middle];
+       PItemArray(pItems)^[Middle]:=PItemArray(pItems)^[Right];
+       PItemArray(pItems)^[Right]:=Temp;
+      end;
+     end;
+     Pivot:=Middle;
+     i:=Left;
+     j:=Right;
+     repeat
+      while (i<Right) and (pCompareFunc(PItemArray(pItems)^[i],PItemArray(pItems)^[Pivot])<0) do begin
+       inc(i);
+      end;
+      while (j>=i) and (pCompareFunc(PItemArray(pItems)^[j],PItemArray(pItems)^[Pivot])>0) do begin
+       dec(j);
+      end;
+      if i>j then begin
+       break;
+      end else begin
+       if i<>j then begin
+        Temp:=PItemArray(pItems)^[i];
+        PItemArray(pItems)^[i]:=PItemArray(pItems)^[j];
+        PItemArray(pItems)^[j]:=Temp;
+        if Pivot=i then begin
+         Pivot:=j;
+        end else if Pivot=j then begin
+         Pivot:=i;
+        end;
+       end;
+       inc(i);
+       dec(j);
+      end;
+     until false;
+     if i<Right then begin
+      StackItem^.Left:=i;
+      StackItem^.Right:=Right;
+      StackItem^.Depth:=Depth-1;
+      inc(StackItem);
+     end;
+     if Left<j then begin
+      StackItem^.Left:=Left;
+      StackItem^.Right:=j;
+      StackItem^.Depth:=Depth-1;
+      inc(StackItem);
+     end;
+    end;
+   end;
+  end;
+ end;
+end;
 
 constructor TPasGLTFDynamicArray<T>.TValueEnumerator.Create(const aDynamicArray:TPasGLTFDynamicArray<T>);
 begin
