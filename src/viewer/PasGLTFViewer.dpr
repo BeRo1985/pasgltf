@@ -157,6 +157,8 @@ var InputFileName:TPasGLTFUTF8String='';
 
     SceneIndex:int32=-1;
 
+    LastAnimationIndex:int32=-2;
+
     AnimationIndex:int32=0;
 
     ZoomLevel:TPasGLTFFloat=1.0;
@@ -284,17 +286,21 @@ begin
  if assigned(GLTFInstance) then begin
   GLTFInstance.Scene:=SceneIndex;
   GLTFInstance.Animation:=AnimationIndex;
+  if (LastAnimationIndex<>AnimationIndex) and Shadows then begin
+   LastAnimationIndex:=AnimationIndex;
+   GLTFInstance.UpdateWorstCaseStaticBoundingBox;
+  end;
   GLTFInstance.AnimationTime:=AnimationTime;
   GLTFInstance.Update;
  end;
  if assigned(GLTFInstance) and Shadows then begin
-  GLTFInstance.UpdateDynamicBoundingBox;
-  ShadowMapAABB.Min.x:=GLTFInstance.DynamicBoundingBox.Min[0];
-  ShadowMapAABB.Min.y:=GLTFInstance.DynamicBoundingBox.Min[1];
-  ShadowMapAABB.Min.z:=GLTFInstance.DynamicBoundingBox.Min[2];
-  ShadowMapAABB.Max.x:=GLTFInstance.DynamicBoundingBox.Max[0];
-  ShadowMapAABB.Max.y:=GLTFInstance.DynamicBoundingBox.Max[1];
-  ShadowMapAABB.Max.z:=GLTFInstance.DynamicBoundingBox.Max[2];
+//GLTFInstance.UpdateDynamicBoundingBox;
+  ShadowMapAABB.Min.x:=GLTFInstance.WorstCaseStaticBoundingBox.Min[0];
+  ShadowMapAABB.Min.y:=GLTFInstance.WorstCaseStaticBoundingBox.Min[1];
+  ShadowMapAABB.Min.z:=GLTFInstance.WorstCaseStaticBoundingBox.Min[2];
+  ShadowMapAABB.Max.x:=GLTFInstance.WorstCaseStaticBoundingBox.Max[0];
+  ShadowMapAABB.Max.y:=GLTFInstance.WorstCaseStaticBoundingBox.Max[1];
+  ShadowMapAABB.Max.z:=GLTFInstance.WorstCaseStaticBoundingBox.Max[2];
   ShadowMapViewMatrix:=GetShadowMapViewMatrix;
   ShadowMapAABB:=AABBTransform(ShadowMapAABB,ShadowMapViewMatrix);
   Bounds.x:=(ShadowMapAABB.Max.x-ShadowMapAABB.Min.x)*0.125;
@@ -658,6 +664,7 @@ begin
    Value:=(Value*10)+(ord(aCommandLine[CommandLinePosition])-ord('0'));
    inc(CommandLinePosition);
   end;
+  LastAnimationIndex:=-2;
   SceneIndex:=Value-1;
  end else if (Command='listanimations') then begin
   ConsoleInstance.Lines.Add(#0#11+'0. '+#0#10+'Static pose');
@@ -672,6 +679,7 @@ begin
    Value:=(Value*10)+(ord(aCommandLine[CommandLinePosition])-ord('0'));
    inc(CommandLinePosition);
   end;
+  LastAnimationIndex:=-2;
   AnimationIndex:=Value-1;
   AnimationTime:=0.0;
  end else if Command='resetanimation' then begin
@@ -793,6 +801,7 @@ begin
      end else begin
       case Event.key.keysym.sym of
        SDLK_B:begin
+        LastAnimationIndex:=-2;
         dec(AnimationIndex);
         if (AnimationIndex<-1) and assigned(GLTFOpenGL) then begin
          AnimationIndex:=length(GLTFOpenGL.Animations)-1;
@@ -801,6 +810,7 @@ begin
         UpdateTitle;
        end;
        SDLK_N:begin
+        LastAnimationIndex:=-2;
         inc(AnimationIndex);
         if assigned(GLTFOpenGL) and (AnimationIndex>=length(GLTFOpenGL.Animations)) then begin
          AnimationIndex:=-1;
@@ -1013,6 +1023,7 @@ begin
     end;
     ResetCamera;
     SceneIndex:=GLTFOpenGL.Scene;
+    LastAnimationIndex:=-2;
     AnimationIndex:=0;
     AnimationTime:=0.0;
     UpdateTitle;

@@ -101,6 +101,7 @@ type EGLTFOpenGL=class(Exception);
               property Nodes:TNodes read fNodes;
               property Skins:TSkins read fSkins;
               property DynamicBoundingBox:TBoundingBox read fDynamicBoundingBox;
+              property WorstCaseStaticBoundingBox:TBoundingBox read fWorstCaseStaticBoundingBox;
              published
               property Parent:TGLTFOpenGL read fParent;
             end;
@@ -3376,6 +3377,9 @@ procedure TGLTFOpenGL.TInstance.UpdateWorstCaseStaticBoundingBox;
     end;
    end;
   end;
+  for Index:=0 to length(Node^.Children)-1 do begin
+   ProcessNode(Node^.Children[Index]);
+  end;
  end;
 var Index,TimeArraySize,TimeArrayIndex:TPasGLTFSizeInt;
     Scene:TGLTFOpenGL.PScene;
@@ -3390,7 +3394,7 @@ begin
    UpdateDynamicBoundingBox;
    fWorstCaseStaticBoundingBox:=fDynamicBoundingBox;
   end else begin
-   Animation:=@fParent.Animations[fAnimation];
+   Animation:=@fParent.fAnimations[fAnimation];
    TimeArray:=nil;
    try
     TimeArraySize:=0;
