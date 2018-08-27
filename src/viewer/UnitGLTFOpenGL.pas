@@ -86,6 +86,7 @@ type EGLTFOpenGL=class(Exception);
               procedure Update;
               procedure UpdateDynamicBoundingBox;
               procedure UpdateWorstCaseStaticBoundingBox;
+              procedure Upload;
               procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                              const aViewMatrix:TPasGLTF.TMatrix4x4;
                              const aProjectionMatrix:TPasGLTF.TMatrix4x4;
@@ -3431,28 +3432,7 @@ begin
  end;
 end;
 
-procedure TGLTFOpenGL.TInstance.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
-                                     const aViewMatrix:TPasGLTF.TMatrix4x4;
-                                     const aProjectionMatrix:TPasGLTF.TMatrix4x4;
-                                     const aShadowMapMatrix:TPasGLTF.TMatrix4x4;
-                                     const aNonSkinnedNormalShadingShader:TShadingShader;
-                                     const aNonSkinnedAlphaTestShadingShader:TShadingShader;
-                                     const aSkinnedNormalShadingShader:TShadingShader;
-                                     const aSkinnedAlphaTestShadingShader:TShadingShader;
-                                     const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
-var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
-    CurrentShader:TShader;
-    CurrentSkinShaderStorageBufferObjectHandle:glUInt;
-    CullFace,Blend:TPasGLTFInt32;
- procedure UseShader(const aShader:TShader);
- begin
-  if CurrentShader<>aShader then begin
-   CurrentShader:=aShader;
-   if assigned(CurrentShader) then begin
-    CurrentShader.Bind;
-   end;
-  end;
- end;
+procedure TGLTFOpenGL.TInstance.Upload;
  procedure ProcessNodeMeshPrimitiveShaderStorageBufferObjects;
   procedure ProcessNodeMeshPrimitiveShaderStorageBufferObject(const aNodeMeshPrimitiveShaderStorageBufferObject:TGLTFOpenGL.PNodeMeshPrimitiveShaderStorageBufferObject);
    procedure Process(const aInstanceNode:TGLTFOpenGL.TInstance.PNode;
@@ -3567,6 +3547,38 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
   end;
  begin
   ProcessSkinShaderStorageBufferObjects;
+ end;
+var Index:TPasGLTFSizeInt;
+    Scene:PScene;
+begin
+ Scene:=GetScene;
+ if assigned(Scene) then begin
+  ProcessNodeMeshPrimitiveShaderStorageBufferObjects;
+  ProcessSkins;
+ end;
+end;
+
+procedure TGLTFOpenGL.TInstance.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
+                                     const aViewMatrix:TPasGLTF.TMatrix4x4;
+                                     const aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                                     const aShadowMapMatrix:TPasGLTF.TMatrix4x4;
+                                     const aNonSkinnedNormalShadingShader:TShadingShader;
+                                     const aNonSkinnedAlphaTestShadingShader:TShadingShader;
+                                     const aSkinnedNormalShadingShader:TShadingShader;
+                                     const aSkinnedAlphaTestShadingShader:TShadingShader;
+                                     const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
+var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
+    CurrentShader:TShader;
+    CurrentSkinShaderStorageBufferObjectHandle:glUInt;
+    CullFace,Blend:TPasGLTFInt32;
+ procedure UseShader(const aShader:TShader);
+ begin
+  if CurrentShader<>aShader then begin
+   CurrentShader:=aShader;
+   if assigned(CurrentShader) then begin
+    CurrentShader.Bind;
+   end;
+  end;
  end;
  procedure DrawNode(const aNodeIndex:TPasGLTFSizeInt;const aAlphaMode:TPasGLTF.TMaterial.TAlphaMode);
  var ShadingShader:TShadingShader;
@@ -3767,8 +3779,6 @@ begin
   glBindVertexArray(fParent.fVertexArrayHandle);
   glBindBuffer(GL_ARRAY_BUFFER,fParent.fVertexBufferObjectHandle);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fParent.fIndexBufferObjectHandle);
-  ProcessNodeMeshPrimitiveShaderStorageBufferObjects;
-  ProcessSkins;
   glCullFace(GL_BACK);
   CullFace:=-1;
   Blend:=-1;

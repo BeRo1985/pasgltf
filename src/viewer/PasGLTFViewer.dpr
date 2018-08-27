@@ -292,6 +292,7 @@ begin
   end;
   GLTFInstance.AnimationTime:=AnimationTime;
   GLTFInstance.Update;
+  GLTFInstance.Upload;
  end;
  if assigned(GLTFInstance) and Shadows then begin
 //GLTFInstance.UpdateDynamicBoundingBox;
