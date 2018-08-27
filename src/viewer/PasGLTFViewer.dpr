@@ -39,7 +39,9 @@ uses
   UnitFontPNG in 'UnitFontPNG.pas',
   UnitOpenGLSpriteBatch in 'UnitOpenGLSpriteBatch.pas',
   UnitOpenGLExtendedBlitRectShader in 'UnitOpenGLExtendedBlitRectShader.pas',
-  UnitConsole in 'UnitConsole.pas';
+  UnitConsole in 'UnitConsole.pas',
+  UnitOpenGLShadowMapBlurShader in 'UnitOpenGLShadowMapBlurShader.pas',
+  UnitOpenGLMultisampleResolveShader in 'UnitOpenGLMultisampleResolveShader.pas';
 
 const Title='PasGLTF viewer';
 
@@ -127,6 +129,10 @@ var InputFileName:TPasGLTFUTF8String='';
     HDRToLDRShader:THDRToLDRShader;
 
     LDRSceneFBO:TFBO;
+
+    MultisampleResolveShader:TMultisampleResolveShader;
+
+    ShadowMapBlurShader:TShadowMapBlurShader;
 
     AntialiasingShader:TAntialiasingShader;
 
@@ -247,7 +253,7 @@ begin
  result[0,3]:=0.0;
  result[1,0]:=LightSideVector.y;
  result[1,1]:=LightUpVector.y;
- result[1,2]:=LightForwardVector.x;
+ result[1,2]:=LightForwardVector.y;
  result[1,3]:=0.0;
  result[2,0]:=LightSideVector.z;
  result[2,1]:=LightUpVector.z;
@@ -269,6 +275,7 @@ var ModelMatrix,
     v,Zoom:TPasGLTFFloat;
     ShadingShader:TShadingShader;
     t0,t1:int64;
+  Index: Integer;
 begin
  LightDirection:=Vector3Norm(Vector3(0.0,-1.0,0.0));
 //LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
@@ -285,11 +292,14 @@ begin
   ShadowMapAABB.Max.x:=GLTFOpenGL.StaticBoundingBox.Max[0];
   ShadowMapAABB.Max.y:=GLTFOpenGL.StaticBoundingBox.Max[1];
   ShadowMapAABB.Max.z:=GLTFOpenGL.StaticBoundingBox.Max[2];
+  Bounds.x:=(GLTFOpenGL.StaticBoundingBox.Max[0]-GLTFOpenGL.StaticBoundingBox.Min[0])*0.125;
+  Bounds.y:=(GLTFOpenGL.StaticBoundingBox.Max[1]-GLTFOpenGL.StaticBoundingBox.Min[1])*0.125;
+  Bounds.z:=(GLTFOpenGL.StaticBoundingBox.Max[2]-GLTFOpenGL.StaticBoundingBox.Min[2])*0.125;
   ShadowMapViewMatrix:=GetShadowMapViewMatrix;
   ShadowMapAABB:=AABBTransform(ShadowMapAABB,ShadowMapViewMatrix);
-  ShadowMapProjectionMatrix:=Matrix4x4Ortho(ShadowMapAABB.Min.x-2.0,ShadowMapAABB.Max.x+2.0,
-                                            ShadowMapAABB.Min.y-2.0,ShadowMapAABB.Max.y+2.0,
-                                            -(ShadowMapAABB.Min.z-2.0),-(ShadowMapAABB.Max.z+2.0));
+  ShadowMapProjectionMatrix:=Matrix4x4Ortho(ShadowMapAABB.Min.x-Bounds.x,ShadowMapAABB.Max.x+Bounds.x,
+                                            ShadowMapAABB.Min.y-Bounds.y,ShadowMapAABB.Max.y+Bounds.y,
+                                            -(ShadowMapAABB.Min.z-Bounds.z),-(ShadowMapAABB.Max.z+Bounds.z));
   ShadowMapMatrix:=Matrix4x4TermMul(ShadowMapViewMatrix,ShadowMapProjectionMatrix);
   for ShadingShader in ShadowShaders do begin
    ShadingShader.Bind;
@@ -297,12 +307,16 @@ begin
    ShadingShader.Unbind;
   end;
   begin
+// glBindFramebuffer(GL_DRAW_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
    glBindFramebuffer(GL_FRAMEBUFFER,MultisampledShadowMapFBO);
    glDrawBuffer(GL_COLOR_ATTACHMENT0);
    glViewport(0,0,ShadowMapSize,ShadowMapSize);
    glClearColor(1.0,1.0,1.0,1.0);
    glClearDepth(1.0);
    glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+   glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);
+   glEnable(GL_DEPTH_TEST);
+   glDepthFunc(GL_LEQUAL);
    ModelMatrix:=Matrix4x4Identity;
    GLTFInstance.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
                      TPasGLTF.TMatrix4x4(Pointer(@ShadowMapViewMatrix)^),
@@ -311,9 +325,29 @@ begin
                      ShadowShaders[false,false],
                      ShadowShaders[false,true],
                      ShadowShaders[true,false],
-                     ShadowShaders[true,true]);
+                     ShadowShaders[true,true],
+                     [TPasGLTF.TMaterial.TAlphaMode.Opaque,TPasGLTF.TMaterial.TAlphaMode.Mask]);
   end;
   begin
+   glBindFrameBuffer(GL_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
+   glDrawBuffer(GL_COLOR_ATTACHMENT0);
+   glViewport(0,0,ShadowMapFBOs[0].Width,ShadowMapFBOs[0].Height);
+   glDisable(GL_BLEND);
+   glDisable(GL_DEPTH_TEST);
+   glDisable(GL_CULL_FACE);
+   glDepthFunc(GL_ALWAYS);
+   glActiveTexture(GL_TEXTURE0);
+   glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapFBO);
+   MultisampleResolveShader.Bind;
+   glUniform1i(MultisampleResolveShader.uTexture,0);
+   glUniform1i(MultisampleResolveShader.uSamples,MultisampledShadowMapSamples);
+   glBindVertexArray(EmptyVertexArrayObjectHandle);
+   glDrawArrays(GL_TRIANGLES,0,3);
+   glBindVertexArray(0);
+   MultisampleResolveShader.Unbind;
+   glBindFrameBuffer(GL_FRAMEBUFFER,0);
+  end;
+{ begin // renderdoc don't like this (garbage trace output then as result)
    glBindFramebuffer(GL_DRAW_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
    glBindFramebuffer(GL_READ_FRAMEBUFFER,MultisampledShadowMapFBO);
    glDrawBuffer(GL_COLOR_ATTACHMENT0);
@@ -321,6 +355,31 @@ begin
                      0,0,ShadowMapFBOs[0].Width,ShadowMapFBOs[0].Height,
                      GL_COLOR_BUFFER_BIT,
                      GL_NEAREST);
+   glBindFramebuffer(GL_DRAW_FRAMEBUFFER,0);
+   glBindFramebuffer(GL_READ_FRAMEBUFFER,0);
+  end;{}
+  for Index:=1 to 2 do begin
+   glBindFrameBuffer(GL_FRAMEBUFFER,ShadowMapFBOs[Index].FBOs[0]);
+   glDrawBuffer(GL_COLOR_ATTACHMENT0);
+   glViewport(0,0,ShadowMapFBOs[Index].Width,ShadowMapFBOs[Index].Height);
+   glDisable(GL_BLEND);
+   glDisable(GL_DEPTH_TEST);
+   glDisable(GL_CULL_FACE);
+   glDepthFunc(GL_ALWAYS);
+   glActiveTexture(GL_TEXTURE0);
+   glBindTexture(GL_TEXTURE_2D,ShadowMapFBOs[Index-1].TextureHandles[0]);
+   ShadowMapBlurShader.Bind;
+   glUniform1i(ShadowMapBlurShader.uTexture,0);
+   if Index=1 then begin
+    glUniform2f(ShadowMapBlurShader.uDirection,1.0,0.0);
+   end else begin
+    glUniform2f(ShadowMapBlurShader.uDirection,0.0,1.0);
+   end;
+   glBindVertexArray(EmptyVertexArrayObjectHandle);
+   glDrawArrays(GL_TRIANGLES,0,3);
+   glBindVertexArray(0);
+   ShadowMapBlurShader.Unbind;
+   glBindFrameBuffer(GL_FRAMEBUFFER,0);
   end;
  end;
  begin
@@ -432,6 +491,7 @@ begin
  end;
  begin
   glBindFrameBuffer(GL_FRAMEBUFFER,0);
+  glDrawBuffer(GL_BACK);
   glViewport(0,0,ViewPortWidth,ViewPortHeight);
   glClearColor(0.0,0.0,0.0,0.0);
   glClearDepth(1.0);
@@ -1265,7 +1325,7 @@ begin
 
       glGenTextures(1,@MultisampledShadowMapTexture);
       glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture);
-      glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapSamples,GL_RGBA16UI,ShadowMapSize,ShadowMapSize,true);
+      glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapSamples,GL_RGBA32F,ShadowMapSize,ShadowMapSize,true);
       glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture,0);
 
       glGenRenderbuffers(1,@MultisampledShadowMapDepthRenderBuffer);
@@ -1285,8 +1345,8 @@ begin
        ShadowMapFBO^.Height:=ShadowMapSize;
        ShadowMapFBO^.Depth:=0;
        ShadowMapFBO^.Textures:=1;
-       ShadowMapFBO^.TextureFormats[0]:=GL_TEXTURE_RGBA16F;
-       ShadowMapFBO^.Format:=GL_TEXTURE_RGBA16F;
+       ShadowMapFBO^.TextureFormats[0]:=GL_TEXTURE_RGBA32F;
+       ShadowMapFBO^.Format:=GL_TEXTURE_RGBA32F;
        ShadowMapFBO^.SWrapMode:=wmGL_CLAMP_TO_EDGE;
        ShadowMapFBO^.TWrapMode:=wmGL_CLAMP_TO_EDGE;
        ShadowMapFBO^.RWrapMode:=wmGL_CLAMP_TO_EDGE;
@@ -1335,66 +1395,80 @@ begin
         CreateFrameBuffer(LDRSceneFBO);
         try
 
-         AntialiasingShader:=TAntialiasingShader.Create;
+         MultisampleResolveShader:=TMultisampleResolveShader.Create;
          try
 
+          ShadowMapBlurShader:=TShadowMapBlurShader.Create;
           try
 
-           ShadowShaders[false,false]:=TShadingShader.Create(false,false,true);
-           ShadowShaders[false,true]:=TShadingShader.Create(false,true,true);
-           ShadowShaders[true,false]:=TShadingShader.Create(true,false,true);
-           ShadowShaders[true,true]:=TShadingShader.Create(true,true,true);
-           ShadingShaders[false,false]:=TShadingShader.Create(false,false,false);
-           ShadingShaders[false,true]:=TShadingShader.Create(false,true,false);
-           ShadingShaders[true,false]:=TShadingShader.Create(true,false,false);
-           ShadingShaders[true,true]:=TShadingShader.Create(true,true,false);
+           AntialiasingShader:=TAntialiasingShader.Create;
            try
 
-            ExtendedBlitRectShader:=TExtendedBlitRectShader.Create;
             try
 
-             ConsoleInstance:=TConsole.Create;
+             ShadowShaders[false,false]:=TShadingShader.Create(false,false,true);
+             ShadowShaders[false,true]:=TShadingShader.Create(false,true,true);
+             ShadowShaders[true,false]:=TShadingShader.Create(true,false,true);
+             ShadowShaders[true,true]:=TShadingShader.Create(true,true,true);
+             ShadingShaders[false,false]:=TShadingShader.Create(false,false,false);
+             ShadingShaders[false,true]:=TShadingShader.Create(false,true,false);
+             ShadingShaders[true,false]:=TShadingShader.Create(true,false,false);
+             ShadingShaders[true,true]:=TShadingShader.Create(true,true,false);
              try
 
-              ConsoleInstance.Upload;
+              ExtendedBlitRectShader:=TExtendedBlitRectShader.Create;
+              try
 
-              MainLoop;
+               ConsoleInstance:=TConsole.Create;
+               try
+
+                ConsoleInstance.Upload;
+
+                MainLoop;
+
+               finally
+                FreeAndNil(ConsoleInstance);
+               end;
+
+              finally
+               FreeAndNil(ExtendedBlitRectShader);
+              end;
 
              finally
-              FreeAndNil(ConsoleInstance);
+              FreeAndNil(ShadingShaders[false,false]);
+              FreeAndNil(ShadingShaders[false,true]);
+              FreeAndNil(ShadingShaders[true,false]);
+              FreeAndNil(ShadingShaders[true,true]);
+              FreeAndNil(ShadowShaders[false,false]);
+              FreeAndNil(ShadowShaders[false,true]);
+              FreeAndNil(ShadowShaders[true,false]);
+              FreeAndNil(ShadowShaders[true,true]);
              end;
 
             finally
-             FreeAndNil(ExtendedBlitRectShader);
+             if assigned(GLTFOpenGL) then begin
+              try
+               FreeAndNil(GLTFInstance);
+              finally
+               try
+                GLTFOpenGL.Unload;
+               finally
+                FreeAndNil(GLTFOpenGL);
+               end;
+              end;
+             end;
             end;
 
            finally
-            FreeAndNil(ShadingShaders[false,false]);
-            FreeAndNil(ShadingShaders[false,true]);
-            FreeAndNil(ShadingShaders[true,false]);
-            FreeAndNil(ShadingShaders[true,true]);
-            FreeAndNil(ShadowShaders[false,false]);
-            FreeAndNil(ShadowShaders[false,true]);
-            FreeAndNil(ShadowShaders[true,false]);
-            FreeAndNil(ShadowShaders[true,true]);
+            FreeAndNil(AntialiasingShader);
            end;
 
           finally
-           if assigned(GLTFOpenGL) then begin
-            try
-             FreeAndNil(GLTFInstance);
-            finally
-             try
-              GLTFOpenGL.Unload;
-             finally
-              FreeAndNil(GLTFOpenGL);
-             end;
-            end;
-           end;
+           FreeAndNil(ShadowMapBlurShader);
           end;
 
          finally
-          FreeAndNil(AntialiasingShader);
+          FreeAndNil(MultisampleResolveShader);
          end;
 
         finally

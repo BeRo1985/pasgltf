@@ -126,6 +126,7 @@ type TShadingShader=class(TShader)
        uEmissiveTexture:glInt;
        uLightDirection:glInt;
        uBRDFLUTTexture:glInt;
+       uShadowMapTexture:glInt;
        uEnvMapTexture:glInt;
        uEnvMapMaxLevel:glInt;
        constructor Create(const aSkinned,aAlphaTest,aShadowMap:boolean);
@@ -255,6 +256,7 @@ begin
     'uniform sampler2D uOcclusionTexture;'+#13#10+
     'uniform sampler2D uEmissiveTexture;'+#13#10+
     'uniform sampler2D uBRDFLUTTexture;'+#13#10+
+    'uniform sampler2D uShadowMapTexture;'+#13#10+
     'uniform samplerCube uEnvMapTexture;'+#13#10+
     'uniform int uEnvMapMaxLevel;'+#13#10+
     'uniform vec3 uLightDirection;'+#13#10+
@@ -363,6 +365,7 @@ begin
        '  float d = t.z / t.w;'+#13#10+
        '  float s = d * d;'+#13#10+
        '  vec4 m = vec4(d, s, s * d, s * s);'+#13#10+
+       '  oOutput = m;'+#13#10+
        '  float alpha = textureFetch(uBaseColorTexture, 0, vec4(1.0)).w * uMaterial.baseColorFactor.w * vColor.w;'+#13#10;
  end else begin
   f:=f+
@@ -507,6 +510,7 @@ begin
  uEmissiveTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveTexture')));
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
  uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
+ uShadowMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uShadowMapTexture')));
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
  uEnvMapMaxLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapMaxLevel')));
 //uboJointMatrices:=glGetUniformBlockIndex(ProgramHandle,pointer(pansichar('uboJointMatrices')));
@@ -517,6 +521,7 @@ begin
  glUniform1i(uEmissiveTexture,4);
  glUniform1i(uBRDFLUTTexture,5);
  glUniform1i(uEnvMapTexture,6);
+ glUniform1i(uShadowMapTexture,7);
 end;
 
 end.

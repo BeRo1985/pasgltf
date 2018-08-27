@@ -258,6 +258,8 @@
         <DCCReference Include="UnitOpenGLSpriteBatch.pas"/>
         <DCCReference Include="UnitOpenGLExtendedBlitRectShader.pas"/>
         <DCCReference Include="UnitConsole.pas"/>
+        <DCCReference Include="UnitOpenGLShadowMapBlurShader.pas"/>
+        <DCCReference Include="UnitOpenGLMultisampleResolveShader.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
