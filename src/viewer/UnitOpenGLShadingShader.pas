@@ -173,10 +173,9 @@ begin
     'layout(location = 7) in uvec4 aJoints1;'+#13#10+
     'layout(location = 8) in vec4 aWeights0;'+#13#10+
     'layout(location = 9) in vec4 aWeights1;'+#13#10+
-    'layout(location = 10) in uint aVertexIndex;'+#13#10;
- if aShadowMap then begin
-  v:=v+'out vec3 vWorldSpacePosition;'+#13#10;
- end else begin
+    'layout(location = 10) in uint aVertexIndex;'+#13#10+
+    'out vec3 vWorldSpacePosition;'+#13#10;
+ if not aShadowMap then begin
   v:=v+'out vec3 vCameraRelativePosition;'+#13#10;
  end;
  v:=v+
@@ -227,19 +226,18 @@ begin
     '  vTexCoord0 = aTexCoord0;'+#13#10+
     '  vTexCoord1 = aTexCoord1;'+#13#10+
     '  vColor = aColor0;'+#13#10+
-    '  vec4 worldSpacePosition = modelMatrix * vec4(position, 1.0);'+#13#10;
- if aShadowMap then begin
-  v:=v+'  vWorldSpacePosition = worldSpacePosition.xyz / worldSpacePosition.w;'+#13#10;
- end else begin
+    '  vec4 worldSpacePosition = modelMatrix * vec4(position, 1.0);'+#13#10+
+    '  vWorldSpacePosition = worldSpacePosition.xyz / worldSpacePosition.w;'+#13#10;
+ if not aShadowMap then begin
   v:=v+'  vCameraRelativePosition = (worldSpacePosition.xyz / worldSpacePosition.w) - uFrameGlobals.inverseViewMatrix[3].xyz;'+#13#10;
  end;
  v:=v+
     '  gl_Position = uFrameGlobals.viewProjectionMatrix * worldSpacePosition;'+#13#10+
     '}'+#13#10;
  f:='#version 430'+#13#10+
-    'layout(location = 0) out vec4 oOutput;'+#13#10;
+    'layout(location = 0) out vec4 oOutput;'+#13#10+
+    'in vec3 vWorldSpacePosition;'+#13#10;
  if aShadowMap then begin
-  f:=f+'in vec3 vWorldSpacePosition;'+#13#10;
  end else begin
   f:=f+'in vec3 vCameraRelativePosition;'+#13#10;
  end;
@@ -335,30 +333,51 @@ begin
     '  rayDirection = normalize(rayDirection);'+#13#10+
     '  return textureLod(texEnvMap, (vec2((atan(rayDirection.z, rayDirection.x) / 6.283185307179586476925286766559) + 0.5, acos(rayDirection.y) / 3.1415926535897932384626433832795)), texLOD);'+#13#10+
     '}'+#13#10+
+    'float getMSMShadowIntensity(vec4 b, float depth){'+#13#10+
+    '  float l32d22 = fma(-b.x, b.y, b.z),'+#13#10+
+    '        d22 = fma(-b.x, b.x, b.y),'+#13#10+
+    '        squaredDepthVariance = fma(-b.y, b.y, b.w),'+#13#10+
+    '        d33d22 = dot(vec2(squaredDepthVariance, -l32d22), vec2(d22, l32d22)),'+#13#10+
+    '        invD22 = 1.0 / d22,'+#13#10+
+    '        l32 = l32d22 * invD22;'+#13#10+
+    '  vec3 c = vec3(1.0, depth - b.x, depth * depth);'+#13#10+
+    '  c.z -= b.y + (l32 * c.y);'+#13#10+
+    '  c.yz *= vec2(invD22, d22 / d33d22);'+#13#10+
+    '  c.y -= l32 * c.z;'+#13#10+
+    '  c.x -= dot(c.yz, b.xy);'+#13#10+
+    '  vec2 pq = c.yx / c.z;'+#13#10+
+    '  vec3 z = vec3(depth, vec2(-(pq.x * 0.5)) + (vec2(-1.0, 1.0) * sqrt(((pq.x * pq.x) * 0.25) - pq.y)));'+#13#10+
+    '  vec4 s = (z.z < z.x)'+#13#10+
+    '             ? vec3(z.y, z.x, 1.0).xyzz'+#13#10+
+    '                 : ((z.y < z.x)'+#13#10+
+    '                     ? vec4(z.x, z.y, 0.0, 1.0)'+#13#10+
+    '                     : vec4(0.0));'+#13#10+
+    '  return clamp((s.z + (s.w * ((((s.x * z.z) - (b.x * (s.x + z.z))) + b.y) / ((z.z - s.y) * (z.x - z.y))))) * 1.03, 0.0, 1.0);'+#13#10+
+    '}'+#13#10+
     'const uint smPBRMetallicRoughness = 0u,'+#13#10+
-    '           smPBRSpecularGlossiness = 1u,'+#13#10+
-    '           smUnlit = 2u;'+#13#10+
-    'uvec2 texCoordIndices = uMaterial.alphaCutOffFlagsTex0Tex1.zw;'+#13#10+
-    'vec2 texCoords[2] = vec2[2](vTexCoord0, vTexCoord1);'+#13#10+
-    'vec4 textureFetch(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
-    '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
-    '  return (which < 0x2u) ? texture(tex, texCoords[int(which)]) : defaultValue;'+#13#10+
-    '}'+#13#10+
-    'vec4 textureFetchSRGB(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
-    '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
-    '  vec4 texel;'+#13#10+
-    '  if(which < 0x2u){'+#13#10+
-    '    texel = texture(tex, texCoords[int(which)]);'+#13#10+
-    '    texel.xyz = convertSRGBToLinearRGB(texel.xyz);'+#13#10+
-    '  }else{'+#13#10+
-    '    texel = defaultValue;'+#13#10+
-    '  }'+#13#10+
-    '   return texel;'+#13#10+
-    '}'+#13#10+
-    'void main(){'+#13#10+
-    '  vec4 color = vec4(0.0);'+#13#10+
-    '  uint flags = uMaterial.alphaCutOffFlagsTex0Tex1.y,'+#13#10+
-    '       shadingModel = (flags >> 0u) & 0xfu;'+#13#10;
+     '           smPBRSpecularGlossiness = 1u,'+#13#10+
+     '           smUnlit = 2u;'+#13#10+
+     'uvec2 texCoordIndices = uMaterial.alphaCutOffFlagsTex0Tex1.zw;'+#13#10+
+     'vec2 texCoords[2] = vec2[2](vTexCoord0, vTexCoord1);'+#13#10+
+     'vec4 textureFetch(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
+     '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
+     '  return (which < 0x2u) ? texture(tex, texCoords[int(which)]) : defaultValue;'+#13#10+
+     '}'+#13#10+
+     'vec4 textureFetchSRGB(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
+     '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
+     '  vec4 texel;'+#13#10+
+     '  if(which < 0x2u){'+#13#10+
+     '    texel = texture(tex, texCoords[int(which)]);'+#13#10+
+     '    texel.xyz = convertSRGBToLinearRGB(texel.xyz);'+#13#10+
+     '  }else{'+#13#10+
+     '    texel = defaultValue;'+#13#10+
+     '  }'+#13#10+
+     '   return texel;'+#13#10+
+     '}'+#13#10+
+     'void main(){'+#13#10+
+     '  vec4 color = vec4(0.0);'+#13#10+
+     '  uint flags = uMaterial.alphaCutOffFlagsTex0Tex1.y,'+#13#10+
+     '       shadingModel = (flags >> 0u) & 0xfu;'+#13#10;
  if aShadowMap then begin
   f:=f+
        '  vec4 t = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
@@ -369,6 +388,9 @@ begin
        '  float alpha = textureFetch(uBaseColorTexture, 0, vec4(1.0)).w * uMaterial.baseColorFactor.w * vColor.w;'+#13#10;
  end else begin
   f:=f+
+     '  vec4 shadowNDC = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
+     '  shadowNDC /= shadowNDC.w;'+#13#10+
+     '  float shadowIntensity = getMSMShadowIntensity(textureLod(uShadowMapTexture, (shadowNDC.xy + vec2(1.0)) * 0.5, 0.0), shadowNDC.z);'+#13#10+
      '  switch(shadingModel){'+#13#10+
      '    case smPBRMetallicRoughness:'+#13#10+
      '    case smPBRSpecularGlossiness:{'+#13#10+
@@ -453,7 +475,7 @@ begin
      '                                 cavity);'+#13#10+(**)
      '      {'+#13#10+
      '        float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
-     '              ao = cavity * ambientOcclusion,'+#13#10+
+     '              ao = cavity * ambientOcclusion * (1.0 - shadowIntensity),'+#13#10+
      '              specularOcclusion = clamp((pow(NdotV + ao, specularColorRoughness.w * specularColorRoughness.w) - 1.0) + ao, 0.0, 1.0);'+#13#10+
      '      	 vec2 brdf = textureLod(uBRDFLUTTexture, vec2(specularColorRoughness.w, NdotV), 0.0).xy;'+#13#10+
      '        color.xyz += ((textureLod(uEnvMapTexture, normalize(reflect(viewDirection, normal.xyz)),'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(specularColorRoughness.w))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColorRoughness.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z) * 50.0, 0.0, 1.0))) * specularOcclusion) +'+#13#10+
