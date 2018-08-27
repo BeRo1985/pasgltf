@@ -441,8 +441,7 @@ begin
      '    vec4 shadowNDC = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition'+{ + shadowOffset}', 1.0);'+#13#10+
      '    shadowNDC /= shadowNDC.w;'+#13#10+
      '    if(all(greaterThanEqual(shadowNDC, vec4(-1.0))) && all(lessThanEqual(shadowNDC, vec4(1.0)))){'+#13#10+
-     '      litIntensity = 1.0 - getMSMShadowIntensity(textureLod(uShadowMapTexture, (shadowNDC.xy + vec2(1.0)) * 0.5, 0.0), shadowNDC.z, 6e-5, 0.1 * 0.001);'+#13#10+
-//   '      litIntensity = reduceLightBleeding(1.0 - getMSMShadowIntensity(textureLod(uShadowMapTexture, (shadowNDC.xy + vec2(1.0)) * 0.5, 0.0), shadowNDC.z, 6e-5, 0.1 * 0.001), 0.7);'+#13#10+
+     '      litIntensity = 1.0 - reduceLightBleeding(getMSMShadowIntensity(textureLod(uShadowMapTexture, (shadowNDC.xy + vec2(1.0)) * 0.5, 0.0), shadowNDC.z, 6e-3, 3e-5), 0.0);'+#13#10+
      '    }'+#13#10+
      '  }'+#13#10+
      '  switch(shadingModel){'+#13#10+
