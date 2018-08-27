@@ -153,6 +153,8 @@ var InputFileName:TPasGLTFUTF8String='';
 
     ButtonLeftPressed:boolean=false;
 
+    Shadows:boolean=false;
+
     SceneIndex:int32=-1;
 
     AnimationIndex:int32=0;
@@ -285,18 +287,18 @@ begin
   GLTFInstance.AnimationTime:=AnimationTime;
   GLTFInstance.Update;
  end;
- if assigned(GLTFInstance) and true then begin
+ if assigned(GLTFInstance) and Shadows then begin
   ShadowMapAABB.Min.x:=GLTFOpenGL.StaticBoundingBox.Min[0];
   ShadowMapAABB.Min.y:=GLTFOpenGL.StaticBoundingBox.Min[1];
   ShadowMapAABB.Min.z:=GLTFOpenGL.StaticBoundingBox.Min[2];
   ShadowMapAABB.Max.x:=GLTFOpenGL.StaticBoundingBox.Max[0];
   ShadowMapAABB.Max.y:=GLTFOpenGL.StaticBoundingBox.Max[1];
   ShadowMapAABB.Max.z:=GLTFOpenGL.StaticBoundingBox.Max[2];
-  Bounds.x:=(GLTFOpenGL.StaticBoundingBox.Max[0]-GLTFOpenGL.StaticBoundingBox.Min[0])*0.125;
-  Bounds.y:=(GLTFOpenGL.StaticBoundingBox.Max[1]-GLTFOpenGL.StaticBoundingBox.Min[1])*0.125;
-  Bounds.z:=(GLTFOpenGL.StaticBoundingBox.Max[2]-GLTFOpenGL.StaticBoundingBox.Min[2])*0.125;
   ShadowMapViewMatrix:=GetShadowMapViewMatrix;
   ShadowMapAABB:=AABBTransform(ShadowMapAABB,ShadowMapViewMatrix);
+  Bounds.x:=(ShadowMapAABB.Max.x-ShadowMapAABB.Min.x)*0.125;
+  Bounds.y:=(ShadowMapAABB.Max.y-ShadowMapAABB.Min.y)*0.125;
+  Bounds.z:=(ShadowMapAABB.Max.z-ShadowMapAABB.Min.z)*0.125;
   ShadowMapProjectionMatrix:=Matrix4x4Ortho(ShadowMapAABB.Min.x-Bounds.x,ShadowMapAABB.Max.x+Bounds.x,
                                             ShadowMapAABB.Min.y-Bounds.y,ShadowMapAABB.Max.y+Bounds.y,
                                             -(ShadowMapAABB.Min.z-Bounds.z),-(ShadowMapAABB.Max.z+Bounds.z));
@@ -307,8 +309,8 @@ begin
    ShadingShader.Unbind;
   end;
   begin
-// glBindFramebuffer(GL_DRAW_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
-   glBindFramebuffer(GL_FRAMEBUFFER,MultisampledShadowMapFBO);
+   glBindFramebuffer(GL_DRAW_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
+// glBindFramebuffer(GL_FRAMEBUFFER,MultisampledShadowMapFBO);
    glDrawBuffer(GL_COLOR_ATTACHMENT0);
    glViewport(0,0,ShadowMapSize,ShadowMapSize);
    glClearColor(1.0,1.0,1.0,1.0);
@@ -328,10 +330,11 @@ begin
                      ShadowShaders[true,true],
                      [TPasGLTF.TMaterial.TAlphaMode.Opaque,TPasGLTF.TMaterial.TAlphaMode.Mask]);
   end;
-  begin
+{ begin
    glBindFrameBuffer(GL_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
    glDrawBuffer(GL_COLOR_ATTACHMENT0);
    glViewport(0,0,ShadowMapFBOs[0].Width,ShadowMapFBOs[0].Height);
+   glClear(GL_COLOR_BUFFER_BIT);
    glDisable(GL_BLEND);
    glDisable(GL_DEPTH_TEST);
    glDisable(GL_CULL_FACE);
@@ -362,6 +365,7 @@ begin
    glBindFrameBuffer(GL_FRAMEBUFFER,ShadowMapFBOs[Index].FBOs[0]);
    glDrawBuffer(GL_COLOR_ATTACHMENT0);
    glViewport(0,0,ShadowMapFBOs[Index].Width,ShadowMapFBOs[Index].Height);
+   glClear(GL_COLOR_BUFFER_BIT);
    glDisable(GL_BLEND);
    glDisable(GL_DEPTH_TEST);
    glDisable(GL_CULL_FACE);
@@ -443,11 +447,11 @@ begin
    glActiveTexture(GL_TEXTURE5);
    glBindTexture(GL_TEXTURE_2D,BRDFLUTFBO.TextureHandles[0]);
    glActiveTexture(GL_TEXTURE6);
+   glBindTexture(GL_TEXTURE_2D,ShadowMapFBOs[2].TextureHandles[0]);
+   glActiveTexture(GL_TEXTURE7);
    glBindTexture(GL_TEXTURE_CUBE_MAP,EnvMapFBO.TextureHandles[0]);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
-   glActiveTexture(GL_TEXTURE7);
-   glBindTexture(GL_TEXTURE_2D,ShadowMapFBOs[2].TextureHandles[0]);
    glActiveTexture(GL_TEXTURE0);
    glEnable(GL_DEPTH_TEST);
    glEnable(GL_CULL_FACE);
@@ -456,6 +460,7 @@ begin
     ShadingShader.Bind;
     glUniform3fv(ShadingShader.uLightDirection,1,@LightDirection);
     glUniform1i(ShadingShader.uEnvMapMaxLevel,Min(EnvMapFBO.WorkMaxLevel,16));
+    glUniform1i(ShadingShader.uShadows,ord(Shadows) and 1);
     ShadingShader.Unbind;
    end;
    t0:=SDL_GetPerformanceCounter;
@@ -814,6 +819,9 @@ begin
        SDLK_R:begin
         ResetCamera;
         UpdateTitle;
+       end;
+       SDLK_L:begin
+        Shadows:=not Shadows;
        end;
       end;
      end;
