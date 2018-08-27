@@ -288,6 +288,7 @@ begin
   GLTFInstance.Update;
  end;
  if assigned(GLTFInstance) and Shadows then begin
+  GLTFInstance.UpdateDynamicBoundingBox;
   ShadowMapAABB.Min.x:=GLTFInstance.DynamicBoundingBox.Min[0];
   ShadowMapAABB.Min.y:=GLTFInstance.DynamicBoundingBox.Min[1];
   ShadowMapAABB.Min.z:=GLTFInstance.DynamicBoundingBox.Min[2];
