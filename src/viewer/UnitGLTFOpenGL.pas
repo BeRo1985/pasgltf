@@ -69,6 +69,7 @@ type EGLTFOpenGL=class(Exception);
               fAnimationTime:TPasGLTFFloat;
               fNodes:TNodes;
               fSkins:TSkins;
+              fDynamicBoundingBox:TBoundingBox;
               procedure SetScene(const aScene:TPasGLTFSizeInt);
               procedure SetAnimation(const aAnimation:TPasGLTFSizeInt);
              public
@@ -89,6 +90,7 @@ type EGLTFOpenGL=class(Exception);
               property AnimationTime:TPasGLTFFloat read fAnimationTime write fAnimationTime;
               property Nodes:TNodes read fNodes;
               property Skins:TSkins read fSkins;
+              property DynamicBoundingBox:TBoundingBox read fDynamicBoundingBox;
              published
               property Parent:TGLTFOpenGL read fParent;
             end;
@@ -3039,9 +3041,62 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
    ProcessNode(Node^.Children[Index],Matrix);
   end;
  end;
+ procedure UpdateDynamicBoundingBox(const aScene:TGLTFOpenGL.PScene);
+  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt);
+  var Index:TPasGLTFSizeInt;
+      Matrix:TPasGLTF.TMatrix4x4;
+      InstanceNode:TGLTFOpenGL.TInstance.PNode;
+      Node:TGLTFOpenGL.PNode;
+      Mesh:TGLTFOpenGL.PMesh;
+      Center,Extents,NewCenter,NewExtents:TVector3;
+      Rotation:TVector4;
+      SourceBoundingBox:TGLTFOpenGL.PBoundingBox;
+      BoundingBox:TGLTFOpenGL.TBoundingBox;
+  begin
+   InstanceNode:=@fNodes[aNodeIndex];
+   Node:=@fParent.fNodes[aNodeIndex];
+   if Node^.Mesh>=0 then begin
+    Matrix:=InstanceNode^.WorkMatrix;
+    Mesh:=@fParent.fMeshes[Node^.Mesh];
+    SourceBoundingBox:=@Mesh^.BoundingBox;
+    Center[0]:=(SourceBoundingBox^.Min[0]+SourceBoundingBox^.Max[0])*0.5;
+    Center[1]:=(SourceBoundingBox^.Min[1]+SourceBoundingBox^.Max[1])*0.5;
+    Center[2]:=(SourceBoundingBox^.Min[2]+SourceBoundingBox^.Max[2])*0.5;
+    Extents[0]:=(SourceBoundingBox^.Max[0]-SourceBoundingBox^.Min[0])*0.5;
+    Extents[1]:=(SourceBoundingBox^.Max[1]-SourceBoundingBox^.Min[1])*0.5;
+    Extents[2]:=(SourceBoundingBox^.Max[2]-SourceBoundingBox^.Min[2])*0.5;
+    NewCenter[0]:=(Matrix[0]*Center[0])+(Matrix[4]*Center[1])+(Matrix[8]*Center[2])+Matrix[12];
+    NewCenter[1]:=(Matrix[1]*Center[0])+(Matrix[5]*Center[1])+(Matrix[9]*Center[2])+Matrix[13];
+    NewCenter[2]:=(Matrix[2]*Center[0])+(Matrix[6]*Center[1])+(Matrix[10]*Center[2])+Matrix[14];
+    NewExtents[0]:=abs(Matrix[0]*Extents[0])+abs(Matrix[4]*Extents[1])+abs(Matrix[8]*Extents[2]);
+    NewExtents[1]:=abs(Matrix[1]*Extents[0])+abs(Matrix[5]*Extents[1])+abs(Matrix[9]*Extents[2]);
+    NewExtents[2]:=abs(Matrix[2]*Extents[0])+abs(Matrix[6]*Extents[1])+abs(Matrix[10]*Extents[2]);
+    BoundingBox.Min[0]:=NewCenter[0]-NewExtents[0];
+    BoundingBox.Min[1]:=NewCenter[1]-NewExtents[1];
+    BoundingBox.Min[2]:=NewCenter[2]-NewExtents[2];
+    BoundingBox.Max[0]:=NewCenter[0]+NewExtents[0];
+    BoundingBox.Max[1]:=NewCenter[1]+NewExtents[1];
+    BoundingBox.Max[2]:=NewCenter[2]+NewExtents[2];
+    fDynamicBoundingBox.Min[0]:=Min(fDynamicBoundingBox.Min[0],BoundingBox.Min[0]);
+    fDynamicBoundingBox.Min[1]:=Min(fDynamicBoundingBox.Min[1],BoundingBox.Min[1]);
+    fDynamicBoundingBox.Min[2]:=Min(fDynamicBoundingBox.Min[2],BoundingBox.Min[2]);
+    fDynamicBoundingBox.Max[0]:=Max(fDynamicBoundingBox.Max[0],BoundingBox.Max[0]);
+    fDynamicBoundingBox.Max[1]:=Max(fDynamicBoundingBox.Max[1],BoundingBox.Max[1]);
+    fDynamicBoundingBox.Max[2]:=Max(fDynamicBoundingBox.Max[2],BoundingBox.Max[2]);
+   end;
+   for Index:=0 to length(Node^.Children)-1 do begin
+    ProcessNode(Node^.Children[Index]);
+   end;
+  end;
+ var Index:TPasGLTFSizeInt;
+ begin
+  fDynamicBoundingBox:=EmptyBoundingBox;
+  for Index:=0 to length(aScene^.Nodes)-1 do begin
+   ProcessNode(aScene^.Nodes[Index]);
+  end;
+ end;
 var Index:TPasGLTFSizeInt;
     Scene:TGLTFOpenGL.PScene;
-    AlphaMode:TPasGLTF.TMaterial.TAlphaMode;
 begin
  if fParent.fReady and fParent.fUploaded then begin
   if fScene<0 then begin
@@ -3071,6 +3126,7 @@ begin
    for Index:=0 to length(Scene^.Nodes)-1 do begin
     ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
    end;
+   UpdateDynamicBoundingBox(Scene);
   end;
  end;
 end;

@@ -288,12 +288,12 @@ begin
   GLTFInstance.Update;
  end;
  if assigned(GLTFInstance) and Shadows then begin
-  ShadowMapAABB.Min.x:=GLTFOpenGL.StaticBoundingBox.Min[0];
-  ShadowMapAABB.Min.y:=GLTFOpenGL.StaticBoundingBox.Min[1];
-  ShadowMapAABB.Min.z:=GLTFOpenGL.StaticBoundingBox.Min[2];
-  ShadowMapAABB.Max.x:=GLTFOpenGL.StaticBoundingBox.Max[0];
-  ShadowMapAABB.Max.y:=GLTFOpenGL.StaticBoundingBox.Max[1];
-  ShadowMapAABB.Max.z:=GLTFOpenGL.StaticBoundingBox.Max[2];
+  ShadowMapAABB.Min.x:=GLTFInstance.DynamicBoundingBox.Min[0];
+  ShadowMapAABB.Min.y:=GLTFInstance.DynamicBoundingBox.Min[1];
+  ShadowMapAABB.Min.z:=GLTFInstance.DynamicBoundingBox.Min[2];
+  ShadowMapAABB.Max.x:=GLTFInstance.DynamicBoundingBox.Max[0];
+  ShadowMapAABB.Max.y:=GLTFInstance.DynamicBoundingBox.Max[1];
+  ShadowMapAABB.Max.z:=GLTFInstance.DynamicBoundingBox.Max[2];
   ShadowMapViewMatrix:=GetShadowMapViewMatrix;
   ShadowMapAABB:=AABBTransform(ShadowMapAABB,ShadowMapViewMatrix);
   Bounds.x:=(ShadowMapAABB.Max.x-ShadowMapAABB.Min.x)*0.125;
