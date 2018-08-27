@@ -943,6 +943,26 @@ begin
  result[15]:=a[15]*s;
 end;
 
+function MatrixAdd(const a,b:TPasGLTF.TMatrix4x4):TPasGLTF.TMatrix4x4;
+begin
+ result[0]:=a[0]+b[0];
+ result[1]:=a[1]+b[1];
+ result[2]:=a[2]+b[2];
+ result[3]:=a[3]+b[3];
+ result[4]:=a[4]+b[4];
+ result[5]:=a[5]+b[5];
+ result[6]:=a[6]+b[6];
+ result[7]:=a[7]+b[7];
+ result[8]:=a[8]+b[8];
+ result[9]:=a[9]+b[9];
+ result[10]:=a[10]+b[10];
+ result[11]:=a[11]+b[11];
+ result[12]:=a[12]+b[12];
+ result[13]:=a[13]+b[13];
+ result[14]:=a[14]+b[14];
+ result[15]:=a[15]+b[15];
+end;
+
 { TGLTFModel }
 
 constructor TGLTFOpenGL.Create;
@@ -3273,7 +3293,10 @@ procedure TGLTFOpenGL.TInstance.UpdateWorstCaseStaticBoundingBox;
  var Index,
      PrimitiveIndex,
      VertexIndex,
-     MorphTargetWeightIndex:TPasGLTFSizeInt;
+     MorphTargetWeightIndex,
+     JointPartIndex,
+     JointWeightIndex,
+     JointIndex:TPasGLTFSizeInt;
      Matrix:TPasGLTF.TMatrix4x4;
      InstanceNode:TGLTFOpenGL.TInstance.PNode;
      Node:TGLTFOpenGL.PNode;
@@ -3284,7 +3307,11 @@ procedure TGLTFOpenGL.TInstance.UpdateWorstCaseStaticBoundingBox;
      Vertex:TGLTFOpenGL.PVertex;
      Position:TVector3;
      MorphTargetVertexPosition:PVector3;
+     JointIndices:TPasGLTF.PUInt32Vector4;
+     JointWeights:TPasGLTF.PVector4;
+     JointWeight:TPasGLTFFloat;
      HasMorphTargets:boolean;
+     InverseMatrix:TPasGLTF.TMatrix4x4;
  begin
   InstanceNode:=@fNodes[aNodeIndex];
   Node:=@fParent.fNodes[aNodeIndex];
@@ -3294,9 +3321,11 @@ procedure TGLTFOpenGL.TInstance.UpdateWorstCaseStaticBoundingBox;
    if Node^.Skin>=0 then begin
     InstanceSkin:=@fSkins[Node^.Skin];
     Skin:=@fParent.fSkins[Node^.Skin];
+    InverseMatrix:=MatrixInverse(InstanceNode^.WorkMatrix);
    end else begin
     InstanceSkin:=nil;
     Skin:=nil;
+    InverseMatrix[0]:=0.0;
    end;
    for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
     Primitive:=@Mesh^.Primitives[PrimitiveIndex];
@@ -3310,9 +3339,34 @@ procedure TGLTFOpenGL.TInstance.UpdateWorstCaseStaticBoundingBox;
       end;
      end;
      if assigned(Skin) then begin
-
+      Matrix:=TPasGLTF.TDefaults.NullMatrix4x4;
+      for JointPartIndex:=0 to 1 do begin
+       case JointPartIndex of
+        0:begin
+         JointIndices:=@Vertex^.Joints0;
+         JointWeights:=@Vertex^.Weights0;
+        end;
+        else begin
+         JointIndices:=@Vertex^.Joints1;
+         JointWeights:=@Vertex^.Weights1;
+        end;
+       end;
+       for JointWeightIndex:=0 to 3 do begin
+        JointIndex:=JointIndices^[JointWeightIndex];
+        JointWeight:=JointWeights^[JointWeightIndex];
+        if JointWeight<>0.0 then begin
+         Matrix:=MatrixAdd(Matrix,
+                           MatrixScale(MatrixMul(MatrixMul(Skin^.InverseBindMatrices[JointIndex],
+                                                           fNodes[Skin^.Joints[JointIndex]].WorkMatrix),
+                                                 InverseMatrix),
+                                       JointWeight));
+        end;
+       end;
+      end;
+      Position:=Vector3MatrixMul(MatrixMul(InstanceNode^.WorkMatrix,Matrix),Position);
+     end else begin
+      Position:=Vector3MatrixMul(InstanceNode^.WorkMatrix,Position);
      end;
-     Position:=Vector3MatrixMul(InstanceNode^.WorkMatrix,Position);
      fWorstCaseStaticBoundingBox.Min[0]:=Min(fWorstCaseStaticBoundingBox.Min[0],Position[0]);
      fWorstCaseStaticBoundingBox.Min[1]:=Min(fWorstCaseStaticBoundingBox.Min[1],Position[1]);
      fWorstCaseStaticBoundingBox.Min[2]:=Min(fWorstCaseStaticBoundingBox.Min[2],Position[2]);

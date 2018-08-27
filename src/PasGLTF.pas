@@ -746,6 +746,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     IdentityVector3:TVector3=(1.0,1.0,1.0);
                     IdentityVector4:TVector4=(1.0,1.0,1.0,1.0);
                     IdentityQuaternion:TVector4=(0.0,0.0,0.0,1.0);
+                    NullMatrix4x4:TMatrix4x4=(0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0);
                     IdentityMatrix4x4:TMatrix4x4=(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0);
             end;
             TDocument=class;
