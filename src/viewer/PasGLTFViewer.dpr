@@ -468,8 +468,10 @@ begin
   begin
    glActiveTexture(GL_TEXTURE5);
    glBindTexture(GL_TEXTURE_2D,BRDFLUTFBO.TextureHandles[0]);
-   glActiveTexture(GL_TEXTURE6);
-   glBindTexture(GL_TEXTURE_2D,ShadowMapFBOs[2].TextureHandles[0]);
+   if Shadows then begin
+    glActiveTexture(GL_TEXTURE6);
+    glBindTexture(GL_TEXTURE_2D,ShadowMapFBOs[2].TextureHandles[0]);
+   end;
    glActiveTexture(GL_TEXTURE7);
    glBindTexture(GL_TEXTURE_CUBE_MAP,EnvMapFBO.TextureHandles[0]);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
@@ -497,7 +499,8 @@ begin
                       ShadingShaders[true,true]);
    end;
    t1:=SDL_GetPerformanceCounter;
-//  write(#13,(t1-t0)/SDL_GetPerformanceFrequency:1:5);
+//
+   write(#13,(t1-t0)/SDL_GetPerformanceFrequency:1:5);
   end;
   glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);
  end;
