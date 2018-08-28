@@ -283,6 +283,7 @@ var ModelMatrix,
     t0,t1:int64;
   Index: Integer;
 begin
+ t0:=SDL_GetPerformanceCounter;
  LightDirection:=Vector3Norm(Vector3(0.0,-1.0,0.0));
 //LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
  if assigned(GLTFInstance) then begin
@@ -487,7 +488,6 @@ begin
     glUniform1i(ShadingShader.uShadows,ord(Shadows) and 1);
     ShadingShader.Unbind;
    end;
-   t0:=SDL_GetPerformanceCounter;
    if assigned(GLTFInstance) then begin
     GLTFInstance.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
                       TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
@@ -498,9 +498,6 @@ begin
                       ShadingShaders[true,false],
                       ShadingShaders[true,true]);
    end;
-   t1:=SDL_GetPerformanceCounter;
-//
-   write(#13,(t1-t0)/SDL_GetPerformanceFrequency:1:5);
   end;
   glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);
  end;
@@ -543,6 +540,9 @@ begin
   ConsoleInstance.Draw(DeltaTime,ViewPortX,ViewPortY,ViewPortWidth,ViewPortHeight);
   glEnable(GL_DEPTH_TEST);
  end;
+ t1:=SDL_GetPerformanceCounter;
+//
+ write(#13,(t1-t0)/SDL_GetPerformanceFrequency:1:5);
 end;
 
 procedure Resize(NewWidth,NewHeight:longint);
