@@ -41,7 +41,7 @@ uses
   UnitOpenGLExtendedBlitRectShader in 'UnitOpenGLExtendedBlitRectShader.pas',
   UnitConsole in 'UnitConsole.pas',
   UnitOpenGLShadowMapBlurShader in 'UnitOpenGLShadowMapBlurShader.pas',
-  UnitOpenGLMultisampleResolveShader in 'UnitOpenGLMultisampleResolveShader.pas';
+  UnitOpenGLShadowMapMultisampleResolveShader in 'UnitOpenGLShadowMapMultisampleResolveShader.pas';
 
 const Title='PasGLTF viewer';
 
@@ -132,7 +132,7 @@ var InputFileName:TPasGLTFUTF8String='';
 
     LDRSceneFBO:TFBO;
 
-    MultisampleResolveShader:TMultisampleResolveShader;
+    ShadowMapMultisampleResolveShader:TShadowMapMultisampleResolveShader;
 
     ShadowMapBlurShader:TShadowMapBlurShader;
 
@@ -290,25 +290,31 @@ begin
   GLTFInstance.Animation:=AnimationIndex;
   if (LastAnimationIndex<>AnimationIndex) and Shadows then begin
    LastAnimationIndex:=AnimationIndex;
-   GLTFInstance.UpdateWorstCaseStaticBoundingBox;
+// GLTFInstance.UpdateWorstCaseStaticBoundingBox;
   end;
   GLTFInstance.AnimationTime:=AnimationTime;
   GLTFInstance.Update;
   GLTFInstance.Upload;
  end;
  if assigned(GLTFInstance) and Shadows then begin
-//GLTFInstance.UpdateDynamicBoundingBox;
-  ShadowMapAABB.Min.x:=GLTFInstance.WorstCaseStaticBoundingBox.Min[0];
+  GLTFInstance.UpdateDynamicBoundingBox;
+  ShadowMapAABB.Min.x:=GLTFInstance.DynamicBoundingBox.Min[0];
+  ShadowMapAABB.Min.y:=GLTFInstance.DynamicBoundingBox.Min[1];
+  ShadowMapAABB.Min.z:=GLTFInstance.DynamicBoundingBox.Min[2];
+  ShadowMapAABB.Max.x:=GLTFInstance.DynamicBoundingBox.Max[0];
+  ShadowMapAABB.Max.y:=GLTFInstance.DynamicBoundingBox.Max[1];
+  ShadowMapAABB.Max.z:=GLTFInstance.DynamicBoundingBox.Max[2];
+{ ShadowMapAABB.Min.x:=GLTFInstance.WorstCaseStaticBoundingBox.Min[0];
   ShadowMapAABB.Min.y:=GLTFInstance.WorstCaseStaticBoundingBox.Min[1];
   ShadowMapAABB.Min.z:=GLTFInstance.WorstCaseStaticBoundingBox.Min[2];
   ShadowMapAABB.Max.x:=GLTFInstance.WorstCaseStaticBoundingBox.Max[0];
   ShadowMapAABB.Max.y:=GLTFInstance.WorstCaseStaticBoundingBox.Max[1];
-  ShadowMapAABB.Max.z:=GLTFInstance.WorstCaseStaticBoundingBox.Max[2];
+  ShadowMapAABB.Max.z:=GLTFInstance.WorstCaseStaticBoundingBox.Max[2];}
   ShadowMapViewMatrix:=GetShadowMapViewMatrix;
   ShadowMapAABB:=AABBTransform(ShadowMapAABB,ShadowMapViewMatrix);
-  Bounds.x:=(ShadowMapAABB.Max.x-ShadowMapAABB.Min.x)*0.5;
-  Bounds.y:=(ShadowMapAABB.Max.y-ShadowMapAABB.Min.y)*0.5;
-  Bounds.z:=(ShadowMapAABB.Max.z-ShadowMapAABB.Min.z)*0.5;
+  Bounds.x:=(ShadowMapAABB.Max.x-ShadowMapAABB.Min.x)*2.0;
+  Bounds.y:=(ShadowMapAABB.Max.y-ShadowMapAABB.Min.y)*2.0;
+  Bounds.z:=(ShadowMapAABB.Max.z-ShadowMapAABB.Min.z)*2.0;
   n:=ShadowMapAABB.Min.z-Bounds.z;
   f:=ShadowMapAABB.Max.z+Bounds.z;
   ShadowMapProjectionMatrix:=Matrix4x4Ortho(ShadowMapAABB.Min.x-Bounds.x,ShadowMapAABB.Max.x+Bounds.x,
@@ -356,13 +362,13 @@ begin
    glDepthFunc(GL_ALWAYS);
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture);
-   MultisampleResolveShader.Bind;
-   glUniform1i(MultisampleResolveShader.uTexture,0);
-   glUniform1i(MultisampleResolveShader.uSamples,MultisampledShadowMapSamples);
+   ShadowMapMultisampleResolveShader.Bind;
+   glUniform1i(ShadowMapMultisampleResolveShader.uTexture,0);
+   glUniform1i(ShadowMapMultisampleResolveShader.uSamples,MultisampledShadowMapSamples);
    glBindVertexArray(EmptyVertexArrayObjectHandle);
    glDrawArrays(GL_TRIANGLES,0,3);
    glBindVertexArray(0);
-   MultisampleResolveShader.Unbind;
+   ShadowMapMultisampleResolveShader.Unbind;
    glBindFrameBuffer(GL_FRAMEBUFFER,0);
    glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,0);
   end;
@@ -1392,8 +1398,8 @@ begin
        ShadowMapFBO^.Height:=ShadowMapSize;
        ShadowMapFBO^.Depth:=0;
        ShadowMapFBO^.Textures:=1;
-       ShadowMapFBO^.TextureFormats[0]:=GL_TEXTURE_RGBA16US;
-       ShadowMapFBO^.Format:=GL_TEXTURE_RGBA16US;
+       ShadowMapFBO^.TextureFormats[0]:=GL_TEXTURE_RGBA32F;
+       ShadowMapFBO^.Format:=GL_TEXTURE_RGBA32F;
        ShadowMapFBO^.SWrapMode:=wmGL_CLAMP_TO_EDGE;
        ShadowMapFBO^.TWrapMode:=wmGL_CLAMP_TO_EDGE;
        ShadowMapFBO^.RWrapMode:=wmGL_CLAMP_TO_EDGE;
@@ -1442,7 +1448,7 @@ begin
         CreateFrameBuffer(LDRSceneFBO);
         try
 
-         MultisampleResolveShader:=TMultisampleResolveShader.Create;
+         ShadowMapMultisampleResolveShader:=TShadowMapMultisampleResolveShader.Create;
          try
 
           ShadowMapBlurShader:=TShadowMapBlurShader.Create;
@@ -1527,7 +1533,7 @@ begin
           end;
 
          finally
-          FreeAndNil(MultisampleResolveShader);
+          FreeAndNil(ShadowMapMultisampleResolveShader);
          end;
 
         finally
