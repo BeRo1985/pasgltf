@@ -84,7 +84,7 @@ type EGLTFOpenGL=class(Exception);
               constructor Create(const aParent:TGLTFOpenGL); reintroduce;
               destructor Destroy; override;
               procedure Update;
-              procedure UpdateDynamicBoundingBox;
+              procedure UpdateDynamicBoundingBox(const aHighQuality:boolean=false);
               procedure UpdateWorstCaseStaticBoundingBox;
               procedure Upload;
               procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
@@ -3167,8 +3167,8 @@ begin
  end;
 end;
 
-procedure TGLTFOpenGL.TInstance.UpdateDynamicBoundingBox;
- procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt);
+procedure TGLTFOpenGL.TInstance.UpdateDynamicBoundingBox(const aHighQuality:boolean=false);
+ procedure ProcessNodeLowQuality(const aNodeIndex:TPasGLTFSizeInt);
  var Index:TPasGLTFSizeInt;
      Matrix:TPasGLTF.TMatrix4x4;
      InstanceNode:TGLTFOpenGL.TInstance.PNode;
@@ -3210,7 +3210,98 @@ procedure TGLTFOpenGL.TInstance.UpdateDynamicBoundingBox;
    fDynamicBoundingBox.Max[2]:=Max(fDynamicBoundingBox.Max[2],BoundingBox.Max[2]);
   end;
   for Index:=0 to length(Node^.Children)-1 do begin
-   ProcessNode(Node^.Children[Index]);
+   ProcessNodeLowQuality(Node^.Children[Index]);
+  end;
+ end;
+ procedure ProcessNodeHighQuality(const aNodeIndex:TPasGLTFSizeInt);
+ var Index,
+     PrimitiveIndex,
+     VertexIndex,
+     MorphTargetWeightIndex,
+     JointPartIndex,
+     JointWeightIndex,
+     JointIndex:TPasGLTFSizeInt;
+     Matrix:TPasGLTF.TMatrix4x4;
+     InstanceNode:TGLTFOpenGL.TInstance.PNode;
+     Node:TGLTFOpenGL.PNode;
+     InstanceSkin:TGLTFOpenGL.TInstance.PSkin;
+     Skin:TGLTFOpenGL.PSkin;
+     Mesh:TGLTFOpenGL.PMesh;
+     Primitive:TGLTFOpenGL.TMesh.PPrimitive;
+     Vertex:TGLTFOpenGL.PVertex;
+     Position:TVector3;
+     MorphTargetVertexPosition:PVector3;
+     JointIndices:TPasGLTF.PUInt32Vector4;
+     JointWeights:TPasGLTF.PVector4;
+     JointWeight:TPasGLTFFloat;
+     HasMorphTargets:boolean;
+     InverseMatrix:TPasGLTF.TMatrix4x4;
+ begin
+  InstanceNode:=@fNodes[aNodeIndex];
+  Node:=@fParent.fNodes[aNodeIndex];
+  if Node^.Mesh>=0 then begin
+   Mesh:=@fParent.fMeshes[Node^.Mesh];
+   HasMorphTargets:=length(InstanceNode^.WorkWeights)>0;
+   if Node^.Skin>=0 then begin
+    InstanceSkin:=@fSkins[Node^.Skin];
+    Skin:=@fParent.fSkins[Node^.Skin];
+    InverseMatrix:=MatrixInverse(InstanceNode^.WorkMatrix);
+   end else begin
+    InstanceSkin:=nil;
+    Skin:=nil;
+    InverseMatrix[0]:=0.0;
+   end;
+   for PrimitiveIndex:=0 to length(Mesh^.Primitives)-1 do begin
+    Primitive:=@Mesh^.Primitives[PrimitiveIndex];
+    for VertexIndex:=0 to length(Primitive^.Vertices)-1 do begin
+     Vertex:=@Primitive^.Vertices[VertexIndex];
+     Position:=Vertex^.Position;
+     if HasMorphTargets then begin
+      for MorphTargetWeightIndex:=0 to length(InstanceNode^.WorkWeights)-1 do begin
+       MorphTargetVertexPosition:=@Primitive^.Targets[MorphTargetWeightIndex].Vertices[VertexIndex].Position;
+       Position:=Vector3Add(Position,Vector3Scale(MorphTargetVertexPosition^,InstanceNode^.WorkWeights[MorphTargetWeightIndex]));
+      end;
+     end;
+     if assigned(Skin) then begin
+      Matrix:=TPasGLTF.TDefaults.NullMatrix4x4;
+      for JointPartIndex:=0 to 1 do begin
+       case JointPartIndex of
+        0:begin
+         JointIndices:=@Vertex^.Joints0;
+         JointWeights:=@Vertex^.Weights0;
+        end;
+        else begin
+         JointIndices:=@Vertex^.Joints1;
+         JointWeights:=@Vertex^.Weights1;
+        end;
+       end;
+       for JointWeightIndex:=0 to 3 do begin
+        JointIndex:=JointIndices^[JointWeightIndex];
+        JointWeight:=JointWeights^[JointWeightIndex];
+        if JointWeight<>0.0 then begin
+         Matrix:=MatrixAdd(Matrix,
+                           MatrixScale(MatrixMul(MatrixMul(Skin^.InverseBindMatrices[JointIndex],
+                                                           fNodes[Skin^.Joints[JointIndex]].WorkMatrix),
+                                                 InverseMatrix),
+                                       JointWeight));
+        end;
+       end;
+      end;
+      Position:=Vector3MatrixMul(MatrixMul(Matrix,InstanceNode^.WorkMatrix),Position);
+     end else begin
+      Position:=Vector3MatrixMul(InstanceNode^.WorkMatrix,Position);
+     end;
+     fDynamicBoundingBox.Min[0]:=Min(fDynamicBoundingBox.Min[0],Position[0]);
+     fDynamicBoundingBox.Min[1]:=Min(fDynamicBoundingBox.Min[1],Position[1]);
+     fDynamicBoundingBox.Min[2]:=Min(fDynamicBoundingBox.Min[2],Position[2]);
+     fDynamicBoundingBox.Max[0]:=Max(fDynamicBoundingBox.Max[0],Position[0]);
+     fDynamicBoundingBox.Max[1]:=Max(fDynamicBoundingBox.Max[1],Position[1]);
+     fDynamicBoundingBox.Max[2]:=Max(fDynamicBoundingBox.Max[2],Position[2]);
+    end;
+   end;
+  end;
+  for Index:=0 to length(Node^.Children)-1 do begin
+   ProcessNodeHighQuality(Node^.Children[Index]);
   end;
  end;
 {  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt);
@@ -3284,8 +3375,14 @@ begin
  fDynamicBoundingBox:=EmptyBoundingBox;
  Scene:=GetScene;
  if assigned(Scene) then begin
-  for Index:=0 to length(Scene^.Nodes)-1 do begin
-   ProcessNode(Scene^.Nodes[Index]);
+  if aHighQuality then begin
+   for Index:=0 to length(Scene^.Nodes)-1 do begin
+    ProcessNodeHighQuality(Scene^.Nodes[Index]);
+   end;
+  end else begin
+   for Index:=0 to length(Scene^.Nodes)-1 do begin
+    ProcessNodeLowQuality(Scene^.Nodes[Index]);
+   end;
   end;
  end;
 end;
@@ -3392,7 +3489,7 @@ begin
  Scene:=GetScene;
  if assigned(Scene) then begin
   if (fAnimation<0) or (fAnimation>=length(fParent.fAnimations)) then begin
-   UpdateDynamicBoundingBox;
+   UpdateDynamicBoundingBox(false);
    fWorstCaseStaticBoundingBox:=fDynamicBoundingBox;
   end else begin
    Animation:=@fParent.fAnimations[fAnimation];

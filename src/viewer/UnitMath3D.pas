@@ -13929,7 +13929,12 @@ begin
  end;
 end;
 
-procedure GetLiSPSMMatrix1(var ShadowMapViewMatrix,ShadowMapProjectionMatrix:TMatrix4x4;const CameraViewMatrix,CameraProjectionMatrix:TMatrix4x4;CameraZFar:single;const LightDirection:TVector3;const InvLight:TMatrix4x4;const SceneAABB:TAABB);
+procedure GetLiSPSMMatrix1(var ShadowMapViewMatrix,ShadowMapProjectionMatrix:TMatrix4x4;
+                           const CameraViewMatrix,CameraProjectionMatrix:TMatrix4x4;
+                           CameraZFar:single;
+                           const LightDirection:TVector3;
+                           const InvLight:TMatrix4x4;
+                           const SceneAABB:TAABB);
 type TEdgePlanes=record
       Points:array[0..7] of TVector3;
       Edges:array[0..11,0..1] of TVector3;

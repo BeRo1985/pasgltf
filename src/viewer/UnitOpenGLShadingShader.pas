@@ -427,7 +427,7 @@ begin
  if aShadowMap then begin
   f:=f+
        '  vec4 t = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
-       '  float d = ((t.z / t.w) + 1.0) * 0.5;'+#13#10+
+       '  float d = fma(t.z / t.w, 0.5, 0.5);'+#13#10+
        '  float s = d * d;'+#13#10+
        '  vec4 m = vec4(d, s, s * d, s * s);'+#13#10+
        '  oOutput = m;'+#13#10+
@@ -449,6 +449,7 @@ begin
      '                          0.1451988946, 0.2120202157, 0.7258694464, -0.2758014811,'+#13#10+
      '                          0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+{}
      '      litIntensity = 1.0 - reduceLightBleeding(getMSMShadowIntensity(moments, shadowNDC.z, 5e-3, 1e-2), 0.0);'+#13#10+
+//   '      litIntensity = reduceLightBleeding(getMSMShadowIntensity(moments, shadowNDC.z, 5e-3, 1e-2), 0.0);'+#13#10+
      '    }'+#13#10+
      '  }'+#13#10+
      '  switch(shadingModel){'+#13#10+
@@ -502,7 +503,7 @@ begin
      '            shadow = 1.0,'+#13#10+
      '            reflectance = max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z);'+#13#10+
      '      vec3 viewDirection = normalize(vCameraRelativePosition);'+#13#10+
-     '      color.xyz += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
+{    '      color.xyz += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
      '                                  pow(vec3(litIntensity), vec3(1.05, 1.02, 1.0)),'+#13#10+
      '                                  -uLightDirection,'+#13#10+
      '                                  normal.xyz,'+#13#10+
@@ -522,7 +523,7 @@ begin
      '                     // Bounce light'+#13#10+
      '                     (clamp(-normal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
      '                    ) * diffuseLambert(diffuseColorAlpha.xyz) * cavity));'+#13#10+ (*{}
- (* )'      color.xyz += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
+ (**)'      color.xyz += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
      '                                 pow(vec3(litIntensity), vec3(1.05, 1.02, 1.0)),'+#13#10+
      '                                 -uLightDirection,'+#13#10+
      '                                 normal.xyz,'+#13#10+
@@ -535,7 +536,7 @@ begin
      '                                 cavity);'+#13#10+(**)
      '      {'+#13#10+
      '        float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
-     '              ao = cavity * ambientOcclusion * ((litIntensity * 0.25) + 0.75),'+#13#10+
+     '              ao = cavity * ambientOcclusion,'+#13#10+ // * ((litIntensity * 0.25) + 0.75)
      '              specularOcclusion = clamp((pow(NdotV + ao, specularColorRoughness.w * specularColorRoughness.w) - 1.0) + ao, 0.0, 1.0);'+#13#10+
      '         vec2 brdf = textureLod(uBRDFLUTTexture, vec2(specularColorRoughness.w, NdotV), 0.0).xy;'+#13#10+
      '         color.xyz += ((textureLod(uEnvMapTexture, normalize(reflect(viewDirection, normal.xyz)),'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(specularColorRoughness.w))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColorRoughness.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z) * 50.0, 0.0, 1.0))) * specularOcclusion) +'+#13#10+

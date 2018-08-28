@@ -226,51 +226,183 @@ var Event:TSDL_Event;
 
     LightDirection:UnitMath3D.TVector3;
 
-    ShadowMapViewMatrix,
-    ShadowMapProjectionMatrix,
     ShadowMapMatrix:UnitMath3D.TMatrix4x4;
 
-    ShadowMapAABB:TAABB;
+    SceneAABB:TAABB;
 
-function GetShadowMapViewMatrix:UnitMath3D.TMatrix4x4;
-var LightForwardVector,LightSideVector,LightUpvector,p:UnitMath3D.TVector3;
+{procedure SnapShadowMapMatrixToCamera(const aCameraViewMatrix:UnitMath3D.TMatrix4x4;
+                                      const aShadowMapViewMatrix:UnitMath3D.TMatrix4x4;
+                                      var aShadowMapProjectionMatrix:UnitMath3D.TMatrix4x4;
+                                      const aShadowMapWidth:TPasGLTFInt32=ShadowMapSize;
+                                      const aShadowMapHeight:TPasGLTFInt32=ShadowMapSize);
+var CameraPosition:UnitMath3D.TVector3;
+    RoundedOrigin,RoundOffset:UnitMath3D.TVector2;
+    ShadowOrigin:UnitMath3D.TVector4;
+    CameraInverseViewMatrix:UnitMath3D.TMatrix4x4;
 begin
- LightForwardVector:=Vector3Norm(LightDirection);
- p.x:=abs(LightForwardVector.x);
- p.y:=abs(LightForwardVector.y);
- p.z:=abs(LightForwardVector.z);
- if (p.x<=p.y) and (p.x<=p.z) then begin
-  p.x:=1.0;
-  p.y:=0.0;
-  p.z:=0.0;
- end else if (p.y<=p.x) and (p.y<=p.z) then begin
-  p.x:=0.0;
-  p.y:=1.0;
-  p.z:=0.0;
- end else begin
-  p.x:=0.0;
-  p.y:=0.0;
-  p.z:=1.0;
+ // Create the rounding matrix, by projecting the world-space origin and determining the fractional offset in texel space
+ CameraInverseViewMatrix:=Matrix4x4TermInverse(aCameraViewMatrix);
+ CameraPosition:=Vector3ScalarMul(UnitMath3D.PVector3(@CameraInverseViewMatrix[3,0])^,1.0/CameraInverseViewMatrix[3,3]);
+ ShadowOrigin:=Vector4TermMatrixMul(Vector4(CameraPosition,1.0),Matrix4x4TermMul(aShadowMapViewMatrix,aShadowMapProjectionMatrix));
+ ShadowOrigin.x:=ShadowOrigin.x*aShadowMapWidth;
+ ShadowOrigin.y:=ShadowOrigin.y*aShadowMapHeight;
+ RoundedOrigin.x:=round(ShadowOrigin.x);
+ RoundedOrigin.y:=round(ShadowOrigin.y);
+ RoundOffset.x:=((RoundedOrigin.x-ShadowOrigin.x)*2.0)/aShadowMapWidth;
+ RoundOffset.y:=((RoundedOrigin.y-ShadowOrigin.y)*2.0)/aShadowMapHeight;
+ aShadowMapProjectionMatrix[3,0]:=aShadowMapProjectionMatrix[3,0]+RoundOffset.x;
+ aShadowMapProjectionMatrix[3,1]:=aShadowMapProjectionMatrix[3,1]+RoundOffset.y;
+end;}
+
+function GetShadowMapMatrix(const aCameraViewMatrix:UnitMath3D.TMatrix4x4;
+                            const aSceneAABB:TAABB):UnitMath3D.TMatrix4x4;
+var CameraInverseViewMatrix:UnitMath3D.TMatrix4x4;
+ function GetLightModelMatrix:UnitMath3D.TMatrix4x4;
+ var LightForwardVector,LightSideVector,LightUpvector,p:UnitMath3D.TVector3;
+ begin
+  LightForwardVector:=Vector3Neg(Vector3Norm(LightDirection));
+  p.x:=abs(LightForwardVector.x);
+  p.y:=abs(LightForwardVector.y);
+  p.z:=abs(LightForwardVector.z);
+  if (p.x<=p.y) and (p.x<=p.z) then begin
+   p.x:=1.0;
+   p.y:=0.0;
+   p.z:=0.0;
+  end else if (p.y<=p.x) and (p.y<=p.z) then begin
+   p.x:=0.0;
+   p.y:=1.0;
+   p.z:=0.0;
+  end else begin
+   p.x:=0.0;
+   p.y:=0.0;
+   p.z:=1.0;
+  end;
+  LightSideVector:=Vector3Sub(p,Vector3ScalarMul(LightForwardVector,Vector3Dot(LightForwardVector,p)));
+  LightUpVector:=Vector3Norm(Vector3Cross(LightForwardVector,LightSideVector));
+  LightSideVector:=Vector3Norm(Vector3Cross(LightUpVector,LightForwardVector));
+  result[0,0]:=LightSideVector.x;
+  result[0,1]:=LightUpVector.x;
+  result[0,2]:=LightForwardVector.x;
+  result[0,3]:=0.0;
+  result[1,0]:=LightSideVector.y;
+  result[1,1]:=LightUpVector.y;
+  result[1,2]:=LightForwardVector.y;
+  result[1,3]:=0.0;
+  result[2,0]:=LightSideVector.z;
+  result[2,1]:=LightUpVector.z;
+  result[2,2]:=LightForwardVector.z;
+  result[2,3]:=0.0;
+  result[3,0]:=0.0;
+  result[3,1]:=0.0;
+  result[3,2]:=0.0;
+  result[3,3]:=1.0;
  end;
- LightSideVector:=Vector3Sub(p,Vector3ScalarMul(LightForwardVector,Vector3Dot(LightForwardVector,p)));
- LightUpVector:=Vector3Norm(Vector3Cross(LightForwardVector,LightSideVector));
- LightSideVector:=Vector3Norm(Vector3Cross(LightUpVector,LightForwardVector));
- result[0,0]:=LightSideVector.x;
- result[0,1]:=LightUpVector.x;
- result[0,2]:=LightForwardVector.x;
- result[0,3]:=0.0;
- result[1,0]:=LightSideVector.y;
- result[1,1]:=LightUpVector.y;
- result[1,2]:=LightForwardVector.y;
- result[1,3]:=0.0;
- result[2,0]:=LightSideVector.z;
- result[2,1]:=LightUpVector.z;
- result[2,2]:=LightForwardVector.z;
- result[2,3]:=0.0;
- result[3,0]:=0.0;
- result[3,1]:=0.0;
- result[3,2]:=0.0;
- result[3,3]:=1.0;
+ function GetLightViewMatrix:UnitMath3D.TMatrix4x4;
+ var LightModelMatrix:UnitMath3D.TMatrix4x4;
+     WorldSpaceCameraForwardVector,
+     LightSpaceCameraForwardVector:UnitMath3D.TVector3;
+ begin
+  result:=Matrix4x4Identity;
+  LightModelMatrix:=GetLightModelMatrix;
+  WorldSpaceCameraForwardVector:=UnitMath3D.PVector3(@CameraInverseViewMatrix[2,0])^;
+  LightSpaceCameraForwardVector:=Vector3TermMatrixMul(WorldSpaceCameraForwardVector,LightModelMatrix);
+  if abs(LightSpaceCameraForwardVector.z)<0.9997 then begin
+   UnitMath3D.PVector3(@result[0,0])^:=Vector3Norm(Vector3Cross(LightSpaceCameraForwardVector,Vector3(0.0,0.0,1.0)));
+   UnitMath3D.PVector3(@result[1,0])^:=Vector3Norm(Vector3Cross(Vector3(0.0,0.0,1.0),UnitMath3D.PVector3(@result[0,0])^));
+   UnitMath3D.PVector3(@result[2,0])^:=Vector3(0.0,0.0,1.0);
+  end;
+  result:=Matrix4x4TermMul(LightModelMatrix,Matrix4x4TermTranspose(result));
+ end;
+ function GetLightProjectionMatrix(const aShadowMapViewMatrix:UnitMath3D.TMatrix4x4):UnitMath3D.TMatrix4x4;
+ var AABB:TAABB;
+     Left,Right,Top,Bottom,ZNear,ZFar,RightMinusLeft,TopMinusBottom,FarMinusNear:single;
+ begin
+  AABB:=AABBTransform(aSceneAABB,aShadowMapViewMatrix);
+  Left:=-1.0;
+  Right:=1.0;
+  Top:=-1.0;
+  Bottom:=1.0;
+  ZNear:=-AABB.Max.z;
+  ZFar:=-AABB.Min.z;
+  RightMinusLeft:=Right-Left;
+  TopMinusBottom:=Top-Bottom;
+  FarMinusNear:=ZFar-ZNear;
+  result[0,0]:=2.0/RightMinusLeft;
+  result[0,1]:=0.0;
+  result[0,2]:=0.0;
+  result[0,3]:=0.0;
+  result[1,0]:=0.0;
+  result[1,1]:=2.0/TopMinusBottom;
+  result[1,2]:=0.0;
+  result[1,3]:=0.0;
+  result[2,0]:=0.0;
+  result[2,1]:=0.0;
+  result[2,2]:=(-2.0)/FarMinusNear;
+  result[2,3]:=0.0;
+  result[3,0]:=(-(Right+Left))/RightMinusLeft;
+  result[3,1]:=(-(Top+Bottom))/TopMinusBottom;
+  result[3,2]:=(-(ZFar+ZNear))/FarMinusNear;
+  result[3,3]:=1.0;
+ end;
+ procedure SnapShadowMapProjectionMatrix(const aShadowMapViewMatrix:UnitMath3D.TMatrix4x4;
+                                         var aShadowMapProjectionMatrix:UnitMath3D.TMatrix4x4;
+                                         const aShadowMapWidth:TPasGLTFInt32=ShadowMapSize;
+                                         const aShadowMapHeight:TPasGLTFInt32=ShadowMapSize);
+ var RoundedOrigin,RoundOffset:UnitMath3D.TVector2;
+     ShadowOrigin:UnitMath3D.TVector4;
+ begin
+  // Create the rounding matrix, by projecting the world-space origin and determining the fractional offset in texel space
+  ShadowOrigin:=Vector4TermMatrixMul(Vector4(0.0,0.0,0.0,1.0),Matrix4x4TermMul(aShadowMapViewMatrix,aShadowMapProjectionMatrix));
+  ShadowOrigin.x:=ShadowOrigin.x*aShadowMapWidth;
+  ShadowOrigin.y:=ShadowOrigin.y*aShadowMapHeight;
+  RoundedOrigin.x:=round(ShadowOrigin.x);
+  RoundedOrigin.y:=round(ShadowOrigin.y);
+  RoundOffset.x:=((RoundedOrigin.x-ShadowOrigin.x)*2.0)/aShadowMapWidth;
+  RoundOffset.y:=((RoundedOrigin.y-ShadowOrigin.y)*2.0)/aShadowMapHeight;
+  aShadowMapProjectionMatrix[3,0]:=aShadowMapProjectionMatrix[3,0]+RoundOffset.x;
+  aShadowMapProjectionMatrix[3,1]:=aShadowMapProjectionMatrix[3,1]+RoundOffset.y;
+ end;
+var LightViewMatrix,
+    LightProjectionMatrix,
+    LightSpaceMatrix,
+    WarpMatrix,WarppedLightSpaceMatrix,
+    FocusTransformMatrix:UnitMath3D.TMatrix4x4;
+    LightSpaceAABB:UnitMath3D.TAABB;
+    Scale,
+    Offset:UnitMath3D.TVector2;
+    ShadowMapDimension:TPasGLTFFloat;
+begin
+ CameraInverseViewMatrix:=Matrix4x4TermInverse(aCameraViewMatrix);
+ LightViewMatrix:=GetLightViewMatrix;
+ LightProjectionMatrix:=GetLightProjectionMatrix(LightViewMatrix);
+ LightSpaceMatrix:=Matrix4x4TermMul(LightViewMatrix,LightProjectionMatrix);
+ WarpMatrix:=Matrix4x4Identity;
+ WarppedLightSpaceMatrix:=Matrix4x4TermMul(LightSpaceMatrix,WarpMatrix);
+ LightSpaceAABB:=AABBTransform(aSceneAABB,WarppedLightSpaceMatrix);
+ ShadowMapDimension:=ShadowMapSize;
+ Scale.x:=2.0/(LightSpaceAABB.Max.x-LightSpaceAABB.Min.x);
+ Scale.y:=2.0/(LightSpaceAABB.Max.y-LightSpaceAABB.Min.y);
+ Offset.x:=((LightSpaceAABB.Min.x+LightSpaceAABB.Max.x)*(-0.5))*Scale.x;
+ Offset.y:=((LightSpaceAABB.Min.y+LightSpaceAABB.Max.y)*(-0.5))*Scale.y;
+ Offset.x:=ceil(Offset.x*ShadowMapDimension)/ShadowMapDimension;
+ Offset.y:=ceil(Offset.y*ShadowMapDimension)/ShadowMapDimension;
+ FocusTransformMatrix[0,0]:=Scale.x;
+ FocusTransformMatrix[0,1]:=0.0;
+ FocusTransformMatrix[0,2]:=0.0;
+ FocusTransformMatrix[0,3]:=0.0;
+ FocusTransformMatrix[1,0]:=0.0;
+ FocusTransformMatrix[1,1]:=Scale.y;
+ FocusTransformMatrix[1,2]:=0.0;
+ FocusTransformMatrix[1,3]:=0.0;
+ FocusTransformMatrix[2,0]:=0.0;
+ FocusTransformMatrix[2,1]:=0.0;
+ FocusTransformMatrix[2,2]:=1.0;
+ FocusTransformMatrix[2,3]:=0.0;
+ FocusTransformMatrix[3,0]:=Offset.x;
+ FocusTransformMatrix[3,1]:=Offset.y;
+ FocusTransformMatrix[3,2]:=0.0;
+ FocusTransformMatrix[3,3]:=1.0;
+ result:=Matrix4x4TermMul(WarppedLightSpaceMatrix,FocusTransformMatrix);
 end;
 
 var GPUTimeElapsed:GLuint64=0;
@@ -304,6 +436,41 @@ begin
  end;
  LightDirection:=Vector3Norm(Vector3(0.0,-1.0,0.0));
 //LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
+ begin
+  ModelMatrix:=Matrix4x4Identity;
+  if assigned(GLTFOpenGL) then begin
+   Center.x:=(GLTFOpenGL.StaticBoundingBox.Min[0]+GLTFOpenGL.StaticBoundingBox.Max[0])*0.5;
+   Center.y:=(GLTFOpenGL.StaticBoundingBox.Min[1]+GLTFOpenGL.StaticBoundingBox.Max[1])*0.5;
+   Center.z:=(GLTFOpenGL.StaticBoundingBox.Min[2]+GLTFOpenGL.StaticBoundingBox.Max[2])*0.5;
+   Bounds.x:=(GLTFOpenGL.StaticBoundingBox.Max[0]-GLTFOpenGL.StaticBoundingBox.Min[0])*0.5;
+   Bounds.y:=(GLTFOpenGL.StaticBoundingBox.Max[1]-GLTFOpenGL.StaticBoundingBox.Min[1])*0.5;
+   Bounds.z:=(GLTFOpenGL.StaticBoundingBox.Max[2]-GLTFOpenGL.StaticBoundingBox.Min[2])*0.5;
+  end else begin
+   Center.x:=0.0;
+   Center.y:=0.0;
+   Center.z:=0.0;
+   Bounds.x:=1.0;
+   Bounds.y:=1.0;
+   Bounds.z:=1.0;
+  end;
+  Zoom:=ZoomLevel;
+  ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
+                                         Vector3ScalarMul(Vector3Norm(Vector3(sin(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0),
+                                                                              sin(-CameraRotationY*PI*2.0),
+                                                                              cos(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0))),
+                                                          Max(Max(Bounds.x,Bounds.y),Bounds.z)*3.0*Zoom)),
+                               Center,
+                               Vector3YAxis);
+{  ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
+                                         Vector3TermMatrixMul(Vector3(0.0,
+                                                                      0.0,
+                                                                      Max(Max(Bounds.x,Bounds.y),Bounds.z)*3.0*Zoom),
+                                                              Matrix4x4TermMul(Matrix4x4RotateY(CameraRotationX*PI*2.0),
+                                                                               Matrix4x4RotateX(CameraRotationY*PI*2.0)))),
+                               Center,
+                               Vector3YAxis);}
+  ProjectionMatrix:=Matrix4x4ProjectionReversedZ(45.0,ViewPortWidth/ViewPortHeight,1e-3);
+ end;
  if assigned(GLTFInstance) then begin
   GLTFInstance.Scene:=SceneIndex;
   GLTFInstance.Animation:=AnimationIndex;
@@ -316,30 +483,26 @@ begin
   GLTFInstance.Upload;
  end;
  if assigned(GLTFInstance) and Shadows then begin
-  GLTFInstance.UpdateDynamicBoundingBox;
-  ShadowMapAABB.Min.x:=GLTFInstance.DynamicBoundingBox.Min[0];
+//GLTFInstance.UpdateDynamicBoundingBox(false);
+{ ShadowMapAABB.Min.x:=GLTFInstance.DynamicBoundingBox.Min[0];
   ShadowMapAABB.Min.y:=GLTFInstance.DynamicBoundingBox.Min[1];
   ShadowMapAABB.Min.z:=GLTFInstance.DynamicBoundingBox.Min[2];
   ShadowMapAABB.Max.x:=GLTFInstance.DynamicBoundingBox.Max[0];
   ShadowMapAABB.Max.y:=GLTFInstance.DynamicBoundingBox.Max[1];
-  ShadowMapAABB.Max.z:=GLTFInstance.DynamicBoundingBox.Max[2];
+  ShadowMapAABB.Max.z:=GLTFInstance.DynamicBoundingBox.Max[2];}
+  SceneAABB.Min.x:=GLTFOpenGL.StaticBoundingBox.Min[0];
+  SceneAABB.Min.y:=GLTFOpenGL.StaticBoundingBox.Min[1];
+  SceneAABB.Min.z:=GLTFOpenGL.StaticBoundingBox.Min[2];
+  SceneAABB.Max.x:=GLTFOpenGL.StaticBoundingBox.Max[0];
+  SceneAABB.Max.y:=GLTFOpenGL.StaticBoundingBox.Max[1];
+  SceneAABB.Max.z:=GLTFOpenGL.StaticBoundingBox.Max[2];
 { ShadowMapAABB.Min.x:=GLTFInstance.WorstCaseStaticBoundingBox.Min[0];
   ShadowMapAABB.Min.y:=GLTFInstance.WorstCaseStaticBoundingBox.Min[1];
   ShadowMapAABB.Min.z:=GLTFInstance.WorstCaseStaticBoundingBox.Min[2];
   ShadowMapAABB.Max.x:=GLTFInstance.WorstCaseStaticBoundingBox.Max[0];
   ShadowMapAABB.Max.y:=GLTFInstance.WorstCaseStaticBoundingBox.Max[1];
   ShadowMapAABB.Max.z:=GLTFInstance.WorstCaseStaticBoundingBox.Max[2];}
-  ShadowMapViewMatrix:=GetShadowMapViewMatrix;
-  ShadowMapAABB:=AABBTransform(ShadowMapAABB,ShadowMapViewMatrix);
-  Bounds.x:=(ShadowMapAABB.Max.x-ShadowMapAABB.Min.x)*0.015625;
-  Bounds.y:=(ShadowMapAABB.Max.y-ShadowMapAABB.Min.y)*0.015625;
-  Bounds.z:=(ShadowMapAABB.Max.z-ShadowMapAABB.Min.z)*0.015625;
-  n:=ShadowMapAABB.Min.z-Bounds.z;
-  f:=ShadowMapAABB.Max.z+Bounds.z;
-  ShadowMapProjectionMatrix:=Matrix4x4Ortho(ShadowMapAABB.Min.x-Bounds.x,ShadowMapAABB.Max.x+Bounds.x,
-                                            ShadowMapAABB.Min.y-Bounds.y,ShadowMapAABB.Max.y+Bounds.y,
-                                            -n,-f);
-  ShadowMapMatrix:=Matrix4x4TermMul(ShadowMapViewMatrix,ShadowMapProjectionMatrix);
+  ShadowMapMatrix:=GetShadowMapMatrix(ViewMatrix,SceneAABB);
   for ShadingShader in ShadowShaders do begin
    ShadingShader.Bind;
    glUniform3fv(ShadingShader.uLightDirection,1,@LightDirection);
@@ -359,8 +522,8 @@ begin
    glDepthFunc(GL_LEQUAL);
    ModelMatrix:=Matrix4x4Identity;
    GLTFInstance.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
-                     TPasGLTF.TMatrix4x4(Pointer(@ShadowMapViewMatrix)^),
-                     TPasGLTF.TMatrix4x4(Pointer(@ShadowMapProjectionMatrix)^),
+                     TPasGLTF.TMatrix4x4(Pointer(@Matrix4x4Identity)^),
+                     TPasGLTF.TMatrix4x4(Pointer(@ShadowMapMatrix)^),
                      TPasGLTF.TMatrix4x4(Pointer(@ShadowMapMatrix)^),
                      ShadowShaders[false,false],
                      ShadowShaders[false,true],
@@ -434,40 +597,6 @@ begin
   glClearColor(0.0,0.0,0.0,0.0);
   glClearDepth(0.0);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
-  ModelMatrix:=Matrix4x4Identity;
-  t:=Time*0.125;
-  if assigned(GLTFOpenGL) then begin
-   Center.x:=(GLTFOpenGL.StaticBoundingBox.Min[0]+GLTFOpenGL.StaticBoundingBox.Max[0])*0.5;
-   Center.y:=(GLTFOpenGL.StaticBoundingBox.Min[1]+GLTFOpenGL.StaticBoundingBox.Max[1])*0.5;
-   Center.z:=(GLTFOpenGL.StaticBoundingBox.Min[2]+GLTFOpenGL.StaticBoundingBox.Max[2])*0.5;
-   Bounds.x:=(GLTFOpenGL.StaticBoundingBox.Max[0]-GLTFOpenGL.StaticBoundingBox.Min[0])*0.5;
-   Bounds.y:=(GLTFOpenGL.StaticBoundingBox.Max[1]-GLTFOpenGL.StaticBoundingBox.Min[1])*0.5;
-   Bounds.z:=(GLTFOpenGL.StaticBoundingBox.Max[2]-GLTFOpenGL.StaticBoundingBox.Min[2])*0.5;
-  end else begin
-   Center.x:=0.0;
-   Center.y:=0.0;
-   Center.z:=0.0;
-   Bounds.x:=1.0;
-   Bounds.y:=1.0;
-   Bounds.z:=1.0;
-  end;
-  Zoom:=ZoomLevel;
-  ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
-                                         Vector3ScalarMul(Vector3Norm(Vector3(sin(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0),
-                                                                              sin(-CameraRotationY*PI*2.0),
-                                                                              cos(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0))),
-                                                          Max(Max(Bounds.x,Bounds.y),Bounds.z)*3.0*Zoom)),
-                               Center,
-                               Vector3YAxis);
-{  ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
-                                         Vector3TermMatrixMul(Vector3(0.0,
-                                                                      0.0,
-                                                                      Max(Max(Bounds.x,Bounds.y),Bounds.z)*3.0*Zoom),
-                                                              Matrix4x4TermMul(Matrix4x4RotateY(CameraRotationX*PI*2.0),
-                                                                               Matrix4x4RotateX(CameraRotationY*PI*2.0)))),
-                               Center,
-                               Vector3YAxis);}
-  ProjectionMatrix:=Matrix4x4ProjectionReversedZ(45.0,ViewPortWidth/ViewPortHeight,1e-3);
   glClipControl(GL_LOWER_LEFT,GL_ZERO_TO_ONE);
   glDepthFunc(GL_GEQUAL);
   SkyBoxViewProjectionMatrix:=Matrix4x4TermMul(Matrix4x4Rotation(ViewMatrix),ProjectionMatrix);
