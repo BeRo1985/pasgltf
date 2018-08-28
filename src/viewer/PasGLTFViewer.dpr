@@ -86,7 +86,7 @@ exports NvOptimusEnablement,
 const VirtualCanvasWidth=1280;
       VirtualCanvasHeight=720;
 
-      ShadowMapSize=1024;
+      ShadowMapSize=2048;
 
 var InputFileName:TPasGLTFUTF8String='';
 
@@ -312,9 +312,9 @@ begin
   ShadowMapAABB.Max.z:=GLTFInstance.WorstCaseStaticBoundingBox.Max[2];}
   ShadowMapViewMatrix:=GetShadowMapViewMatrix;
   ShadowMapAABB:=AABBTransform(ShadowMapAABB,ShadowMapViewMatrix);
-  Bounds.x:=(ShadowMapAABB.Max.x-ShadowMapAABB.Min.x)*2.0;
-  Bounds.y:=(ShadowMapAABB.Max.y-ShadowMapAABB.Min.y)*2.0;
-  Bounds.z:=(ShadowMapAABB.Max.z-ShadowMapAABB.Min.z)*2.0;
+  Bounds.x:=(ShadowMapAABB.Max.x-ShadowMapAABB.Min.x)*0.015625;
+  Bounds.y:=(ShadowMapAABB.Max.y-ShadowMapAABB.Min.y)*0.015625;
+  Bounds.z:=(ShadowMapAABB.Max.z-ShadowMapAABB.Min.z)*0.015625;
   n:=ShadowMapAABB.Min.z-Bounds.z;
   f:=ShadowMapAABB.Max.z+Bounds.z;
   ShadowMapProjectionMatrix:=Matrix4x4Ortho(ShadowMapAABB.Min.x-Bounds.x,ShadowMapAABB.Max.x+Bounds.x,
@@ -1398,8 +1398,8 @@ begin
        ShadowMapFBO^.Height:=ShadowMapSize;
        ShadowMapFBO^.Depth:=0;
        ShadowMapFBO^.Textures:=1;
-       ShadowMapFBO^.TextureFormats[0]:=GL_TEXTURE_RGBA32F;
-       ShadowMapFBO^.Format:=GL_TEXTURE_RGBA32F;
+       ShadowMapFBO^.TextureFormats[0]:=GL_TEXTURE_RGBA16US;
+       ShadowMapFBO^.Format:=GL_TEXTURE_RGBA16US;
        ShadowMapFBO^.SWrapMode:=wmGL_CLAMP_TO_EDGE;
        ShadowMapFBO^.TWrapMode:=wmGL_CLAMP_TO_EDGE;
        ShadowMapFBO^.RWrapMode:=wmGL_CLAMP_TO_EDGE;

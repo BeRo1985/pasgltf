@@ -442,13 +442,13 @@ begin
      '    shadowNDC /= shadowNDC.w;'+#13#10+
      '    if(all(greaterThanEqual(shadowNDC, vec4(-1.0))) && all(lessThanEqual(shadowNDC, vec4(1.0)))){'+#13#10+
      '      shadowNDC.xyz = fma(shadowNDC.xyz, vec3(0.5), vec3(0.5));'+#13#10+
-     '      vec4 moments = textureLod(uShadowMapTexture, shadowNDC.xy, 0.0);'+#13#10+
-{    '      vec4 moments = (textureLod(uShadowMapTexture, shadowNDC.xy, 0.0) + vec2(-0.035955884801, 0.0).xyyy) *'+#13#10+
+//   '      vec4 moments = textureLod(uShadowMapTexture, shadowNDC.xy, 0.0);'+#13#10+
+     '      vec4 moments = (textureLod(uShadowMapTexture, shadowNDC.xy, 0.0) + vec2(-0.035955884801, 0.0).xyyy) *'+#13#10+
      '                     mat4(0.2227744146, 0.0771972861, 0.7926986636, 0.0319417555,'+#13#10+
      '                          0.1549679261, 0.1394629426, 0.7963415838, -0.172282317,'+#13#10+
      '                          0.1451988946, 0.2120202157, 0.7258694464, -0.2758014811,'+#13#10+
-     '                          0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+}
-     '      litIntensity = 1.0 - reduceLightBleeding(getMSMShadowIntensity(moments, shadowNDC.z, 2.5e-3, 3e-5), 0.0);'+#13#10+
+     '                          0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+{}
+     '      litIntensity = 1.0 - reduceLightBleeding(getMSMShadowIntensity(moments, shadowNDC.z, 5e-3, 1e-2), 0.0);'+#13#10+
      '    }'+#13#10+
      '  }'+#13#10+
      '  switch(shadingModel){'+#13#10+
