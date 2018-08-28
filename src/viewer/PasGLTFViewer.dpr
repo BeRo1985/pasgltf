@@ -86,7 +86,7 @@ exports NvOptimusEnablement,
 const VirtualCanvasWidth=1280;
       VirtualCanvasHeight=720;
 
-      ShadowMapSize=2048;
+      ShadowMapSize=512;
 
 var InputFileName:TPasGLTFUTF8String='';
 

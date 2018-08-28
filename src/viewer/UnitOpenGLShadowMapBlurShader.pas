@@ -139,7 +139,11 @@ begin
     'uniform sampler2D uTexture;'+#13#10+
     'uniform vec2 uDirection;'+#13#10+
     'vec4 GaussianBlur(const in sampler2D pTexSource, const in vec2 pCenterUV, const in float pLOD, const in vec2 pPixelOffset){'+#13#10+
-    '  return ((textureLod(pTexSource, pCenterUV + (pPixelOffset * 0.6591712451751888), pLOD) +'+#13#10+
+    '  return ((textureLod(pTexSource, pCenterUV + (pPixelOffset * 0.5949592424752924), pLOD) +'+#13#10+
+    '           textureLod(pTexSource, pCenterUV - (pPixelOffset * 0.5949592424752924), pLOD)) * 0.3870341767000849)+'+#13#10+
+    '         ((textureLod(pTexSource, pCenterUV + (pPixelOffset * 2.176069137573487), pLOD) +'+#13#10+
+    '           textureLod(pTexSource, pCenterUV - (pPixelOffset * 2.176069137573487), pLOD)) * 0.11071876711891004);'+#13#10+
+{   '  return ((textureLod(pTexSource, pCenterUV + (pPixelOffset * 0.6591712451751888), pLOD) +'+#13#10+
     '           textureLod(pTexSource, pCenterUV - (pPixelOffset * 0.6591712451751888), pLOD)) * 0.15176565679402804)+'+#13#10+
     '         ((textureLod(pTexSource, pCenterUV + (pPixelOffset * 2.4581680281192115), pLOD) +'+#13#10+
     '           textureLod(pTexSource, pCenterUV - (pPixelOffset * 2.4581680281192115), pLOD)) * 0.16695645822541735)+'+#13#10+
@@ -150,7 +154,7 @@ begin
     '         ((textureLod(pTexSource, pCenterUV + (pPixelOffset * 8.361179642955081), pLOD) +'+#13#10+
     '           textureLod(pTexSource, pCenterUV - (pPixelOffset * 8.361179642955081), pLOD)) * 0.01892391240315673)+'+#13#10+
     '         ((textureLod(pTexSource, pCenterUV + (pPixelOffset * 10.330832149360727), pLOD) +'+#13#10+
-    '           textureLod(pTexSource, pCenterUV - (pPixelOffset * 10.330832149360727), pLOD)) * 0.005400173381332095);'+#13#10+
+    '           textureLod(pTexSource, pCenterUV - (pPixelOffset * 10.330832149360727), pLOD)) * 0.005400173381332095);'+#13#10+}
     '}'+#13#10+
     'void main(){'+#13#10+
     '  oOutput = GaussianBlur(uTexture, vTexCoord, 0.0, (vec2(1.0) / textureSize(uTexture, 0)) * uDirection);'+#13#10+
