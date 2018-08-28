@@ -142,6 +142,8 @@ var InputFileName:TPasGLTFUTF8String='';
 
     EnvMapTextureHandle:glUInt=0;
 
+    TimeQueryHandle:glUInt=0;
+
     SceneFBOWidth:Int32=1280;
     SceneFBOHeight:Int32=720;
 
@@ -271,6 +273,9 @@ begin
  result[3,3]:=1.0;
 end;
 
+var GPUTimeElapsed:GLuint64=0;
+    GPUTimeState:GLint=0;
+
 procedure Draw;
 var ModelMatrix,
     ViewMatrix,
@@ -281,9 +286,22 @@ var ModelMatrix,
     v,Zoom,n,f:TPasGLTFFloat;
     ShadingShader:TShadingShader;
     t0,t1:int64;
-  Index: Integer;
+    Index:int32;
+    TimeQueryAvailable:glInt;
 begin
  t0:=SDL_GetPerformanceCounter;
+ if GPUTimeState=3 then begin
+  glGetQueryObjectiv(TimeQueryHandle,GL_QUERY_RESULT_AVAILABLE,@TimeQueryAvailable);
+  if TimeQueryAvailable<>0 then begin
+   GPUTimeElapsed:=0;
+   glGetQueryObjectui64v(TimeQueryHandle,GL_QUERY_RESULT,@GPUTimeElapsed);
+   GPUTimeState:=1;
+  end;
+ end;
+ if GPUTimeState in [0,1] then begin
+  glBeginQuery(GL_TIME_ELAPSED,TimeQueryHandle);
+  GPUTimeState:=2;
+ end;
  LightDirection:=Vector3Norm(Vector3(0.0,-1.0,0.0));
 //LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
  if assigned(GLTFInstance) then begin
@@ -540,9 +558,13 @@ begin
   ConsoleInstance.Draw(DeltaTime,ViewPortX,ViewPortY,ViewPortWidth,ViewPortHeight);
   glEnable(GL_DEPTH_TEST);
  end;
+ if GPUTimeState=2 then begin
+  glEndQuery(GL_TIME_ELAPSED);
+  GPUTimeState:=3;
+ end;
  t1:=SDL_GetPerformanceCounter;
 //
- write(#13,(t1-t0)/SDL_GetPerformanceFrequency:1:5);
+ write(#13,'CPU time: ',(t1-t0)/SDL_GetPerformanceFrequency:8:5,'    GPU time: ',GPUTimeElapsed/1e9:8:5);
 end;
 
 procedure Resize(NewWidth,NewHeight:longint);
@@ -1481,7 +1503,16 @@ begin
                 ConsoleInstance.Upload;
 
                 try
-                 MainLoop;
+
+                 glGenQueries(1,@TimeQueryHandle);
+                 try
+
+                  MainLoop;
+
+                 finally
+                  glDeleteQueries(1,@TimeQueryHandle);
+                 end;
+
                 except
                  on e:Exception do begin
                   writeln(e.StackTrace);
