@@ -2,7 +2,7 @@ program PasGLTFViewer;
 {$ifdef fpc}
  {$mode delphi}
 {$endif}
-{-$apptype console}
+{$apptype console}
 {$ifdef win32}
  {$define windows}
 {$endif}
@@ -116,11 +116,13 @@ var InputFileName:TPasGLTFUTF8String='';
 
     MultisampledShadowMapTexture:glUInt=0;
 
+//  MultisampledShadowMapDepthTexture:glUInt=0;
+
     MultisampledShadowMapFBO:glUInt=0;
 
     MultisampledShadowMapDepthRenderBuffer:glUInt=0;
 
-    MultisampledShadowMapSamples:glInt=2;
+    MultisampledShadowMapSamples:glInt=8;
 
     ShadowMapFBOs:array[0..2] of TFBO;
 
@@ -276,7 +278,7 @@ var ModelMatrix,
     SkyBoxViewProjectionMatrix:UnitMath3D.TMatrix4x4;
     Bounds,Center:UnitMath3D.TVector3;
     t:double;
-    v,Zoom:TPasGLTFFloat;
+    v,Zoom,n,f:TPasGLTFFloat;
     ShadingShader:TShadingShader;
     t0,t1:int64;
   Index: Integer;
@@ -304,12 +306,14 @@ begin
   ShadowMapAABB.Max.z:=GLTFInstance.WorstCaseStaticBoundingBox.Max[2];
   ShadowMapViewMatrix:=GetShadowMapViewMatrix;
   ShadowMapAABB:=AABBTransform(ShadowMapAABB,ShadowMapViewMatrix);
-  Bounds.x:=(ShadowMapAABB.Max.x-ShadowMapAABB.Min.x)*0.125;
-  Bounds.y:=(ShadowMapAABB.Max.y-ShadowMapAABB.Min.y)*0.125;
-  Bounds.z:=(ShadowMapAABB.Max.z-ShadowMapAABB.Min.z)*0.125;
+  Bounds.x:=(ShadowMapAABB.Max.x-ShadowMapAABB.Min.x)*0.5;
+  Bounds.y:=(ShadowMapAABB.Max.y-ShadowMapAABB.Min.y)*0.5;
+  Bounds.z:=(ShadowMapAABB.Max.z-ShadowMapAABB.Min.z)*0.5;
+  n:=ShadowMapAABB.Min.z-Bounds.z;
+  f:=ShadowMapAABB.Max.z+Bounds.z;
   ShadowMapProjectionMatrix:=Matrix4x4Ortho(ShadowMapAABB.Min.x-Bounds.x,ShadowMapAABB.Max.x+Bounds.x,
                                             ShadowMapAABB.Min.y-Bounds.y,ShadowMapAABB.Max.y+Bounds.y,
-                                            -(ShadowMapAABB.Min.z-Bounds.z),-(ShadowMapAABB.Max.z+Bounds.z));
+                                            -n,-f);
   ShadowMapMatrix:=Matrix4x4TermMul(ShadowMapViewMatrix,ShadowMapProjectionMatrix);
   for ShadingShader in ShadowShaders do begin
    ShadingShader.Bind;
@@ -317,9 +321,10 @@ begin
    ShadingShader.Unbind;
   end;
   begin
-   glBindFramebuffer(GL_DRAW_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
-// glBindFramebuffer(GL_FRAMEBUFFER,MultisampledShadowMapFBO);
+ // glBindFramebuffer(GL_DRAW_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
+   glBindFramebuffer(GL_FRAMEBUFFER,MultisampledShadowMapFBO);
    glDrawBuffer(GL_COLOR_ATTACHMENT0);
+   glEnable(GL_MULTISAMPLE);
    glViewport(0,0,ShadowMapSize,ShadowMapSize);
    glClearColor(1.0,1.0,1.0,1.0);
    glClearDepth(1.0);
@@ -337,8 +342,10 @@ begin
                      ShadowShaders[true,false],
                      ShadowShaders[true,true],
                      [TPasGLTF.TMaterial.TAlphaMode.Opaque,TPasGLTF.TMaterial.TAlphaMode.Mask]);
+   glBindFrameBuffer(GL_FRAMEBUFFER,0);
+   glDisable(GL_MULTISAMPLE);
   end;
-{ begin
+ begin
    glBindFrameBuffer(GL_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
    glDrawBuffer(GL_COLOR_ATTACHMENT0);
    glViewport(0,0,ShadowMapFBOs[0].Width,ShadowMapFBOs[0].Height);
@@ -348,7 +355,7 @@ begin
    glDisable(GL_CULL_FACE);
    glDepthFunc(GL_ALWAYS);
    glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapFBO);
+   glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture);
    MultisampleResolveShader.Bind;
    glUniform1i(MultisampleResolveShader.uTexture,0);
    glUniform1i(MultisampleResolveShader.uSamples,MultisampledShadowMapSamples);
@@ -357,6 +364,7 @@ begin
    glBindVertexArray(0);
    MultisampleResolveShader.Unbind;
    glBindFrameBuffer(GL_FRAMEBUFFER,0);
+   glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,0);
   end;
 { begin // renderdoc don't like this (garbage trace output then as result)
    glBindFramebuffer(GL_DRAW_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
@@ -1166,6 +1174,11 @@ begin
 
   glEnable(GL_TEXTURE_CUBE_MAP_SEAMLESS);
 
+  glGetIntegerv(GL_MAX_SAMPLES,@MultisampledShadowMapSamples);
+  if MultisampledShadowMapSamples>8 then begin
+   MultisampledShadowMapSamples:=8;
+  end;
+
   glGenVertexArrays(1,@EmptyVertexArrayObjectHandle);
   try
 
@@ -1346,11 +1359,22 @@ begin
       glGenFramebuffers(1,@MultisampledShadowMapFBO);
       glBindFramebuffer(GL_FRAMEBUFFER,MultisampledShadowMapFBO);
 
+{     glDrawBuffer(GL_NONE);
+      glReadBuffer(GL_NONE);}
+
       glGenTextures(1,@MultisampledShadowMapTexture);
       glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture);
       glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapSamples,GL_R32F,ShadowMapSize,ShadowMapSize,true);
       glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture,0);
 
+{     glGenTextures(1,@MultisampledShadowMapDepthTexture);
+      glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapDepthTexture);
+      glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_DEPTH_TEXTURE_MODE,GL_LUMINANCE);
+      glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_COMPARE_MODE,GL_NONE);
+      glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_COMPARE_FUNC,GL_ALWAYS);
+      glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapSamples,GL_DEPTH_COMPONENT32F,ShadowMapSize,ShadowMapSize,true);
+      glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture,0);
+}
       glGenRenderbuffers(1,@MultisampledShadowMapDepthRenderBuffer);
       glBindRenderbuffer(GL_RENDERBUFFER,MultisampledShadowMapDepthRenderBuffer);
       glRenderbufferStorageMultisample(GL_RENDERBUFFER,MultisampledShadowMapSamples,GL_DEPTH_COMPONENT32F,ShadowMapSize,ShadowMapSize);
@@ -1368,8 +1392,8 @@ begin
        ShadowMapFBO^.Height:=ShadowMapSize;
        ShadowMapFBO^.Depth:=0;
        ShadowMapFBO^.Textures:=1;
-       ShadowMapFBO^.TextureFormats[0]:=GL_TEXTURE_RGBA32F;
-       ShadowMapFBO^.Format:=GL_TEXTURE_RGBA32F;
+       ShadowMapFBO^.TextureFormats[0]:=GL_TEXTURE_RGBA16US;
+       ShadowMapFBO^.Format:=GL_TEXTURE_RGBA16US;
        ShadowMapFBO^.SWrapMode:=wmGL_CLAMP_TO_EDGE;
        ShadowMapFBO^.TWrapMode:=wmGL_CLAMP_TO_EDGE;
        ShadowMapFBO^.RWrapMode:=wmGL_CLAMP_TO_EDGE;
@@ -1447,7 +1471,19 @@ begin
 
                 ConsoleInstance.Upload;
 
-                MainLoop;
+                try
+                 MainLoop;
+                except
+                 on e:Exception do begin
+                  writeln(e.StackTrace);
+                  SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR or
+                                           SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT,
+                                           PAnsiChar(ansistring(e.ClassName)),
+                                           PAnsiChar(ansistring(e.Message)),
+                                           SurfaceWindow);
+                  raise e;
+                 end;
+                end;
 
                finally
                 FreeAndNil(ConsoleInstance);
@@ -1509,6 +1545,7 @@ begin
        glDeleteFramebuffers(1,@MultisampledShadowMapFBO);
        glDeleteRenderbuffers(1,@MultisampledShadowMapDepthRenderBuffer);
        glDeleteTextures(1,@MultisampledShadowMapTexture);
+//      glDeleteTextures(1,@MultisampledShadowMapDepthTexture);
        DestroyFrameBuffer(HDRSceneFBO);
       end;
 

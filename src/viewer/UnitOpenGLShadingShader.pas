@@ -321,15 +321,15 @@ begin
     '                   const in float materialRoughness,'+#13#10+
     '                   const in float materialCavity){'+#13#10+
     '  vec3 halfVector = normalize(viewDirection + lightDirection);'+#13#10+
-    '	 float nDotL = clamp(dot(normal, lightDirection), 1e-5, 1.0);'+#13#10+
-    '	 float nDotV = clamp(abs(dot(normal, viewDirection)) + 1e-5, 0.0, 1.0);'+#13#10+
-    '	 float nDotH = clamp(dot(normal, halfVector), 0.0, 1.0);'+#13#10+
-    '	 float vDotH = clamp(dot(viewDirection, halfVector), 0.0, 1.0);'+#13#10+
+    '  float nDotL = clamp(dot(normal, lightDirection), 1e-5, 1.0);'+#13#10+
+    '  float nDotV = clamp(abs(dot(normal, viewDirection)) + 1e-5, 0.0, 1.0);'+#13#10+
+    '  float nDotH = clamp(dot(normal, halfVector), 0.0, 1.0);'+#13#10+
+    '  float vDotH = clamp(dot(viewDirection, halfVector), 0.0, 1.0);'+#13#10+
     '  vec3 diffuse = diffuseFunction(diffuseColor, materialRoughness, nDotV, nDotL, vDotH) * (1.0 - materialTransparency);'+#13#10+
-    '	 vec3 specular = specularF(specularColor, max(vDotH, refractiveAngle)) *'+#13#10+
+    '  vec3 specular = specularF(specularColor, max(vDotH, refractiveAngle)) *'+#13#10+
     '                  specularD(materialRoughness, nDotH) *'+#13#10+
     '                  specularG(materialRoughness, nDotV, nDotL);'+#13#10+
-    '	 return (diffuse + specular) * ((materialCavity * nDotL * lightColor) * lightLit);'+#13#10+
+    '  return (diffuse + specular) * ((materialCavity * nDotL * lightColor) * lightLit);'+#13#10+
     '}'+#13#10+
     'vec4 getEnvMap(sampler2D texEnvMap, float texLOD, vec3 rayDirection){'+#13#10+
     '  rayDirection = normalize(rayDirection);'+#13#10+
@@ -427,7 +427,7 @@ begin
  if aShadowMap then begin
   f:=f+
        '  vec4 t = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
-       '  float d = t.z / t.w;'+#13#10+
+       '  float d = ((t.z / t.w) + 1.0) * 0.5;'+#13#10+
        '  float s = d * d;'+#13#10+
        '  vec4 m = vec4(d, s, s * d, s * s);'+#13#10+
        '  oOutput = m;'+#13#10+
@@ -441,7 +441,13 @@ begin
      '    vec4 shadowNDC = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition'+{ + shadowOffset}', 1.0);'+#13#10+
      '    shadowNDC /= shadowNDC.w;'+#13#10+
      '    if(all(greaterThanEqual(shadowNDC, vec4(-1.0))) && all(lessThanEqual(shadowNDC, vec4(1.0)))){'+#13#10+
-     '      litIntensity = 1.0 - reduceLightBleeding(getMSMShadowIntensity(textureLod(uShadowMapTexture, (shadowNDC.xy + vec2(1.0)) * 0.5, 0.0), shadowNDC.z, 6e-3, 3e-5), 0.0);'+#13#10+
+     '      vec4 m = textureLod(uShadowMapTexture, (shadowNDC.xy + vec2(1.0)) * 0.5, 0.0);'+#13#10+
+     '      m = (m + vec2(-0.035955884801, 0.0).xyyy) *'+#13#10+
+     '          mat4(0.2227744146, 0.0771972861, 0.7926986636, 0.0319417555,'+#13#10+
+     '               0.1549679261, 0.1394629426, 0.7963415838, -0.172282317,'+#13#10+
+     '               0.1451988946, 0.2120202157, 0.7258694464, -0.2758014811,'+#13#10+
+     '               0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+
+     '      litIntensity = 1.0 - reduceLightBleeding(getMSMShadowIntensity(m, (shadowNDC.z + 1.0) * 0.5, 5e-3, 3e-5), 0.0);'+#13#10+
      '    }'+#13#10+
      '  }'+#13#10+
      '  switch(shadingModel){'+#13#10+
@@ -530,7 +536,7 @@ begin
      '        float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
      '              ao = cavity * ambientOcclusion * ((litIntensity * 0.25) + 0.75),'+#13#10+
      '              specularOcclusion = clamp((pow(NdotV + ao, specularColorRoughness.w * specularColorRoughness.w) - 1.0) + ao, 0.0, 1.0);'+#13#10+
-     '      	 vec2 brdf = textureLod(uBRDFLUTTexture, vec2(specularColorRoughness.w, NdotV), 0.0).xy;'+#13#10+
+     '         vec2 brdf = textureLod(uBRDFLUTTexture, vec2(specularColorRoughness.w, NdotV), 0.0).xy;'+#13#10+
      '         color.xyz += ((textureLod(uEnvMapTexture, normalize(reflect(viewDirection, normal.xyz)),'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(specularColorRoughness.w))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColorRoughness.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z) * 50.0, 0.0, 1.0))) * specularOcclusion) +'+#13#10+
      '                       (textureLod(uEnvMapTexture, normal.xyz, float(uEnvMapMaxLevel)).xyz * diffuseColorAlpha.xyz * ao)) * OneOverPI;'+#13#10+
      '      }'+#13#10+

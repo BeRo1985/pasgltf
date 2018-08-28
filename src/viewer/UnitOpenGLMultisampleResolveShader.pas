@@ -127,13 +127,13 @@ implementation
 constructor TMultisampleResolveShader.Create;
 var f,v:ansistring;
 begin
- v:='#version 330'+#13#10+
+ v:='#version 430'+#13#10+
     'out vec2 vTexCoord;'+#13#10+
     'void main(){'+#13#10+
     '  vTexCoord = vec2((gl_VertexID >> 1) * 2.0, (gl_VertexID & 1) * 2.0);'+#13#10+
     '  gl_Position = vec4(((gl_VertexID >> 1) * 4.0) - 1.0, ((gl_VertexID & 1) * 4.0) - 1.0, 0.0, 1.0);'+#13#10+
     '}'+#13#10;
- f:='#version 330'+#13#10+
+ f:='#version 430'+#13#10+
     'in vec2 vTexCoord;'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
     'uniform sampler2DMS uTexture;'+#13#10+
@@ -141,9 +141,15 @@ begin
     'vec4 textureMultisample(sampler2DMS sampler, ivec2 position){'+#13#10+
     '  vec4 sum = vec4(0.0);'+#13#10+
     '  for(int i = 0; i < uSamples; i++){'+#13#10+
-    '    sum += texelFetch(sampler, position, i);'+#13#10+
+    '    float d = texelFetch(sampler, position, i).x, d2 = d * d;'+#13#10+
+    '    sum += vec4(d, d2, d2 * d, d2 * d2);'+#13#10+
     '  }'+#13#10+
-    '  return sum / float(uSamples);'+#13#10+
+    '  vec4 m = sum / float(uSamples);'+#13#10+
+    '  m = (m * mat4(-2.07224649, 32.23703778, -68.571074599, 39.3703274134,'+#13#10+
+    '                13.7948857237, -59.4683975703, 82.0359750338, -35.364903257,'+#13#10+
+    '                0.105877704, -1.9077466311, 9.3496555107, -6.6543490743,'+#13#10+
+    '                9.7924062118, -33.7652110555, 47.9456096605, -23.9728048165)) + vec2(0.035955884801, 0.0).xyyy;'+#13#10+
+    '  return m;'+#13#10+
     '}'+#13#10+
     'void main(){'+#13#10+
     '  oOutput = textureMultisample(uTexture, ivec2(gl_FragCoord.xy));'+#13#10+
