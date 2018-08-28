@@ -228,7 +228,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
-        <Debugger_RunParams>&quot;d:\GitHubSVN\PASGLTF.github\example\models\hero_dance_1.glb&quot;</Debugger_RunParams>
+        <Debugger_RunParams>&quot;d:\GitHubSVN\PASGLTF.github\example\models\izzy.glb&quot;</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

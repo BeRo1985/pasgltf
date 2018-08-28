@@ -1348,7 +1348,7 @@ begin
 
       glGenTextures(1,@MultisampledShadowMapTexture);
       glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture);
-      glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapSamples,GL_RGBA32F,ShadowMapSize,ShadowMapSize,true);
+      glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapSamples,GL_R32F,ShadowMapSize,ShadowMapSize,true);
       glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture,0);
 
       glGenRenderbuffers(1,@MultisampledShadowMapDepthRenderBuffer);
