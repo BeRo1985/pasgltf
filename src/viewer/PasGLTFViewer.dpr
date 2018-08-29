@@ -2,7 +2,9 @@ program PasGLTFViewer;
 {$ifdef fpc}
  {$mode delphi}
 {$endif}
+{$ifdef profiledebug}
 {$apptype console}
+{$endif}
 {$ifdef win32}
  {$define windows}
 {$endif}
@@ -223,6 +225,8 @@ var Event:TSDL_Event;
     SDLRunning,OldShowCursor:boolean;
     Time,LastTime,DeltaTime:double;
     AnimationTime:double=0.0;
+    AnimationBeginTime:double=0.0;
+    AnimationEndTime:double=1.0;
 
     LightDirection:UnitMath3D.TVector3;
 
@@ -483,6 +487,15 @@ begin
    LastAnimationIndex:=AnimationIndex;
 // GLTFInstance.UpdateWorstCaseStaticBoundingBox;
   end;
+  if AnimationTime<AnimationBeginTime then begin
+   AnimationTime:=AnimationBeginTime;
+  end;
+  if AnimationTime>AnimationEndTime then begin
+   AnimationTime:=Modulo(AnimationTime-AnimationBeginTime,AnimationEndTime-AnimationBeginTime)+AnimationBeginTime;
+   if AnimationTime>=AnimationEndTime then begin
+    AnimationTime:=AnimationEndTime;
+   end;
+  end;
   GLTFInstance.AnimationTime:=AnimationTime;
   GLTFInstance.Update;
   GLTFInstance.Upload;
@@ -697,8 +710,9 @@ begin
   GPUTimeState:=3;
  end;
  t1:=SDL_GetPerformanceCounter;
-//
+{$ifdef profiledebug}
  write(#13,'CPU time: ',(t1-t0)/SDL_GetPerformanceFrequency:8:5,'    GPU time: ',GPUTimeElapsed/1e9:8:5);
+{$endif}
 end;
 
 procedure Resize(NewWidth,NewHeight:longint);
@@ -821,6 +835,7 @@ begin
   ConsoleInstance.Lines.Add(#0#11+'setanimation '+#0#9+'x'+#0#11+'             '+#0#10+'Set animation to '+#0#9+'x'+#0#11+' (number)');
   ConsoleInstance.Lines.Add(#0#11+'resetanimation             '+#0#10+'Reset animation');
   ConsoleInstance.Lines.Add(#0#11+'resetcamera                '+#0#10+'Reset camera');
+  ConsoleInstance.Lines.Add(#0#11+'setshadows '+#0#9+'x'+#0#11+'               '+#0#10+'Set shadows to '+#0#9+'x'+#0#11+' (zero = off, non-zero = on)');
   ConsoleInstance.Lines.Add(#0#11+'load '+#0#9+'x'+#0#11+'                     '+#0#10+'Load '+#0#9+'x'+#0#11+' (filename)');
   ConsoleInstance.Lines.Add(#0#11+'unload                     '+#0#10+'Unload current GLTF/GLB object');
   ConsoleInstance.Lines.Add('');
@@ -840,6 +855,11 @@ begin
   end;
   LastAnimationIndex:=-2;
   SceneIndex:=Value-1;
+  if assigned(GLTFOpenGL) then begin
+   AnimationBeginTime:=GLTFOpenGL.GetAnimationBeginTime(AnimationIndex);
+   AnimationEndTime:=GLTFOpenGL.GetAnimationEndTime(AnimationIndex);
+  end;
+  AnimationTime:=0.0;
  end else if (Command='listanimations') then begin
   ConsoleInstance.Lines.Add(#0#11+'0. '+#0#10+'Static pose');
   if assigned(GLTFOpenGL) then begin
@@ -855,11 +875,22 @@ begin
   end;
   LastAnimationIndex:=-2;
   AnimationIndex:=Value-1;
+  if assigned(GLTFOpenGL) then begin
+   AnimationBeginTime:=GLTFOpenGL.GetAnimationBeginTime(AnimationIndex);
+   AnimationEndTime:=GLTFOpenGL.GetAnimationEndTime(AnimationIndex);
+  end;
   AnimationTime:=0.0;
  end else if Command='resetanimation' then begin
   AnimationTime:=0.0;
  end else if Command='resetcamera' then begin
   ResetCamera;
+ end else if Command='setshadows' then begin
+  Value:=0;
+  while (CommandLinePosition<=CommandLineLength) and (aCommandLine[CommandLinePosition] in ['0'..'9']) do begin
+   Value:=(Value*10)+(ord(aCommandLine[CommandLinePosition])-ord('0'));
+   inc(CommandLinePosition);
+  end;
+  Shadows:=Value<>0;
  end else if Command='load' then begin
   InputFileName:=copy(aCommandLine,CommandLinePosition,(CommandLineLength-CommandLinePosition)+1);
  end else if Command='unload' then begin
@@ -891,6 +922,15 @@ begin
  ConsoleInstance.Lines.Add(#0#14'  OpenGL vendor: '+GLGetString(GL_VENDOR));
  ConsoleInstance.Lines.Add(#0#14'OpenGL renderer: '+GLGetString(GL_RENDERER));
  ConsoleInstance.Lines.Add(#0#14' OpenGL version: '+GLGetString(GL_VERSION));
+ ConsoleInstance.Lines.Add('');
+ ConsoleInstance.Lines.Add(#0#12+'Available key shortcuts:');
+ ConsoleInstance.Lines.Add('');
+ ConsoleInstance.Lines.Add(#0#11'b '#0#14'/'#0#11' n              '#0#10+'Previous / next animation');
+ ConsoleInstance.Lines.Add(#0#11'l                  '#0#10+'Toggle shadows');
+ ConsoleInstance.Lines.Add(#0#11'r                  '#0#10+'Reset camera');
+ ConsoleInstance.Lines.Add(#0#11't                  '#0#10+'Reset animation');
+ ConsoleInstance.Lines.Add(#0#11'Alt+Return         '#0#10+'Toggle fullscreen');
+ ConsoleInstance.Lines.Add(#0#11'Space              '#0#10+'Toggle automatic rotation');
  ConsoleInstance.Lines.Add('');
  ConsoleInstance.Lines.Add(#0#12'Use the '#0#14'"'#0#13'help'#0#14'"'#0#12' command for help...');
  ConsoleInstance.Lines.Add('');
@@ -980,6 +1020,10 @@ begin
         if (AnimationIndex<-1) and assigned(GLTFOpenGL) then begin
          AnimationIndex:=length(GLTFOpenGL.Animations)-1;
         end;
+        if assigned(GLTFOpenGL) then begin
+         AnimationBeginTime:=GLTFOpenGL.GetAnimationBeginTime(AnimationIndex);
+         AnimationEndTime:=GLTFOpenGL.GetAnimationEndTime(AnimationIndex);
+        end;
         AnimationTime:=0.0;
         UpdateTitle;
        end;
@@ -988,6 +1032,10 @@ begin
         inc(AnimationIndex);
         if assigned(GLTFOpenGL) and (AnimationIndex>=length(GLTFOpenGL.Animations)) then begin
          AnimationIndex:=-1;
+        end;
+        if assigned(GLTFOpenGL) then begin
+         AnimationBeginTime:=GLTFOpenGL.GetAnimationBeginTime(AnimationIndex);
+         AnimationEndTime:=GLTFOpenGL.GetAnimationEndTime(AnimationIndex);
         end;
         AnimationTime:=0.0;
         UpdateTitle;
@@ -1024,8 +1072,10 @@ begin
        ConsoleInstance.Focus:=not ConsoleInstance.Focus;
       end;
       SDLK_SPACE:begin
-       AutomaticRotate:=not AutomaticRotate;
-       UpdateTitle;
+       if not ConsoleInstance.Focus then begin
+        AutomaticRotate:=not AutomaticRotate;
+        UpdateTitle;
+       end;
       end;
       SDLK_RETURN:begin
        if (Event.key.keysym.modifier and ((KMOD_LALT or KMOD_RALT) or (KMOD_LMETA or KMOD_RMETA)))<>0 then begin
@@ -1199,6 +1249,10 @@ begin
     SceneIndex:=GLTFOpenGL.Scene;
     LastAnimationIndex:=-2;
     AnimationIndex:=0;
+    if assigned(GLTFOpenGL) then begin
+     AnimationBeginTime:=GLTFOpenGL.GetAnimationBeginTime(AnimationIndex);
+     AnimationEndTime:=GLTFOpenGL.GetAnimationEndTime(AnimationIndex);
+    end;
     AnimationTime:=0.0;
     UpdateTitle;
    finally
@@ -1209,6 +1263,7 @@ begin
  end;
 end;
 
+procedure Entry;
 var Index,MultiSampleCounter,DepthBufferSizeCounter,Temp:int32;
     MemoryStream:TMemoryStream;
     ImageData:TPasGLTFPointer;
@@ -1649,7 +1704,6 @@ begin
 
                 except
                  on e:Exception do begin
-                  writeln(e.StackTrace);
                   SDL_ShowSimpleMessageBox(SDL_MESSAGEBOX_ERROR or
                                            SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT,
                                            PAnsiChar(ansistring(e.ClassName)),
@@ -1764,5 +1818,9 @@ begin
 
  SDL_Quit;
 
+end;
+
+begin
+ Entry;
 end.
 

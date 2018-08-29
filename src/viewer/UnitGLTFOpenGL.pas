@@ -458,6 +458,8 @@ type EGLTFOpenGL=class(Exception);
        procedure LoadFromFile(const aFileName:String);
        procedure Upload;
        procedure Unload;
+       function GetAnimationBeginTime(const aAnimation:TPasGLTFSizeInt):TPasGLTFFloat;
+       function GetAnimationEndTime(const aAnimation:TPasGLTFSizeInt):TPasGLTFFloat;
        function AcquireInstance:TGLTFOpenGL.TInstance;
       public
        property StaticBoundingBox:TBoundingBox read fStaticBoundingBox;
@@ -2807,6 +2809,48 @@ begin
  end;
 end;
 
+function TGLTFOpenGL.GetAnimationBeginTime(const aAnimation:TPasGLTFSizeInt):TPasGLTFFloat;
+var Index:TPasGLTFSizeInt;
+    Animation:TGLTFOpenGL.PAnimation;
+    Channel:TGLTFOpenGL.TAnimation.PChannel;
+begin
+ result:=0.0;
+ if (aAnimation>=0) and (aAnimation<length(fAnimations)) then begin
+  Animation:=@fAnimations[aAnimation];
+  for Index:=0 to length(Animation^.Channels)-1 do begin
+   Channel:=@Animation^.Channels[Index];
+   if length(Channel^.InputTimeArray)>0 then begin
+    if Index=0 then begin
+     result:=Channel^.InputTimeArray[0];
+    end else begin
+     result:=Min(result,Channel^.InputTimeArray[0]);
+    end;
+   end;
+  end;
+ end;
+end;
+
+function TGLTFOpenGL.GetAnimationEndTime(const aAnimation:TPasGLTFSizeInt):TPasGLTFFloat;
+var Index:TPasGLTFSizeInt;
+    Animation:TGLTFOpenGL.PAnimation;
+    Channel:TGLTFOpenGL.TAnimation.PChannel;
+begin
+ result:=1.0;
+ if (aAnimation>=0) and (aAnimation<length(fAnimations)) then begin
+  Animation:=@fAnimations[aAnimation];
+  for Index:=0 to length(Animation^.Channels)-1 do begin
+   Channel:=@Animation^.Channels[Index];
+   if length(Channel^.InputTimeArray)>0 then begin
+    if Index=0 then begin
+     result:=Channel^.InputTimeArray[length(Channel^.InputTimeArray)-1];
+    end else begin
+     result:=Max(result,Channel^.InputTimeArray[length(Channel^.InputTimeArray)-1]);
+    end;
+   end;
+  end;
+ end;
+end;
+
 function TGLTFOpenGL.AcquireInstance:TGLTFOpenGL.TInstance;
 begin
  result:=TGLTFOpenGL.TInstance.Create(self);
@@ -2922,8 +2966,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
 
     TimeIndices[1]:=length(AnimationChannel^.InputTimeArray)-1;
 
-    Time:=AnimationChannel^.InputTimeArray[TimeIndices[1]];
-    Time:=AnimationTime-(floor(AnimationTime/Time)*Time);
+    Time:=Min(Max(AnimationTime,AnimationChannel^.InputTimeArray[0]),AnimationChannel^.InputTimeArray[TimeIndices[1]]);
 
     if (AnimationChannel^.Last<=0) or (Time<AnimationChannel^.InputTimeArray[AnimationChannel.Last-1]) then begin
      l:=0;
