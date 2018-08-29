@@ -47,7 +47,7 @@ uses
 
 const Title='PasGLTF viewer';
 
-      Version='2018.08.29.07.01.0000';
+      Version='2018.08.29.09.04.0000';
 
       Copyright='Copyright (C) 2018, Benjamin ''BeRo'' Rosseaux';
 
@@ -118,11 +118,11 @@ var InputFileName:TPasGLTFUTF8String='';
 
     MultisampledShadowMapTexture:glUInt=0;
 
-//  MultisampledShadowMapDepthTexture:glUInt=0;
+    MultisampledShadowMapDepthTexture:glUInt=0;
+
+//  MultisampledShadowMapDepthRenderBuffer:glUInt=0;
 
     MultisampledShadowMapFBO:glUInt=0;
-
-    MultisampledShadowMapDepthRenderBuffer:glUInt=0;
 
     MultisampledShadowMapSamples:glInt=8;
 
@@ -1587,19 +1587,19 @@ begin
       glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapSamples,GL_R32F,ShadowMapSize,ShadowMapSize,true);
       glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture,0);
 
-{     glGenTextures(1,@MultisampledShadowMapDepthTexture);
+      glGenTextures(1,@MultisampledShadowMapDepthTexture);
       glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapDepthTexture);
       glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_DEPTH_TEXTURE_MODE,GL_LUMINANCE);
       glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_COMPARE_MODE,GL_NONE);
       glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_COMPARE_FUNC,GL_ALWAYS);
       glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapSamples,GL_DEPTH_COMPONENT32F,ShadowMapSize,ShadowMapSize,true);
-      glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture,0);
-}
+      glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapDepthTexture,0);
+{
       glGenRenderbuffers(1,@MultisampledShadowMapDepthRenderBuffer);
       glBindRenderbuffer(GL_RENDERBUFFER,MultisampledShadowMapDepthRenderBuffer);
       glRenderbufferStorageMultisample(GL_RENDERBUFFER,MultisampledShadowMapSamples,GL_DEPTH_COMPONENT32F,ShadowMapSize,ShadowMapSize);
       glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_RENDERBUFFER,MultisampledShadowMapDepthRenderBuffer);
-
+}
       Status:=glCheckFramebufferStatus(GL_FRAMEBUFFER);
       Assert(Status=GL_FRAMEBUFFER_COMPLETE);
 
@@ -1771,9 +1771,9 @@ begin
         DestroyFrameBuffer(ShadowMapFBOs[Index]);
        end;
        glDeleteFramebuffers(1,@MultisampledShadowMapFBO);
-       glDeleteRenderbuffers(1,@MultisampledShadowMapDepthRenderBuffer);
+//     glDeleteRenderbuffers(1,@MultisampledShadowMapDepthRenderBuffer);
        glDeleteTextures(1,@MultisampledShadowMapTexture);
-//      glDeleteTextures(1,@MultisampledShadowMapDepthTexture);
+       glDeleteTextures(1,@MultisampledShadowMapDepthTexture);
        DestroyFrameBuffer(HDRSceneFBO);
       end;
 
