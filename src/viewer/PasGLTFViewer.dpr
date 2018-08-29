@@ -501,25 +501,25 @@ begin
   GLTFInstance.Upload;
  end;
  if assigned(GLTFInstance) and Shadows then begin
-//GLTFInstance.UpdateDynamicBoundingBox(false);
-{ ShadowMapAABB.Min.x:=GLTFInstance.DynamicBoundingBox.Min[0];
-  ShadowMapAABB.Min.y:=GLTFInstance.DynamicBoundingBox.Min[1];
-  ShadowMapAABB.Min.z:=GLTFInstance.DynamicBoundingBox.Min[2];
-  ShadowMapAABB.Max.x:=GLTFInstance.DynamicBoundingBox.Max[0];
-  ShadowMapAABB.Max.y:=GLTFInstance.DynamicBoundingBox.Max[1];
-  ShadowMapAABB.Max.z:=GLTFInstance.DynamicBoundingBox.Max[2];}
+{ GLTFInstance.UpdateDynamicBoundingBox(false);
+  SceneAABB.Min.x:=GLTFInstance.DynamicBoundingBox.Min[0];
+  SceneAABB.Min.y:=GLTFInstance.DynamicBoundingBox.Min[1];
+  SceneAABB.Min.z:=GLTFInstance.DynamicBoundingBox.Min[2];
+  SceneAABB.Max.x:=GLTFInstance.DynamicBoundingBox.Max[0];
+  SceneAABB.Max.y:=GLTFInstance.DynamicBoundingBox.Max[1];
+  SceneAABB.Max.z:=GLTFInstance.DynamicBoundingBox.Max[2];}
   SceneAABB.Min.x:=GLTFOpenGL.StaticBoundingBox.Min[0];
   SceneAABB.Min.y:=GLTFOpenGL.StaticBoundingBox.Min[1];
   SceneAABB.Min.z:=GLTFOpenGL.StaticBoundingBox.Min[2];
   SceneAABB.Max.x:=GLTFOpenGL.StaticBoundingBox.Max[0];
   SceneAABB.Max.y:=GLTFOpenGL.StaticBoundingBox.Max[1];
   SceneAABB.Max.z:=GLTFOpenGL.StaticBoundingBox.Max[2];
-{ ShadowMapAABB.Min.x:=GLTFInstance.WorstCaseStaticBoundingBox.Min[0];
-  ShadowMapAABB.Min.y:=GLTFInstance.WorstCaseStaticBoundingBox.Min[1];
-  ShadowMapAABB.Min.z:=GLTFInstance.WorstCaseStaticBoundingBox.Min[2];
-  ShadowMapAABB.Max.x:=GLTFInstance.WorstCaseStaticBoundingBox.Max[0];
-  ShadowMapAABB.Max.y:=GLTFInstance.WorstCaseStaticBoundingBox.Max[1];
-  ShadowMapAABB.Max.z:=GLTFInstance.WorstCaseStaticBoundingBox.Max[2];}
+{ SceneAABB.Min.x:=GLTFInstance.WorstCaseStaticBoundingBox.Min[0];
+  SceneAABB.Min.y:=GLTFInstance.WorstCaseStaticBoundingBox.Min[1];
+  SceneAABB.Min.z:=GLTFInstance.WorstCaseStaticBoundingBox.Min[2];
+  SceneAABB.Max.x:=GLTFInstance.WorstCaseStaticBoundingBox.Max[0];
+  SceneAABB.Max.y:=GLTFInstance.WorstCaseStaticBoundingBox.Max[1];
+  SceneAABB.Max.z:=GLTFInstance.WorstCaseStaticBoundingBox.Max[2];}
   ShadowMapMatrix:=GetShadowMapMatrix(ViewMatrix,Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,1e-1,1e+2),SceneAABB,SceneAABB);
   for ShadingShader in ShadowShaders do begin
    ShadingShader.Bind;
