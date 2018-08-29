@@ -537,7 +537,8 @@ begin
      '      {'+#13#10+
      '        float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
      '              ao = cavity * ambientOcclusion,'+#13#10+ // * ((litIntensity * 0.25) + 0.75)
-     '              specularOcclusion = clamp((pow(NdotV + ao, specularColorRoughness.w * specularColorRoughness.w) - 1.0) + ao, 0.0, 1.0);'+#13#10+
+     '              sao = ao,'+#13#10+// * mix(1.0, mix(1.0, litIntensity, 0.5), max(0.0, dot(normal.xyz, -uLightDirection))),'+#13#10+
+     '              specularOcclusion = clamp((pow(NdotV + sao, specularColorRoughness.w * specularColorRoughness.w) - 1.0) + sao, 0.0, 1.0);'+#13#10+
      '         vec2 brdf = textureLod(uBRDFLUTTexture, vec2(specularColorRoughness.w, NdotV), 0.0).xy;'+#13#10+
      '         color.xyz += ((textureLod(uEnvMapTexture, normalize(reflect(viewDirection, normal.xyz)),'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(specularColorRoughness.w))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColorRoughness.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z) * 50.0, 0.0, 1.0))) * specularOcclusion) +'+#13#10+
      '                       (textureLod(uEnvMapTexture, normal.xyz, float(uEnvMapMaxLevel)).xyz * diffuseColorAlpha.xyz * ao)) * OneOverPI;'+#13#10+

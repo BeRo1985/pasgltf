@@ -45,7 +45,7 @@ uses
 
 const Title='PasGLTF viewer';
 
-      Version='2018.08.26.16.00.0000';
+      Version='2018.08.29.06.03.0000';
 
       Copyright='Copyright (C) 2018, Benjamin ''BeRo'' Rosseaux';
 
@@ -86,7 +86,7 @@ exports NvOptimusEnablement,
 const VirtualCanvasWidth=1280;
       VirtualCanvasHeight=720;
 
-      ShadowMapSize=512;
+      ShadowMapSize=1024;
 
 var InputFileName:TPasGLTFUTF8String='';
 
@@ -302,8 +302,8 @@ var CameraViewProjectionMatrix,
   AABB:=AABBTransform(InterestedAreaAABB,aShadowMapViewMatrix);
   Left:=-1.0;
   Right:=1.0;
-  Top:=-1.0;
-  Bottom:=1.0;
+  Bottom:=-1.0;
+  Top:=1.0;
   ZNear:=-AABB.Max.z;
   ZFar:=-AABB.Min.z;
   RightMinusLeft:=Right-Left;
