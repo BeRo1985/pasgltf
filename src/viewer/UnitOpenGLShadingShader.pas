@@ -401,29 +401,29 @@ begin
     '  return clamp((s.z + (s.w * ((((s.x * z.z) - (b.x * (s.x + z.z))) + b.y) / ((z.z - s.y) * (z.x - z.y))))) * 1.03, 0.0, 1.0);'+#13#10+
     '}'+#13#10+
     'const uint smPBRMetallicRoughness = 0u,'+#13#10+
-     '           smPBRSpecularGlossiness = 1u,'+#13#10+
-     '           smUnlit = 2u;'+#13#10+
-     'uvec2 texCoordIndices = uMaterial.alphaCutOffFlagsTex0Tex1.zw;'+#13#10+
-     'vec2 texCoords[2] = vec2[2](vTexCoord0, vTexCoord1);'+#13#10+
-     'vec4 textureFetch(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
-     '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
-     '  return (which < 0x2u) ? texture(tex, texCoords[int(which)]) : defaultValue;'+#13#10+
-     '}'+#13#10+
-     'vec4 textureFetchSRGB(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
-     '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
-     '  vec4 texel;'+#13#10+
-     '  if(which < 0x2u){'+#13#10+
-     '    texel = texture(tex, texCoords[int(which)]);'+#13#10+
-     '    texel.xyz = convertSRGBToLinearRGB(texel.xyz);'+#13#10+
-     '  }else{'+#13#10+
-     '    texel = defaultValue;'+#13#10+
-     '  }'+#13#10+
-     '   return texel;'+#13#10+
-     '}'+#13#10+
-     'void main(){'+#13#10+
-     '  vec4 color = vec4(0.0);'+#13#10+
-     '  uint flags = uMaterial.alphaCutOffFlagsTex0Tex1.y,'+#13#10+
-     '       shadingModel = (flags >> 0u) & 0xfu;'+#13#10;
+    '           smPBRSpecularGlossiness = 1u,'+#13#10+
+    '           smUnlit = 2u;'+#13#10+
+    'uvec2 texCoordIndices = uMaterial.alphaCutOffFlagsTex0Tex1.zw;'+#13#10+
+    'vec2 texCoords[2] = vec2[2](vTexCoord0, vTexCoord1);'+#13#10+
+    'vec4 textureFetch(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
+    '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
+    '  return (which < 0x2u) ? texture(tex, texCoords[int(which)]) : defaultValue;'+#13#10+
+    '}'+#13#10+
+    'vec4 textureFetchSRGB(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
+    '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
+    '  vec4 texel;'+#13#10+
+    '  if(which < 0x2u){'+#13#10+
+    '    texel = texture(tex, texCoords[int(which)]);'+#13#10+
+    '    texel.xyz = convertSRGBToLinearRGB(texel.xyz);'+#13#10+
+    '  }else{'+#13#10+
+    '    texel = defaultValue;'+#13#10+
+    '  }'+#13#10+
+    '   return texel;'+#13#10+
+    '}'+#13#10+
+    'void main(){'+#13#10+
+    '  vec4 color = vec4(0.0);'+#13#10+
+    '  uint flags = uMaterial.alphaCutOffFlagsTex0Tex1.y,'+#13#10+
+    '       shadingModel = (flags >> 0u) & 0xfu;'+#13#10;
  if aShadowMap then begin
   f:=f+
        '  vec4 t = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+

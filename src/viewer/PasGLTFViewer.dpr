@@ -47,7 +47,7 @@ uses
 
 const Title='PasGLTF viewer';
 
-      Version='2018.08.29.06.03.0000';
+      Version='2018.08.29.07.01.0000';
 
       Copyright='Copyright (C) 2018, Benjamin ''BeRo'' Rosseaux';
 
