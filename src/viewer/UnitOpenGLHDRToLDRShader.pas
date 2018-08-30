@@ -146,7 +146,7 @@ begin
     '  return clamp((x * ((a * x) + vec3(b))) / (x * ((c * x) + vec3(d)) + vec3(e)), vec3(0.0), vec3(1.0));'+#13#10+
     '}'+#13#10+
     'vec3 toneMappingAndToLDR(vec3 x){'+#13#10+
-    '  float exposure = 0.5;'+#13#10+
+    '  float exposure = 1.0;'+#13#10+
     '  return convertLinearRGBToSRGB(ACESFilm(x * exposure));'+#13#10+
     '}'+#13#10+
     'void main(){'+#13#10+

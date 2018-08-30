@@ -443,8 +443,6 @@ begin
   glBeginQuery(GL_TIME_ELAPSED,TimeQueryHandle);
   GPUTimeState:=2;
  end;
- LightDirection:=Vector3Norm(Vector3(0.0,-1.0,0.0));
-//LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
  begin
   ModelMatrix:=Matrix4x4Identity;
   if assigned(GLTFOpenGL) then begin
@@ -1399,6 +1397,11 @@ begin
    MultisampledShadowMapSamples:=8;
   end;
 
+//LightDirection:=Vector3Norm(Vector3(0.0,-1.0,0.0));
+//LightDirection:=Vector3Norm(Vector3(0.5,-0.25,-1.0));
+//
+  LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
+
   glGenVertexArrays(1,@EmptyVertexArrayObjectHandle);
   try
 
@@ -1461,6 +1464,7 @@ begin
       EnvMapFBO.Flags:=FBOFlagMipMap or FBOFlagCubeMap;
       CreateFrameBuffer(EnvMapFBO);
       EnvMapGenShader.Bind;
+      glUniform3fv(EnvMapGenShader.uLightDirection,1,@LightDirection);
       glActiveTexture(GL_TEXTURE0);
       glBindFrameBuffer(GL_FRAMEBUFFER,EnvMapFBO.FBOs[Index]);
       glDrawBuffer(GL_COLOR_ATTACHMENT0);
