@@ -148,7 +148,7 @@ type qword=int64;
 {$endif}
 {$endif}
 
-{$ifdef delphi}
+{$if defined(delphi)}
 function LoadPNGImage(DataPointer:pointer;DataSize:longword;var ImageData:pointer;var ImageWidth,ImageHeight:longint;HeaderOnly:boolean):boolean;
 var Stream:TMemoryStream;
     PNG:TPNGImage;
@@ -312,8 +312,7 @@ begin
   result:=false;
  end;
 end;
-{$else}
-{$ifdef android}
+{$elseif defined(android)}
 type POwnStream=^TOwnStream;
      TOwnStream=record
       Data:pansichar;
@@ -1922,7 +1921,6 @@ begin
   result:=false;
  end;
 end;
-{$endif}
 {$ifend}
 
 end.
