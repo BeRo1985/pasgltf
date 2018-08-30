@@ -106,7 +106,7 @@ interface
 
 uses SysUtils,Classes,Math,
      {$ifdef fpc}
-      FPImage,FPWriteJPEG,
+      FPImage,FPReadJPEG,
      {$endif}
      {$ifdef fpc}
       dynlibs,
