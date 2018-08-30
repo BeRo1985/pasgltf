@@ -126,15 +126,15 @@ const NilLibHandle={$ifdef fpc}NilHandle{$else}THandle(0){$endif};
 
 var TurboJpegLibrary:{$ifdef fpc}TLibHandle{$else}THandle{$endif}=NilLibHandle;
 
-type TtjInitCompress=function:pointer; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+type TtjInitCompress=function:pointer; {$ifdef WindowsLibJPEGTurboWithSTDCALL}stdcall;{$else}cdecl;{$endif}
 
-     TtjInitDecompress=function:pointer; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+     TtjInitDecompress=function:pointer; {$ifdef WindowsLibJPEGTurboWithSTDCALL}stdcall;{$else}cdecl;{$endif}
 
-     TtjDestroy=function(handle:pointer):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+     TtjDestroy=function(handle:pointer):longint; {$ifdef WindowsLibJPEGTurboWithSTDCALL}stdcall;{$else}cdecl;{$endif}
 
-     TtjAlloc=function(bytes:longint):pointer; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+     TtjAlloc=function(bytes:longint):pointer; {$ifdef WindowsLibJPEGTurboWithSTDCALL}stdcall;{$else}cdecl;{$endif}
 
-     TtjFree=procedure(buffer:pointer); {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+     TtjFree=procedure(buffer:pointer); {$ifdef WindowsLibJPEGTurboWithSTDCALL}stdcall;{$else}cdecl;{$endif}
 
      TtjCompress2=function(handle:pointer;
                            srcBuf:pointer;
@@ -146,20 +146,20 @@ type TtjInitCompress=function:pointer; {$ifdef Windows}stdcall;{$else}cdecl;{$en
                            var jpegSize:longword;
                            jpegSubsamp:longint;
                            jpegQual:longint;
-                           flags:longint):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+                           flags:longint):longint; {$ifdef WindowsLibJPEGTurboWithSTDCALL}stdcall;{$else}cdecl;{$endif}
 
      TtjDecompressHeader=function(handle:pointer;
                                   jpegBuf:pointer;
                                   jpegSize:longword;
                                   out width:longint;
-                                  out height:longint):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+                                  out height:longint):longint; {$ifdef WindowsLibJPEGTurboWithSTDCALL}stdcall;{$else}cdecl;{$endif}
 
      TtjDecompressHeader2=function(handle:pointer;
                                    jpegBuf:pointer;
                                    jpegSize:longword;
                                    out width:longint;
                                    out height:longint;
-                                   out jpegSubsamp:longint):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+                                   out jpegSubsamp:longint):longint; {$ifdef WindowsLibJPEGTurboWithSTDCALL}stdcall;{$else}cdecl;{$endif}
 
      TtjDecompressHeader3=function(handle:pointer;
                                    jpegBuf:pointer;
@@ -167,7 +167,7 @@ type TtjInitCompress=function:pointer; {$ifdef Windows}stdcall;{$else}cdecl;{$en
                                    out width:longint;
                                    out height:longint;
                                    out jpegSubsamp:longint;
-                                   out jpegColorSpace:longint):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+                                   out jpegColorSpace:longint):longint; {$ifdef WindowsLibJPEGTurboWithSTDCALL}stdcall;{$else}cdecl;{$endif}
 
      TtjDecompress2=function(handle:pointer;
                              jpegBuf:pointer;
@@ -177,7 +177,7 @@ type TtjInitCompress=function:pointer; {$ifdef Windows}stdcall;{$else}cdecl;{$en
                              pitch:longint;
                              height:longint;
                              pixelFormat:longint;
-                             flags:longint):longint; {$ifdef Windows}stdcall;{$else}cdecl;{$endif}
+                             flags:longint):longint; {$ifdef WindowsLibJPEGTurboWithSTDCALL}stdcall;{$else}cdecl;{$endif}
 
 var tjInitCompress:TtjInitCompress=nil;
     tjInitDecompress:TtjInitDecompress=nil;
