@@ -1191,8 +1191,7 @@ begin
    end;
   end;
   if AutomaticRotate then begin
-   CameraRotationX:=frac(CameraRotationX+(1.0-(DeltaTime*0.1)));
-//                 CameraRotationY:=frac(CameraRotationY+(1.0-(DeltaTime*0.015625)));
+   CameraRotationX:=frac(CameraRotationX+(1.0-(DeltaTime*0.015625)));
   end;
 
   Draw;
