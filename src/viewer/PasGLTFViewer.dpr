@@ -1443,7 +1443,7 @@ begin
 
    try
 
-    EnvMapGenShader:=TEnvMapGenShader.Create;
+    EnvMapGenShader:=TEnvMapGenShader.Create(lowercase(trim(GLGetString(GL_VENDOR)))<>'intel');
     try
 
      if true then begin
