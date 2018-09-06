@@ -2063,15 +2063,26 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
  end;
  procedure ProcessScenes;
  var CountJointNodes:TPasGLTFSizeInt;
-  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
-  var Index,SubIndex:TPasGLTFSizeInt;
+  procedure ProcessNode(const aNodeIndex,aLastParentJointIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
+  var Index,SubIndex,LastParentJointIndex:TPasGLTFSizeInt;
       Matrix:TPasGLTF.TMatrix4x4;
       Node:PNode;
       TemporaryVector3:TPasGLTF.TVector3;
       Mesh:PMesh;
-      Skin:PSkin;
   begin
    Node:=@fNodes[aNodeIndex];
+   if Node^.Joint=(-2) then begin
+    Node^.Joint:=CountJointNodes;
+    if length(fJoints)<=CountJointNodes then begin
+     SetLength(fJoints,(CountJointNodes+1)*2);
+    end;
+    fJoints[CountJointNodes].Parent:=aLastParentJointIndex;
+    fJoints[CountJointNodes].Node:=aNodeIndex;
+    LastParentJointIndex:=CountJointNodes;
+    inc(CountJointNodes);
+   end else begin
+    LastParentJointIndex:=aLastParentJointIndex;
+   end;
    Matrix:=MatrixMul(
             MatrixMul(
              MatrixMul(
@@ -2092,63 +2103,37 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
      fStaticBoundingBox.Max[1]:=Max(fStaticBoundingBox.Max[1],TemporaryVector3[1]);
      fStaticBoundingBox.Max[2]:=Max(fStaticBoundingBox.Max[2],TemporaryVector3[2]);
     end;
-    if Node^.Skin>=0 then begin
-     Skin:=@fSkins[Node^.Skin];
-     for SubIndex:=0 to length(Skin^.Joints)-1 do begin
-      if fNodes[Skin^.Joints[SubIndex]].Joint<0 then begin
-       fNodes[Skin^.Joints[SubIndex]].Joint:=CountJointNodes;
-       if length(fJoints)<=CountJointNodes then begin
-        SetLength(fJoints,(CountJointNodes+1)*2);
-       end;
-       fJoints[CountJointNodes].Parent:=-1;
-       fJoints[CountJointNodes].Node:=Skin^.Joints[SubIndex];
-       inc(CountJointNodes);
-      end;
-     end;
-    end;
    end;
    for Index:=0 to length(Node^.Children)-1 do begin
-    ProcessNode(Node^.Children[Index],Matrix);
+    ProcessNode(Node^.Children[Index],LastParentJointIndex,Matrix);
    end;
   end;
-  procedure ProcessNodeForJoints(const aNodeIndex,aLastParentJointNodeIndex:TPasGLTFSizeInt);
-  var Index,LastParentJointNodeIndex:TPasGLTFSizeInt;
-      Node:PNode;
-  begin
-   Node:=@fNodes[aNodeIndex];
-   if Node^.Joint>=0 then begin
-    fJoints[Node^.Joint].Parent:=aLastParentJointNodeIndex;
-    LastParentJointNodeIndex:=aNodeIndex;
-   end else begin
-    LastParentJointNodeIndex:=aLastParentJointNodeIndex;
-   end;
-   for Index:=0 to length(Node^.Children)-1 do begin
-    ProcessNodeForJoints(Node^.Children[Index],LastParentJointNodeIndex);
-   end;
-  end;
- var SceneIndex,Index:TPasGLTFSizeInt;
+ var SceneIndex,Index,SubIndex:TPasGLTFSizeInt;
      Scene:PScene;
+     Skin:PSkin;
+     Node:PNode;
  begin
   fScene:=aDocument.Scene;
   fStaticBoundingBox:=EmptyBoundingBox;
   CountJointNodes:=0;
   try
+   for Index:=0 to length(fSkins)-1 do begin
+    Skin:=@fSkins[Index];
+    for SubIndex:=0 to length(Skin^.Joints)-1 do begin
+     Node:=@fNodes[Skin^.Joints[SubIndex]];
+     if Node^.Joint=(-1) then begin
+      Node^.Joint:=-2;
+     end;
+    end;
+   end;
    for SceneIndex:=0 to length(fScenes)-1 do begin
     Scene:=@fScenes[SceneIndex];
     for Index:=0 to length(Scene^.Nodes)-1 do begin
-     ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
+     ProcessNode(Scene^.Nodes[Index],-1,TPasGLTF.TDefaults.IdentityMatrix4x4);
     end;
    end;
   finally
    SetLength(fJoints,CountJointNodes);
-  end;
-  if CountJointNodes>0 then begin
-   for SceneIndex:=0 to length(fScenes)-1 do begin
-    Scene:=@fScenes[SceneIndex];
-    for Index:=0 to length(Scene^.Nodes)-1 do begin
-     ProcessNodeForJoints(Scene^.Nodes[Index],-1);
-    end;
-   end;
   end;
  end;
  procedure InitializeSkinShaderStorageBufferObjects;
