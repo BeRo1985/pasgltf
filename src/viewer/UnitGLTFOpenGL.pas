@@ -15,7 +15,7 @@ unit UnitGLTFOpenGL;
 interface
 
 uses SysUtils,Classes,Math,PasJSON,PasGLTF,dglOpenGL,UnitOpenGLImage,
-     UnitOpenGLShader,UnitOpenGLShadingShader;
+     UnitOpenGLShader,UnitOpenGLShadingShader,UnitOpenGLSolidColorShader;
 
 type EGLTFOpenGL=class(Exception);
 
@@ -96,6 +96,10 @@ type EGLTFOpenGL=class(Exception);
                              const aSkinnedNormalShadingShader:TShadingShader;
                              const aSkinnedAlphaTestShadingShader:TShadingShader;
                              const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
+              procedure DrawJoints(const aModelMatrix:TPasGLTF.TMatrix4x4;
+                                   const aViewMatrix:TPasGLTF.TMatrix4x4;
+                                   const aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                                   const aSolidColorShader:TSolidColorShader);
               property Scene:TPasGLTFSizeInt read fScene write SetScene;
               property Animation:TPasGLTFSizeInt read fAnimation write SetAnimation;
               property AnimationTime:TPasGLTFFloat read fAnimationTime write fAnimationTime;
@@ -349,11 +353,17 @@ type EGLTFOpenGL=class(Exception);
             PTexture=^TTexture;
             TTextures=array of TTexture;
             TJoint=record
-             Parent:TPasGLTFSizeInt;
-             Node:TPasGLTFSizeInt;
+             public
+              type TChildren=array of TPasGLTFSizeInt;
+             public
+              Parent:TPasGLTFSizeInt;
+              Node:TPasGLTFSizeInt;
+              Children:TChildren;
+              CountChildren:TPasGLTFSizeInt;
             end;
             PJoint=^TJoint;
             TJoints=array of TJoint;
+            TJointVertices=array of TPasGLTF.TVector3;
             TSkinShaderStorageBufferObject=record
              Count:TPasGLTFSizeInt;
              Size:TPasGLTFSizeInt;
@@ -441,6 +451,7 @@ type EGLTFOpenGL=class(Exception);
        fJoints:TJoints;
        fScenes:TScenes;
        fScene:TPasGLTFSizeInt;
+       fJointVertices:TJointVertices;
        fSkinShaderStorageBufferObjects:TSkinShaderStorageBufferObjects;
        fMorphTargetVertexShaderStorageBufferObjects:TMorphTargetVertexShaderStorageBufferObjects;
        fNodeMeshPrimitiveShaderStorageBufferObjects:TNodeMeshPrimitiveShaderStorageBufferObjects;
@@ -448,6 +459,8 @@ type EGLTFOpenGL=class(Exception);
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
        fVertexArrayHandle:glInt;
+       fJointVertexBufferObjectHandle:glInt;
+       fJointVertexArrayHandle:glInt;
        fStaticBoundingBox:TBoundingBox;
        fFrameGlobalsUniformBufferObjectHandle:glUInt;
        fShaderStorageBufferOffsetAlignment:glInt;
@@ -996,6 +1009,7 @@ begin
  fJoints:=nil;
  fScenes:=nil;
  fScene:=-1;
+ fJointVertices:=nil;
  fSkinShaderStorageBufferObjects:=nil;
  fMorphTargetVertexShaderStorageBufferObjects:=nil;
  fNodeMeshPrimitiveShaderStorageBufferObjects:=nil;
@@ -1023,6 +1037,7 @@ begin
   fTextures:=nil;
   fJoints:=nil;
   fScenes:=nil;
+  fJointVertices:=nil;
   fSkinShaderStorageBufferObjects:=nil;
   fMorphTargetVertexShaderStorageBufferObjects:=nil;
   fNodeMeshPrimitiveShaderStorageBufferObjects:=nil;
@@ -2078,8 +2093,17 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
     end;
     fJoints[CountJointNodes].Parent:=aLastParentJointIndex;
     fJoints[CountJointNodes].Node:=aNodeIndex;
+    fJoints[CountJointNodes].Children:=nil;
+    fJoints[CountJointNodes].CountChildren:=0;
     LastParentJointIndex:=CountJointNodes;
     inc(CountJointNodes);
+    if aLastParentJointIndex>=0 then begin
+     if length(fJoints[aLastParentJointIndex].Children)<=fJoints[aLastParentJointIndex].CountChildren then begin
+      SetLength(fJoints[aLastParentJointIndex].Children,(fJoints[aLastParentJointIndex].CountChildren+1)*2);
+     end;
+     fJoints[aLastParentJointIndex].Children[fJoints[aLastParentJointIndex].CountChildren]:=LastParentJointIndex;
+     inc(fJoints[aLastParentJointIndex].CountChildren);
+    end;
    end else begin
     LastParentJointIndex:=aLastParentJointIndex;
    end;
@@ -2108,7 +2132,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
     ProcessNode(Node^.Children[Index],LastParentJointIndex,Matrix);
    end;
   end;
- var SceneIndex,Index,SubIndex:TPasGLTFSizeInt;
+ var SceneIndex,Index,SubIndex,Count:TPasGLTFSizeInt;
      Scene:PScene;
      Skin:PSkin;
      Node:PNode;
@@ -2133,7 +2157,11 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
     end;
    end;
   finally
+   SetLength(fJointVertices,CountJointNodes*4);
    SetLength(fJoints,CountJointNodes);
+   for Index:=0 to CountJointNodes-1 do begin
+    SetLength(fJoints[Index].Children,fJoints[Index].CountChildren);
+   end;
   end;
  end;
  procedure InitializeSkinShaderStorageBufferObjects;
@@ -2321,6 +2349,18 @@ var AllVertices:TAllVertices;
     glEnableVertexAttribArray(TVertexAttributeBindingLocations.VertexIndex);
    end;
   end;
+  glBindVertexArray(0);
+
+  glGenBuffers(1,@fJointVertexBufferObjectHandle);
+  glBindBuffer(GL_ARRAY_BUFFER,fJointVertexBufferObjectHandle);
+  glBufferData(GL_ARRAY_BUFFER,Max(1,length(fJoints))*2*SizeOf(TVector3),nil,GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_ARRAY_BUFFER,0);
+
+  glGenVertexArrays(1,@fJointVertexArrayHandle);
+  glBindVertexArray(fJointVertexArrayHandle);
+  glBindBuffer(GL_ARRAY_BUFFER,fJointVertexBufferObjectHandle);
+  glVertexAttribPointer(TVertexAttributeBindingLocations.Position,3,GL_FLOAT,GL_FALSE,SizeOf(TPasGLTF.TVector3),nil);
+  glEnableVertexAttribArray(TVertexAttributeBindingLocations.Position);
   glBindVertexArray(0);
 
  end;
@@ -2780,6 +2820,8 @@ procedure TGLTFOpenGL.Unload;
   glDeleteVertexArrays(1,@fVertexArrayHandle);
   glDeleteBuffers(1,@fVertexBufferObjectHandle);
   glDeleteBuffers(1,@fIndexBufferObjectHandle);
+  glDeleteVertexArrays(1,@fJointVertexArrayHandle);
+  glDeleteBuffers(1,@fJointVertexBufferObjectHandle);
  end;
  procedure UnloadTextures;
  var Index:TPasGLTFSizeInt;
@@ -3994,6 +4036,62 @@ begin
   glBindBuffer(GL_ARRAY_BUFFER,0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
   glActiveTexture(GL_TEXTURE0);
+ end;
+end;
+
+procedure TGLTFOpenGL.TInstance.DrawJoints(const aModelMatrix:TPasGLTF.TMatrix4x4;
+                                           const aViewMatrix:TPasGLTF.TMatrix4x4;
+                                           const aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                                           const aSolidColorShader:TSolidColorShader);
+const Vector3Origin:TPasGLTF.TVector3=(0.0,0.0,0.0);
+var Index,Count:TPasGLTFSizeInt;
+    Scene:PScene;
+    Joint:TGLTFOpenGL.PJoint;
+    Node:TGLTFOpenGL.TInstance.PNode;
+    ModelViewProjectionMatrix:TPasGLTF.TMatrix4x4;
+begin
+ Scene:=GetScene;
+ if assigned(Scene) and (length(Parent.fJoints)>0) then begin
+  ModelViewProjectionMatrix:=MatrixMul(MatrixMul(aModelMatrix,aViewMatrix),aProjectionMatrix);
+  glBindVertexArray(fParent.fJointVertexArrayHandle);
+  glBindBuffer(GL_ARRAY_BUFFER,fParent.fJointVertexBufferObjectHandle);
+  glDisable(GL_CULL_FACE);
+  glDisable(GL_BLEND);
+  glDisable(GL_DEPTH_TEST);
+  glPointSize(8.0);
+  glLineWidth(4.0);
+  glUseProgram(aSolidColorShader.ProgramHandle);
+  glUniformMatrix4fv(aSolidColorShader.uModelViewProjectionMatrix,1,false,@ModelViewProjectionMatrix);
+  begin
+   glUniform4f(aSolidColorShader.uColor,0.0,0.0,1.0,1.0);
+   Count:=0;
+   for Index:=0 to length(Parent.fJoints)-1 do begin
+    Joint:=@Parent.fJoints[Index];
+    Parent.fJointVertices[Count]:=Vector3MatrixMul(Nodes[Joint^.Node].WorkMatrix,Vector3Origin);
+    if Joint^.Parent>=0 then begin
+     Joint:=@Parent.fJoints[Joint^.Parent];
+    end;
+    Parent.fJointVertices[Count+1]:=Vector3MatrixMul(Nodes[Joint^.Node].WorkMatrix,Vector3Origin);
+    inc(Count,2);
+   end;
+   glBufferSubData(GL_ARRAY_BUFFER,0,Count*SizeOf(TVector3),@Parent.fJointVertices[0]);
+   glDrawArrays(GL_LINES,0,Count);
+  end;
+  begin
+   glUniform4f(aSolidColorShader.uColor,1.0,0.0,0.0,1.0);
+   Count:=0;
+   for Index:=0 to length(Parent.fJoints)-1 do begin
+    Joint:=@Parent.fJoints[Index];
+    Node:=@Nodes[Joint^.Node];
+    Parent.fJointVertices[Count]:=Vector3MatrixMul(Node^.WorkMatrix,Vector3Origin);
+    inc(Count);
+   end;
+   glBufferSubData(GL_ARRAY_BUFFER,0,Count*SizeOf(TVector3),@Parent.fJointVertices[0]);
+   glDrawArrays(GL_POINTS,0,Count);
+  end;
+  glUseProgram(0);
+  glBindVertexArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER,0);
  end;
 end;
 

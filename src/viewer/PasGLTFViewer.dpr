@@ -43,7 +43,8 @@ uses
   UnitOpenGLExtendedBlitRectShader in 'UnitOpenGLExtendedBlitRectShader.pas',
   UnitConsole in 'UnitConsole.pas',
   UnitOpenGLShadowMapBlurShader in 'UnitOpenGLShadowMapBlurShader.pas',
-  UnitOpenGLShadowMapMultisampleResolveShader in 'UnitOpenGLShadowMapMultisampleResolveShader.pas';
+  UnitOpenGLShadowMapMultisampleResolveShader in 'UnitOpenGLShadowMapMultisampleResolveShader.pas',
+  UnitOpenGLSolidColorShader in 'UnitOpenGLSolidColorShader.pas';
 
 const Title='PasGLTF viewer';
 
@@ -99,6 +100,8 @@ var InputFileName:TPasGLTFUTF8String='';
     GLTFOpenGL:TGLTFOpenGL=nil;
 
     GLTFInstance:TGLTFOpenGL.TInstance=nil;
+
+    SolidColorShader:TSolidColorShader;
 
     ShadingShaders:array[boolean,boolean] of TShadingShader;
 
@@ -158,6 +161,8 @@ var InputFileName:TPasGLTFUTF8String='';
     AutomaticRotate:boolean=false;
 
     ButtonLeftPressed:boolean=false;
+
+    ShowJoints:boolean=false;
 
     Shadows:boolean=false;
 
@@ -660,6 +665,12 @@ begin
                       ShadingShaders[false,true],
                       ShadingShaders[true,false],
                       ShadingShaders[true,true]);
+    if ShowJoints then begin
+     GLTFInstance.DrawJoints(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
+                             TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
+                             TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
+                             SolidColorShader);
+    end;
    end;
   end;
   glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);
@@ -833,6 +844,7 @@ begin
   ConsoleInstance.Lines.Add(#0#11+'setanimation '+#0#9+'x'+#0#11+'             '+#0#10+'Set animation to '+#0#9+'x'+#0#11+' (number)');
   ConsoleInstance.Lines.Add(#0#11+'resetanimation             '+#0#10+'Reset animation');
   ConsoleInstance.Lines.Add(#0#11+'resetcamera                '+#0#10+'Reset camera');
+  ConsoleInstance.Lines.Add(#0#11+'setjoints '+#0#9+'x'+#0#11+'                '+#0#10+'Set joints to '+#0#9+'x'+#0#11+' (zero = off, non-zero = on)');
   ConsoleInstance.Lines.Add(#0#11+'setshadows '+#0#9+'x'+#0#11+'               '+#0#10+'Set shadows to '+#0#9+'x'+#0#11+' (zero = off, non-zero = on)');
   ConsoleInstance.Lines.Add(#0#11+'load '+#0#9+'x'+#0#11+'                     '+#0#10+'Load '+#0#9+'x'+#0#11+' (filename)');
   ConsoleInstance.Lines.Add(#0#11+'unload                     '+#0#10+'Unload current GLTF/GLB object');
@@ -882,6 +894,13 @@ begin
   AnimationTime:=0.0;
  end else if Command='resetcamera' then begin
   ResetCamera;
+ end else if Command='setjoints' then begin
+  Value:=0;
+  while (CommandLinePosition<=CommandLineLength) and (aCommandLine[CommandLinePosition] in ['0'..'9']) do begin
+   Value:=(Value*10)+(ord(aCommandLine[CommandLinePosition])-ord('0'));
+   inc(CommandLinePosition);
+  end;
+  ShowJoints:=Value<>0;
  end else if Command='setshadows' then begin
   Value:=0;
   while (CommandLinePosition<=CommandLineLength) and (aCommandLine[CommandLinePosition] in ['0'..'9']) do begin
@@ -924,6 +943,7 @@ begin
  ConsoleInstance.Lines.Add(#0#12+'Available key shortcuts:');
  ConsoleInstance.Lines.Add('');
  ConsoleInstance.Lines.Add(#0#11'b '#0#14'/'#0#11' n              '#0#10+'Previous / next animation');
+ ConsoleInstance.Lines.Add(#0#11'j                  '#0#10+'Toggle joints');
  ConsoleInstance.Lines.Add(#0#11'l                  '#0#10+'Toggle shadows');
  ConsoleInstance.Lines.Add(#0#11'r                  '#0#10+'Reset camera');
  ConsoleInstance.Lines.Add(#0#11't                  '#0#10+'Reset animation');
@@ -1053,6 +1073,9 @@ begin
        end;
        SDLK_L:begin
         Shadows:=not Shadows;
+       end;
+       SDLK_J:begin
+        ShowJoints:=not ShowJoints;
        end;
       end;
      end;
@@ -1443,7 +1466,7 @@ begin
 
    try
 
-    EnvMapGenShader:=TEnvMapGenShader.Create(lowercase(trim(GLGetString(GL_VENDOR)))<>'intel');
+    EnvMapGenShader:=TEnvMapGenShader.Create(false);//lowercase(trim(GLGetString(GL_VENDOR)))<>'intel');
     try
 
      if true then begin
@@ -1684,6 +1707,7 @@ begin
              ShadingShaders[false,true]:=TShadingShader.Create(false,true,false);
              ShadingShaders[true,false]:=TShadingShader.Create(true,false,false);
              ShadingShaders[true,true]:=TShadingShader.Create(true,true,false);
+             SolidColorShader:=TSolidColorShader.Create;
              try
 
               ExtendedBlitRectShader:=TExtendedBlitRectShader.Create;
@@ -1725,6 +1749,7 @@ begin
               end;
 
              finally
+              FreeAndNil(SolidColorShader);
               FreeAndNil(ShadingShaders[false,false]);
               FreeAndNil(ShadingShaders[false,true]);
               FreeAndNil(ShadingShaders[true,false]);
