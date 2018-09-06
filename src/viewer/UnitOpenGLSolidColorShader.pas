@@ -113,8 +113,7 @@ uses SysUtils,Classes,dglOpenGL,UnitOpenGLShader;
 
 type TSolidColorShader=class(TShader)
       public
-       const uboFrameGlobals=0;
-      public
+       uModelViewProjectionMatrix:glInt;
        uColor:glInt;
        constructor Create;
        destructor Destroy; override;
@@ -129,14 +128,9 @@ var f,v:ansistring;
 begin
  v:='#version 430'+#13#10+
     'layout(location = 0) in vec3 aPosition;'+#13#10+
-    'layout(std140, binding = '+IntToStr(uboFrameGlobals)+') uniform uboFrameGlobals {'+#13#10+
-    '  mat4 inverseViewMatrix;'+#13#10+
-    '  mat4 modelMatrix;'+#13#10+
-    '  mat4 viewProjectionMatrix;'+#13#10+
-    '  mat4 shadowMapMatrix;'+#13#10+
-    '} uFrameGlobals;'+#13#10+
+    'uniform mat4 uModelViewProjectionMatrix;'+#13#10+
     'void main(){'+#13#10+
-    '  gl_Position = uFrameGlobals.viewProjectionMatrix * modelMatrix * vec4(aPosition, 1.0);'+#13#10+
+    '  gl_Position = uModelViewProjectionMatrix * vec4(aPosition, 1.0);'+#13#10+
     '}'+#13#10;
  f:='#version 430'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
@@ -161,6 +155,7 @@ end;
 procedure TSolidColorShader.BindVariables;
 begin
  inherited BindVariables;
+ uModelViewProjectionMatrix:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uModelViewProjectionMatrix')));
  uColor:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uColor')));
 end;
 
