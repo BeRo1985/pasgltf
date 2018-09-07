@@ -100,6 +100,7 @@ type EGLTFOpenGL=class(Exception);
                                    const aViewMatrix:TPasGLTF.TMatrix4x4;
                                    const aProjectionMatrix:TPasGLTF.TMatrix4x4;
                                    const aSolidColorShader:TSolidColorShader);
+              function GetJointPoints:TPasGLTF.TVector3DynamicArray;
               property Scene:TPasGLTFSizeInt read fScene write SetScene;
               property Animation:TPasGLTFSizeInt read fAnimation write SetAnimation;
               property AnimationTime:TPasGLTFFloat read fAnimationTime write fAnimationTime;
@@ -4092,6 +4093,16 @@ begin
   glUseProgram(0);
   glBindVertexArray(0);
   glBindBuffer(GL_ARRAY_BUFFER,0);
+ end;
+end;
+
+function TGLTFOpenGL.TInstance.GetJointPoints:TPasGLTF.TVector3DynamicArray;
+const Vector3Origin:TPasGLTF.TVector3=(0.0,0.0,0.0);
+var Index:TPasGLTFSizeInt;
+begin
+ SetLength(result,length(Parent.fJoints));
+ for Index:=0 to length(Parent.fJoints)-1 do begin
+  result[Index]:=Vector3MatrixMul(Nodes[Parent.fJoints[Index].Node].WorkMatrix,Vector3Origin);
  end;
 end;
 
