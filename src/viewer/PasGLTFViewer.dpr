@@ -419,6 +419,153 @@ begin
  result:=Matrix4x4TermMul(WarppedLightSpaceMatrix,FocusTransformMatrix);
 end;
 
+procedure DumpAnimationJoints;
+const FramesPerSecond=8;
+      CountCoefficients=128;
+      Scale=128;
+ function cmul(const a,b:UnitMath3D.TVector2):UnitMath3D.TVector2;
+ begin
+  result.x:=(a.x*b.x)-(a.y*b.y);
+  result.y:=(a.x*b.y)+(a.y*b.x);
+ end;
+var CountFrames,FrameIndex,JointIndex,AxisIndex,
+    CoefficientIndex,CountWantedJoints:TPasGLTFSizeInt;
+    Frames:array of TPasGLTF.TVector3DynamicArray;
+    WantedJoints:array of TPasGLTFSizeInt;
+    FourierCoefficients,tv4:UnitMath3D.TVector4;
+    AngleVector:UnitMath3D.TVector2;
+    MemoryStream:TMemoryStream;
+    UI32:TPasGLTFUInt32;
+    UI16:TPasGLTFUInt16;
+    Alpha:TPasGLTFFloat;
+    Name:UTF8String;
+    WantedJointNodes:TStringList;
+    AABB:TAABB;
+    F32:TPasGLTFFloat;
+begin
+ if assigned(GLTFInstance) then begin
+  GLTFInstance.Scene:=SceneIndex;
+  GLTFInstance.Animation:=AnimationIndex;
+  if AnimationBeginTime>=AnimationEndTime then begin
+   exit;
+  end;
+  WantedJointNodes:=TStringList.Create;
+  try
+   WantedJointNodes.Add('mixamorig_Hips');
+   WantedJointNodes.Add('mixamorig_Spine');
+   WantedJointNodes.Add('mixamorig_Spine2');
+   WantedJointNodes.Add('mixamorig_Neck');
+   WantedJointNodes.Add('mixamorig_Head');
+   WantedJointNodes.Add('mixamorig_HeadTop_End');
+   WantedJointNodes.Add('mixamorig_LeftShoulder');
+   WantedJointNodes.Add('mixamorig_LeftForeArm');
+   WantedJointNodes.Add('mixamorig_LeftHand');
+   WantedJointNodes.Add('mixamorig_RightShoulder');
+   WantedJointNodes.Add('mixamorig_RightForeArm');
+   WantedJointNodes.Add('mixamorig_RightHand');
+   WantedJointNodes.Add('mixamorig_LeftUpLeg');
+   WantedJointNodes.Add('mixamorig_LeftLeg');
+   WantedJointNodes.Add('mixamorig_LeftFoot');
+   WantedJointNodes.Add('mixamorig_LeftToeBase');
+   WantedJointNodes.Add('mixamorig_RightUpLeg');
+   WantedJointNodes.Add('mixamorig_RightLeg');
+   WantedJointNodes.Add('mixamorig_RightFoot');
+   WantedJointNodes.Add('mixamorig_RightToeBase');
+   CountFrames:=trunc((AnimationEndTime-AnimationBeginTime)*FramesPerSecond);
+   if CountFrames>0 then begin
+    Frames:=nil;
+    try
+     SetLength(Frames,CountFrames);
+     for FrameIndex:=0 to CountFrames-1 do begin
+      GLTFInstance.AnimationTime:=AnimationBeginTime+(FrameIndex/FramesPerSecond);
+      GLTFInstance.Update;
+      Frames[FrameIndex]:=GLTFInstance.GetJointPoints;
+     end;
+     CountWantedJoints:=0;
+     SetLength(WantedJoints,Max(WantedJointNodes.Count,length(GLTFOpenGL.Joints)));
+     for JointIndex:=0 to length(GLTFOpenGL.Joints)-1 do begin
+      Name:=GLTFOpenGL.Nodes[GLTFOpenGL.Joints[JointIndex].Node].Name;
+      CoefficientIndex:=WantedJointNodes.IndexOf(Name);
+      if (length(Name)>0) and (CoefficientIndex>=0) then begin
+       WantedJoints[CoefficientIndex]:=JointIndex;
+       inc(CountWantedJoints);
+      end;
+     end;
+     AABB.Min.x:=INFINITY;
+     AABB.Min.y:=INFINITY;
+     AABB.Min.z:=INFINITY;
+     AABB.Max.x:=-INFINITY;
+     AABB.Max.y:=-INFINITY;
+     AABB.Max.z:=-INFINITY;
+     for JointIndex:=0 to length(Frames[0])-1 do begin
+      for FrameIndex:=0 to CountFrames-1 do begin
+       AABB:=AABBCombineVector3(AABB,UnitMath3D.PVector3(@Frames[FrameIndex][JointIndex])^);
+      end;
+     end;
+     for JointIndex:=0 to length(Frames[0])-1 do begin
+      for FrameIndex:=0 to CountFrames-1 do begin
+       for AxisIndex:=0 to 2 do begin
+        Frames[FrameIndex][JointIndex][AxisIndex]:=(Frames[FrameIndex][JointIndex][AxisIndex]-AABB.Min.xyz[AxisIndex])/(AABB.Max.xyz[AxisIndex]-AABB.Min.xyz[AxisIndex]);
+       end;
+      end;
+     end;
+     MemoryStream:=TMemoryStream.Create;
+     try
+      UI32:=CountWantedJoints;
+      MemoryStream.WriteBuffer(UI32,SizeOf(TPasGLTFUInt32));
+      UI32:=CountFrames;
+      MemoryStream.WriteBuffer(UI32,SizeOf(TPasGLTFUInt32));
+      UI32:=CountCoefficients;
+      MemoryStream.WriteBuffer(UI32,SizeOf(TPasGLTFUInt32));
+      UI32:=FramesPerSecond;
+      MemoryStream.WriteBuffer(UI32,SizeOf(TPasGLTFUInt32));
+      begin
+       for AxisIndex:=0 to 2 do begin
+        F32:=AABB.Min.xyz[AxisIndex];
+        MemoryStream.WriteBuffer(F32,SizeOf(TPasGLTFFloat));
+       end;
+       F32:=0.0;
+       MemoryStream.WriteBuffer(F32,SizeOf(TPasGLTFFloat));
+      end;
+      begin
+       for AxisIndex:=0 to 2 do begin
+        F32:=AABB.Max.xyz[AxisIndex];
+        MemoryStream.WriteBuffer(F32,SizeOf(TPasGLTFFloat));
+       end;
+       F32:=0.0;
+       MemoryStream.WriteBuffer(F32,SizeOf(TPasGLTFFloat));
+      end;
+      for JointIndex:=0 to CountWantedJoints-1 do begin
+       for CoefficientIndex:=0 to CountCoefficients-1 do begin
+        FourierCoefficients:=Vector4Origin;
+        for FrameIndex:=0 to CountFrames-1 do begin
+         Alpha:=-(PI*2.0)*(CoefficientIndex*FrameIndex)/CountCoefficients;
+         AngleVector:=Vector2(cos(Alpha),sin(Alpha));
+         UnitMath3D.PVector2(@tv4.xyzw[0])^:=cmul(Vector2(Frames[FrameIndex][WantedJoints[JointIndex]][0],Frames[FrameIndex][WantedJoints[JointIndex]][2]),AngleVector);
+         UnitMath3D.PVector2(@tv4.xyzw[2])^:=cmul(Vector2(Frames[FrameIndex][WantedJoints[JointIndex]][1],Frames[FrameIndex][WantedJoints[JointIndex]][2]),AngleVector);
+         FourierCoefficients:=Vector4Add(FourierCoefficients,tv4);
+        end;
+        for AxisIndex:=0 to 3 do begin
+         UI16:=FloatToHalfFloat(FourierCoefficients.xyzw[AxisIndex]);
+         MemoryStream.WriteBuffer(UI16,SizeOf(TPasGLTFUInt16));
+        end;
+       end;
+      end;
+      MemoryStream.SaveToFile('animationjoints.bin');
+     finally
+      MemoryStream.Free;
+     end;
+    finally
+     Frames:=nil;
+    end;
+    AnimationTime:=0.0;
+   end;
+  finally
+   WantedJointNodes.Free;
+  end;
+ end;
+end;
+
 var GPUTimeElapsed:GLuint64=0;
     GPUTimeState:GLint=0;
 
@@ -1088,6 +1235,9 @@ begin
         SDLRunning:=false;
         break;
        end;
+      end;
+      SDLK_F2:begin
+       DumpAnimationJoints;
       end;
       SDLK_F8,SDLK_CARET,SDLK_BACKQUOTE:begin
        ConsoleInstance.Focus:=not ConsoleInstance.Focus;
