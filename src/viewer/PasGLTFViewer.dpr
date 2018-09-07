@@ -421,7 +421,6 @@ end;
 
 procedure DumpAnimationJoints;
 const FramesPerSecond=8;
-      CountCoefficients=128;
       Scale=128;
  function cmul(const a,b:UnitMath3D.TVector2):UnitMath3D.TVector2;
  begin
@@ -429,7 +428,8 @@ const FramesPerSecond=8;
   result.y:=(a.x*b.y)+(a.y*b.x);
  end;
 var CountFrames,FrameIndex,JointIndex,AxisIndex,
-    CoefficientIndex,CountWantedJoints:TPasGLTFSizeInt;
+    CoefficientIndex,CountWantedJoints,
+    CountCoefficients:TPasGLTFSizeInt;
     Frames:array of TPasGLTF.TVector3DynamicArray;
     WantedJoints:array of TPasGLTFSizeInt;
     FourierCoefficients,tv4:UnitMath3D.TVector4;
@@ -475,6 +475,7 @@ begin
    if CountFrames>0 then begin
     Frames:=nil;
     try
+     CountCoefficients:=CountFrames;
      SetLength(Frames,CountFrames);
      for FrameIndex:=0 to CountFrames-1 do begin
       GLTFInstance.AnimationTime:=AnimationBeginTime+(FrameIndex/FramesPerSecond);
@@ -539,7 +540,7 @@ begin
        for CoefficientIndex:=0 to CountCoefficients-1 do begin
         FourierCoefficients:=Vector4Origin;
         for FrameIndex:=0 to CountFrames-1 do begin
-         Alpha:=-(PI*2.0)*(CoefficientIndex*FrameIndex)/CountCoefficients;
+         Alpha:=(-(PI*2.0)*(CoefficientIndex/CountCoefficients))*FrameIndex;
          AngleVector:=Vector2(cos(Alpha),sin(Alpha));
          UnitMath3D.PVector2(@tv4.xyzw[0])^:=cmul(Vector2(Frames[FrameIndex][WantedJoints[JointIndex]][0],Frames[FrameIndex][WantedJoints[JointIndex]][2]),AngleVector);
          UnitMath3D.PVector2(@tv4.xyzw[2])^:=cmul(Vector2(Frames[FrameIndex][WantedJoints[JointIndex]][1],Frames[FrameIndex][WantedJoints[JointIndex]][2]),AngleVector);
