@@ -495,7 +495,7 @@ begin
      '      }'+#13#10+
      '      normal *= (((flags & (1u << 5u)) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
      '      vec4 occlusionTexture = textureFetch(uOcclusionTexture, 3, vec4(1.0));'+#13#10+
-     '      vec4 emissiveTexture = textureFetchSRGB(uEmissiveTexture, 4, vec4(0.0)); '+#13#10+
+     '      vec4 emissiveTexture = textureFetchSRGB(uEmissiveTexture, 4, vec4(1.0)); '+#13#10+
      '      float cavity = clamp(mix(1.0, occlusionTexture.x, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
      '            transparency = 0.0,'+#13#10+
      '            refractiveAngle = 0.0,'+#13#10+

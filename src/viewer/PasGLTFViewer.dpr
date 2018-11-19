@@ -429,7 +429,7 @@ const FramesPerSecond=8;
  end;
 var CountFrames,FrameIndex,JointIndex,AxisIndex,
     CoefficientIndex,CountWantedJoints,
-    CountCoefficients:TPasGLTFSizeInt;
+    CountCoefficients,Count:TPasGLTFSizeInt;
     Frames:array of TPasGLTF.TVector3DynamicArray;
     WantedJoints:array of TPasGLTFSizeInt;
     FourierCoefficients,tv4:UnitMath3D.TVector4;
@@ -437,6 +437,7 @@ var CountFrames,FrameIndex,JointIndex,AxisIndex,
     MemoryStream:TMemoryStream;
     UI32:TPasGLTFUInt32;
     UI16:TPasGLTFUInt16;
+    UI8,PUI8,OUI8:TPasGLTFUInt8;
     Alpha:TPasGLTFFloat;
     Name:UTF8String;
     WantedJointNodes:TStringList;
@@ -516,7 +517,7 @@ begin
       MemoryStream.WriteBuffer(UI32,SizeOf(TPasGLTFUInt32));
       UI32:=CountFrames;
       MemoryStream.WriteBuffer(UI32,SizeOf(TPasGLTFUInt32));
-      UI32:=CountCoefficients;
+      UI32:=0;
       MemoryStream.WriteBuffer(UI32,SizeOf(TPasGLTFUInt32));
       UI32:=FramesPerSecond;
       MemoryStream.WriteBuffer(UI32,SizeOf(TPasGLTFUInt32));
@@ -536,8 +537,43 @@ begin
        F32:=0.0;
        MemoryStream.WriteBuffer(F32,SizeOf(TPasGLTFFloat));
       end;
-      for JointIndex:=0 to CountWantedJoints-1 do begin
-       for CoefficientIndex:=0 to CountCoefficients-1 do begin
+{     for JointIndex:=0 to CountWantedJoints-1 do begin
+       for FrameIndex:=0 to CountFrames-1 do begin
+        UI32:=(Min(Max(trunc(Frames[FrameIndex][WantedJoints[JointIndex]][0]*255),0),255) shl 0) or
+              (Min(Max(trunc(Frames[FrameIndex][WantedJoints[JointIndex]][1]*255),0),255) shl 8) or
+              (Min(Max(trunc(Frames[FrameIndex][WantedJoints[JointIndex]][2]*255),0),255) shl 16);
+        MemoryStream.WriteBuffer(UI32,SizeOf(TPasGLTFUInt32));
+       end;
+      end;}
+      PUI8:=0;
+      for AxisIndex:=0 to 2 do begin
+       for JointIndex:=0 to CountWantedJoints-1 do begin
+        for FrameIndex:=0 to CountFrames-1 do begin
+         UI8:=Min(Max(trunc(Frames[FrameIndex][WantedJoints[JointIndex]][AxisIndex]*255),0),255);
+         OUI8:=UI8;//-PUI8;
+         MemoryStream.WriteBuffer(OUI8,SizeOf(TPasGLTFUInt8));
+         PUI8:=UI8;
+         inc(Count);
+        end;
+       end;
+      end;
+      while (Count and 3)<>0 do begin
+       UI8:=0;
+       MemoryStream.WriteBuffer(UI8,SizeOf(TPasGLTFUInt8));
+       inc(Count);
+      end;
+      PPasGLTFUInt32(@PAnsiChar(MemoryStream.Memory)[8])^:=Count;
+{     for JointIndex:=0 to CountWantedJoints-1 do begin
+       for FrameIndex:=0 to CountFrames-1 do begin
+        for AxisIndex:=0 to 2 do begin
+         UI16:=TPasGLTFUInt64(TPasGLTFInt64(trunc(Frames[FrameIndex][WantedJoints[JointIndex]][AxisIndex]*1024)));
+         MemoryStream.WriteBuffer(UI16,SizeOf(TPasGLTFUInt16));
+        end;
+        UI16:=0;
+        MemoryStream.WriteBuffer(UI16,SizeOf(TPasGLTFUInt16));
+       end;
+      end;}
+{      for CoefficientIndex:=0 to CountCoefficients-1 do begin
         FourierCoefficients:=Vector4Origin;
         for FrameIndex:=0 to CountFrames-1 do begin
          Alpha:=(-(PI*2.0)*(CoefficientIndex/CountCoefficients))*FrameIndex;
@@ -545,13 +581,7 @@ begin
          UnitMath3D.PVector2(@tv4.xyzw[0])^:=cmul(Vector2(Frames[FrameIndex][WantedJoints[JointIndex]][0],Frames[FrameIndex][WantedJoints[JointIndex]][2]),AngleVector);
          UnitMath3D.PVector2(@tv4.xyzw[2])^:=cmul(Vector2(Frames[FrameIndex][WantedJoints[JointIndex]][1],Frames[FrameIndex][WantedJoints[JointIndex]][2]),AngleVector);
          FourierCoefficients:=Vector4Add(FourierCoefficients,tv4);
-        end;
-        for AxisIndex:=0 to 3 do begin
-         UI16:=FloatToHalfFloat(FourierCoefficients.xyzw[AxisIndex]);
-         MemoryStream.WriteBuffer(UI16,SizeOf(TPasGLTFUInt16));
-        end;
-       end;
-      end;
+        end;}
       MemoryStream.SaveToFile('animationjoints.bin');
      finally
       MemoryStream.Free;
