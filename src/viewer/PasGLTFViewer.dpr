@@ -431,6 +431,7 @@ var CountFrames,FrameIndex,JointIndex,AxisIndex,
     CoefficientIndex,CountWantedJoints,
     CountCoefficients,Count:TPasGLTFSizeInt;
     Frames:array of TPasGLTF.TVector3DynamicArray;
+    MatrixFrames:array of TPasGLTF.TMatrix4x4DynamicArray;
     WantedJoints:array of TPasGLTFSizeInt;
     FourierCoefficients,tv4:UnitMath3D.TVector4;
     AngleVector:UnitMath3D.TVector2;
@@ -495,22 +496,38 @@ begin
    CountFrames:=trunc((AnimationEndTime-AnimationBeginTime)*FramesPerSecond);
    if CountFrames>0 then begin
     Frames:=nil;
+    MatrixFrames:=nil;
     try
      CountCoefficients:=CountFrames;
      SetLength(Frames,CountFrames);
+     SetLength(MatrixFrames,CountFrames);
      for FrameIndex:=0 to CountFrames-1 do begin
       GLTFInstance.AnimationTime:=AnimationBeginTime+(FrameIndex/FramesPerSecond);
       GLTFInstance.Update;
       Frames[FrameIndex]:=GLTFInstance.GetJointPoints;
+      MatrixFrames[FrameIndex]:=GLTFInstance.GetJointMatrices;
      end;
      CountWantedJoints:=0;
      SetLength(WantedJoints,Max(WantedJointNodes.Count,length(GLTFOpenGL.Joints)));
+     for JointIndex:=0 to length(WantedJoints)-1 do begin
+      WantedJoints[JointIndex]:=-1;
+     end;
      for JointIndex:=0 to length(GLTFOpenGL.Joints)-1 do begin
       Name:=GLTFOpenGL.Nodes[GLTFOpenGL.Joints[JointIndex].Node].Name;
       CoefficientIndex:=WantedJointNodes.IndexOf(Name);
       if (length(Name)>0) and (CoefficientIndex>=0) then begin
        WantedJoints[CoefficientIndex]:=JointIndex;
        inc(CountWantedJoints);
+      end;
+     end;
+     if WantedJoints[5]<0 then begin
+      WantedJoints[5]:=length(Frames[0]);
+      inc(CountWantedJoints);
+      for FrameIndex:=0 to CountFrames-1 do begin
+       SetLength(Frames[FrameIndex],length(Frames[FrameIndex])+1);
+       for AxisIndex:=0 to 2 do begin
+        Frames[FrameIndex][WantedJoints[5]][AxisIndex]:=Frames[FrameIndex][WantedJoints[4]][AxisIndex]+(MatrixFrames[FrameIndex][WantedJoints[4]][4+AxisIndex]*0.25);
+       end;
       end;
      end;
      AABB.Min.x:=INFINITY;

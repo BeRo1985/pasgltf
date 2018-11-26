@@ -101,6 +101,7 @@ type EGLTFOpenGL=class(Exception);
                                    const aProjectionMatrix:TPasGLTF.TMatrix4x4;
                                    const aSolidColorShader:TSolidColorShader);
               function GetJointPoints:TPasGLTF.TVector3DynamicArray;
+              function GetJointMatrices:TPasGLTF.TMatrix4x4DynamicArray;
               property Scene:TPasGLTFSizeInt read fScene write SetScene;
               property Animation:TPasGLTFSizeInt read fAnimation write SetAnimation;
               property AnimationTime:TPasGLTFFloat read fAnimationTime write fAnimationTime;
@@ -4106,5 +4107,15 @@ begin
  end;
 end;
 
+function TGLTFOpenGL.TInstance.GetJointMatrices:TPasGLTF.TMatrix4x4DynamicArray;
+var Index:TPasGLTFSizeInt;
+begin
+ SetLength(result,length(Parent.fJoints));
+ for Index:=0 to length(Parent.fJoints)-1 do begin
+  result[Index]:=Nodes[Parent.fJoints[Index].Node].WorkMatrix;
+ end;
+end;
+
 end.
+
 
