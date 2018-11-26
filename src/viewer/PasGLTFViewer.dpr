@@ -452,7 +452,27 @@ begin
   end;
   WantedJointNodes:=TStringList.Create;
   try
-   WantedJointNodes.Add('mixamorig_Hips');
+   WantedJointNodes.Add('mixamorig:Hips');
+   WantedJointNodes.Add('mixamorig:Spine');
+   WantedJointNodes.Add('mixamorig:Spine2');
+   WantedJointNodes.Add('mixamorig:Neck');
+   WantedJointNodes.Add('mixamorig:Head');
+   WantedJointNodes.Add('mixamorig:HeadTop_End');
+   WantedJointNodes.Add('mixamorig:LeftShoulder');
+   WantedJointNodes.Add('mixamorig:LeftForeArm');
+   WantedJointNodes.Add('mixamorig:LeftHand');
+   WantedJointNodes.Add('mixamorig:RightShoulder');
+   WantedJointNodes.Add('mixamorig:RightForeArm');
+   WantedJointNodes.Add('mixamorig:RightHand');
+   WantedJointNodes.Add('mixamorig:LeftUpLeg');
+   WantedJointNodes.Add('mixamorig:LeftLeg');
+   WantedJointNodes.Add('mixamorig:LeftFoot');
+   WantedJointNodes.Add('mixamorig:LeftToeBase');
+   WantedJointNodes.Add('mixamorig:RightUpLeg');
+   WantedJointNodes.Add('mixamorig:RightLeg');
+   WantedJointNodes.Add('mixamorig:RightFoot');
+   WantedJointNodes.Add('mixamorig:RightToeBase');
+{  WantedJointNodes.Add('mixamorig_Hips');
    WantedJointNodes.Add('mixamorig_Spine');
    WantedJointNodes.Add('mixamorig_Spine2');
    WantedJointNodes.Add('mixamorig_Neck');
@@ -471,7 +491,7 @@ begin
    WantedJointNodes.Add('mixamorig_RightUpLeg');
    WantedJointNodes.Add('mixamorig_RightLeg');
    WantedJointNodes.Add('mixamorig_RightFoot');
-   WantedJointNodes.Add('mixamorig_RightToeBase');
+   WantedJointNodes.Add('mixamorig_RightToeBase');}
    CountFrames:=trunc((AnimationEndTime-AnimationBeginTime)*FramesPerSecond);
    if CountFrames>0 then begin
     Frames:=nil;
