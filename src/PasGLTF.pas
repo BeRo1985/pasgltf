@@ -1,7 +1,7 @@
 (******************************************************************************
  *                                 PasGLTF                                    *
  ******************************************************************************
- *                          Version 2018-08-13-18-87                          *
+ *                          Version 2018-12-23-14-09                          *
  ******************************************************************************
  *                                zlib license                                *
  *============================================================================*
@@ -235,6 +235,18 @@ unit PasGLTF;
     {$define Delphi10Berlin}
    {$ifend}
    {$define Delphi10BerlinAndUp}
+  {$ifend}
+  {$if CompilerVersion>=32.0}
+   {$if CompilerVersion=32.0}
+    {$define Delphi10Tokyo}
+   {$ifend}
+   {$define Delphi10TokyoAndUp}
+  {$ifend}
+  {$if CompilerVersion>=33.0}
+   {$if CompilerVersion=33.0}
+    {$define Delphi10Rio}
+   {$ifend}
+   {$define Delphi10RioAndUp}
   {$ifend}
  {$endif}
  {$ifndef Delphi4or5}
@@ -4641,6 +4653,7 @@ var GLBHeader:TGLBHeader;
 var RawJSONRawByteString:TPasJSONRawByteString;
     ChunkHeader:TChunkHeader;
     Stream:TMemoryStream;
+    JSONItem:TPasJSONItem;
 begin
  if not (assigned(aStream) and (aStream.Size>=GLBHeaderSize)) then begin
   raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
@@ -4669,7 +4682,14 @@ begin
  RawJSONRawByteString:='';
  SetLength(RawJSONRawByteString,GLBHeader.JSONChunkHeader.ChunkLength);
  aStream.ReadBuffer(RawJSONRawByteString[1],length(RawJSONRawByteString));
- LoadFromJSON(TPasJSON.Parse(RawJSONRawByteString,[],TPasJSONEncoding.UTF8));
+ JSONItem:=TPasJSON.Parse(RawJSONRawByteString,[],TPasJSONEncoding.UTF8);
+ if assigned(JSONItem) then begin
+  try
+   LoadFromJSON(JSONItem);
+  finally
+   FreeAndNil(JSONItem);
+  end;
+ end; 
  if aStream.Position<aStream.Size then begin
   if aStream.Read(ChunkHeader,SizeOf(TChunkHeader))<>SizeOf(ChunkHeader) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
@@ -4691,6 +4711,7 @@ end;
 
 procedure TPasGLTF.TDocument.LoadFromStream(const aStream:TStream);
 var FirstFourBytes:array[0..3] of TPasGLTFUInt8;
+    JSONItem:TPasJSONItem;
 begin
  aStream.ReadBuffer(FirstFourBytes,SizeOf(FirstFourBytes));
  aStream.Seek(-SizeOf(FirstFourBytes),soCurrent);
@@ -4700,7 +4721,14 @@ begin
     (FirstFourBytes[3]=ord('F')) then begin
   LoadFromBinary(aStream);
  end else begin
-  LoadFromJSON(TPasJSON.Parse(aStream,[],TPasJSONEncoding.AutomaticDetection));
+  JSONItem:=TPasJSON.Parse(aStream,[],TPasJSONEncoding.AutomaticDetection);
+  if assigned(JSONItem) then begin
+   try
+    LoadFromJSON(JSONItem);
+   finally
+    FreeAndNil(JSONItem);
+   end;
+  end; 
  end;
 end;
 
