@@ -4661,6 +4661,7 @@ var GLBHeader:TGLBHeader;
 var RawJSONRawByteString:TPasJSONRawByteString;
     ChunkHeader:TChunkHeader;
     Stream:TMemoryStream;
+    Parsed:TPasJSONItem;
 begin
  if not (assigned(aStream) and (aStream.Size>=GLBHeaderSize)) then begin
   raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
@@ -4689,7 +4690,10 @@ begin
  RawJSONRawByteString:='';
  SetLength(RawJSONRawByteString,GLBHeader.JSONChunkHeader.ChunkLength);
  aStream.ReadBuffer(RawJSONRawByteString[1],length(RawJSONRawByteString));
- LoadFromJSON(TPasJSON.Parse(RawJSONRawByteString,[],TPasJSONEncoding.UTF8));
+ Parsed := TPasJSON.Parse(RawJSONRawByteString,[],TPasJSONEncoding.UTF8);
+ try
+  LoadFromJSON(Parsed);
+ finally FreeAndNil(Parsed) end;
  if aStream.Position<aStream.Size then begin
   if aStream.Read(ChunkHeader,SizeOf(TChunkHeader))<>SizeOf(ChunkHeader) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
@@ -4711,6 +4715,7 @@ end;
 
 procedure TPasGLTF.TDocument.LoadFromStream(const aStream:TStream);
 var FirstFourBytes:array[0..3] of TPasGLTFUInt8;
+    Parsed:TPasJSONItem;
 begin
  aStream.ReadBuffer(FirstFourBytes,SizeOf(FirstFourBytes));
  aStream.Seek(-SizeOf(FirstFourBytes),soCurrent);
@@ -4720,7 +4725,10 @@ begin
     (FirstFourBytes[3]=ord('F')) then begin
   LoadFromBinary(aStream);
  end else begin
-  LoadFromJSON(TPasJSON.Parse(aStream,[],TPasJSONEncoding.AutomaticDetection));
+  Parsed := TPasJSON.Parse(aStream,[],TPasJSONEncoding.AutomaticDetection);
+  try
+   LoadFromJSON(Parsed);
+  finally FreeAndNil(Parsed) end;
  end;
 end;
 
