@@ -1101,13 +1101,13 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
     if (SourceAnimationChannel.Sampler>=0) and (SourceAnimationChannel.Sampler<SourceAnimation.Samplers.Count) then begin
      SourceAnimationSampler:=SourceAnimation.Samplers[SourceAnimationChannel.Sampler];
      case SourceAnimationSampler.Interpolation of
-      TPasGLTF.TAnimation.TSampler.TType.Linear:begin
+      TPasGLTF.TAnimation.TSampler.TSamplerType.Linear:begin
        DestinationAnimationChannel^.Interpolation:=TAnimation.TChannel.TInterpolation.Linear;
       end;
-      TPasGLTF.TAnimation.TSampler.TType.Step:begin
+      TPasGLTF.TAnimation.TSampler.TSamplerType.Step:begin
        DestinationAnimationChannel^.Interpolation:=TAnimation.TChannel.TInterpolation.Step;
       end;
-      TPasGLTF.TAnimation.TSampler.TType.CubicSpline:begin
+      TPasGLTF.TAnimation.TSampler.TSamplerType.CubicSpline:begin
        DestinationAnimationChannel^.Interpolation:=TAnimation.TChannel.TInterpolation.CubicSpline;
       end;
       else begin
