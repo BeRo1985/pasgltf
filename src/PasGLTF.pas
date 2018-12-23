@@ -1890,6 +1890,7 @@ end;
 
 procedure TPasGLTFObjectList<T>.Insert(const pIndex:TPasGLTFSizeInt;const pItem:T);
 var OldCount:TPasGLTFSizeInt;
+    MoveSrc, MoveDst: Pointer;
 begin
  if pIndex>=0 then begin
   OldCount:=fCount;
@@ -1906,7 +1907,12 @@ begin
    FillChar(fItems[OldCount],(fCount-OldCount)*SizeOf(T),#0);
   end;
   if pIndex<OldCount then begin
-   System.Move(fItems[pIndex],fItems[pIndex+1],(OldCount-pIndex)*SizeOf(T));
+   { Use MoveSrc/Dst to workaround FPC 3.3.1 error:
+     Error: Incompatible type for arg no. 1: Got "$gendef124", expected "<Formal type>"
+     (FPC 3.3.1-r40366 [2018/11/24], on Linux/x86_64). }
+   MoveSrc := @(fItems[pIndex]);
+   MoveDst := @(fItems[pIndex+1]);
+   System.Move(MoveSrc^, MoveDst^, (OldCount-pIndex)*SizeOf(T));
    FillChar(fItems[pIndex],SizeOf(T),#0);
   end;
   fItems[pIndex]:=pItem;
@@ -1915,6 +1921,7 @@ end;
 
 procedure TPasGLTFObjectList<T>.Delete(const pIndex:TPasGLTFSizeInt);
 var Old:T;
+    MoveSrc, MoveDst: Pointer;
 begin
  if (pIndex<0) or (pIndex>=fCount) then begin
   raise ERangeError.Create('Out of index range');
@@ -1923,7 +1930,12 @@ begin
  dec(fCount);
  FillChar(fItems[pIndex],SizeOf(T),#0);
  if pIndex<>fCount then begin
-  System.Move(fItems[pIndex+1],fItems[pIndex],(fCount-pIndex)*SizeOf(T));
+  { Use MoveSrc/Dst to workaround FPC 3.3.1 error:
+    Error: Incompatible type for arg no. 1: Got "$gendef124", expected "<Formal type>"
+    (FPC 3.3.1-r40366 [2018/11/24], on Linux/x86_64). }
+  MoveSrc := @(fItems[pIndex+1]);
+  MoveDst := @(fItems[pIndex]);
+  System.Move(MoveSrc, MoveDst, (fCount-pIndex)*SizeOf(T));
   FillChar(fItems[fCount],SizeOf(T),#0);
  end;
  if fCount<(fAllocated shr 1) then begin
