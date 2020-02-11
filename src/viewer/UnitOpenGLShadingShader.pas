@@ -563,7 +563,7 @@ begin
      '            }'+#13#10+
      '            case 3u:{'+#13#10+ // Spot
      '              vec3 spotlightDir = -light.direction.xyz;'+#13#10+
-     '              vec3 normalizedLightVector = normalize(-lightVector);'+#13#10+
+     '              vec3 normalizedLightVector = normalize(lightVector);'+#13#10+
      '              float lightAngleScale = uintBitsToFloat(light.metaData.z);'+#13#10+
      '              float lightAngleOffset = uintBitsToFloat(light.metaData.w);'+#13#10+
      '              float angularAttenuation = clamp((dot(spotlightDir, normalizedLightVector) * lightAngleScale) + lightAngleOffset, 0.0, 1.0);'+#13#10+
