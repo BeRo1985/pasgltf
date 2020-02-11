@@ -554,13 +554,13 @@ begin
      '          switch(light.metaData.x){'+#13#10+
      '            case 1u:'+#13#10+  // Directional
      '            case 2u:{'+#13#10+ // Point
-//   '              lightAttenuation *= 0.0;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '            case 3u:{'+#13#10+ // Spot
 {$if true}
      '              float angularAttenuation = clamp(fma(dot(normalize(light.direction.xyz), normalize(-lightVector)), uintBitsToFloat(light.metaData.z), uintBitsToFloat(light.metaData.w)), 0.0, 1.0);'+#13#10+
 {$else}
+     // Just for as reference
      '              float innerConeCosinus = uintBitsToFloat(light.metaData.z);'+#13#10+
      '              float outerConeCosinus = uintBitsToFloat(light.metaData.w);'+#13#10+
      '              float actualCosinus = dot(normalize(light.direction.xyz), normalize(-lightVector));'+#13#10+
@@ -570,8 +570,7 @@ begin
      '              break;'+#13#10+
      '            }'+#13#10+
      '            default:{'+#13#10+
-     '              lightAttenuation *= 0.0;'+#13#10+
-     '              break;'+#13#10+
+     '              continue;'+#13#10+
      '            }'+#13#10+
      '          }'+#13#10+
      '          switch(light.metaData.x){'+#13#10+
@@ -605,7 +604,7 @@ begin
      '          }'+#13#10+
      '        }'+#13#10+
      '      }'+#13#10+
-     '      if(lightMetaData.x == 0u){'+#13#10+
+     '      {'+#13#10+
      '        vec3 reflectionVector = normalize(reflect(viewDirection, normal.xyz));'+#13#10+
      '        float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
      '              ao = cavity * ambientOcclusion,'+#13#10+
