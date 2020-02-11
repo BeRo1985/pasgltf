@@ -104,7 +104,7 @@ unit UnitOpenGLImage;
 
 interface
 
-uses dglOpenGL;
+uses {$ifdef fpcgl}gl,glext{$else}dglOpenGL{$endif};
 
 function LoadImage(DataPointer:pointer;DataSize:longword;var ImageData:pointer;var ImageWidth,ImageHeight:longint;HeaderOnly:boolean=false;MipMapLevel:longint=0;IsFloat:pboolean=nil):boolean;
 

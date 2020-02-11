@@ -109,7 +109,7 @@ unit UnitOpenGLShadingShader;
 
 interface
 
-uses SysUtils,Classes,dglOpenGL,UnitOpenGLShader;
+uses SysUtils,Classes,{$ifdef fpcgl}gl,glext,{$else}dglOpenGL,{$endif}UnitOpenGLShader;
 
 type TShadingShader=class(TShader)
       public

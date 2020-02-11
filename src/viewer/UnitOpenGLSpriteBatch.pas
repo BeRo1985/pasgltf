@@ -5,7 +5,7 @@ unit UnitOpenGLSpriteBatch;
 
 interface
 
-uses dglOpenGL,UnitOpenGLExtendedBlitRectShader;
+uses {$ifdef fpcgl}gl,glext,{$else}dglOpenGL,{$endif}UnitOpenGLExtendedBlitRectShader;
 
 type PSpriteBatchPoint=^TSpriteBatchPoint;
      TSpriteBatchPoint=packed record

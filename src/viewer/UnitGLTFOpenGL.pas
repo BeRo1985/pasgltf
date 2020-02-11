@@ -14,8 +14,8 @@ unit UnitGLTFOpenGL;
 
 interface
 
-uses SysUtils,Classes,Math,PasJSON,PasGLTF,dglOpenGL,UnitOpenGLImage,
-     UnitOpenGLShader,UnitOpenGLShadingShader,UnitOpenGLSolidColorShader;
+uses SysUtils,Classes,Math,PasJSON,PasGLTF,{$ifdef fpcgl}gl,glext,{$else}dglOpenGL,{$endif}
+     UnitOpenGLImage,UnitOpenGLShader,UnitOpenGLShadingShader,UnitOpenGLSolidColorShader;
 
 type EGLTFOpenGL=class(Exception);
 
@@ -505,6 +505,18 @@ type EGLTFOpenGL=class(Exception);
 implementation
 
 const Epsilon=1e-8;
+
+{$ifdef fpcgl}
+      GL_TEXTURE_MAX_ANISOTROPY=$84fe;
+
+      GL_MAX_TEXTURE_MAX_ANISOTROPY=$84ff;
+
+      GL_SHADER_STORAGE_BUFFER=$90d2;
+
+      GL_MAX_SHADER_STORAGE_BLOCK_SIZE=$90de;
+
+      GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT=$90df;
+{$endif}
 
 type TVector2=TPasGLTF.TVector2;
      PVector2=^TVector2;
@@ -4063,7 +4075,7 @@ begin
   glPointSize(8.0);
   glLineWidth(4.0);
   glUseProgram(aSolidColorShader.ProgramHandle);
-  glUniformMatrix4fv(aSolidColorShader.uModelViewProjectionMatrix,1,false,@ModelViewProjectionMatrix);
+  glUniformMatrix4fv(aSolidColorShader.uModelViewProjectionMatrix,1,{$ifdef fpcgl}0{$else}false{$endif},@ModelViewProjectionMatrix);
   begin
    glUniform4f(aSolidColorShader.uColor,0.0,0.0,1.0,1.0);
    Count:=0;

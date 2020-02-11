@@ -109,7 +109,7 @@ unit UnitOpenGLShadowMapBlurShader;
 
 interface
 
-uses dglOpenGL,UnitOpenGLShader;
+uses {$ifdef fpcgl}gl,glext,{$else}dglOpenGL,{$endif}UnitOpenGLShader;
 
 type TShadowMapBlurShader=class(TShader)
       public

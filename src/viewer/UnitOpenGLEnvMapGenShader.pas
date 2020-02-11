@@ -109,7 +109,7 @@
 
 interface
 
-uses dglOpenGL,UnitOpenGLShader;
+uses {$ifdef fpcgl}gl,glext,{$else}dglOpenGL,{$endif}UnitOpenGLShader;
 
 type TEnvMapGenShader=class(TShader)
       public

@@ -5,7 +5,7 @@ unit UnitOpenGLFrameBufferObject;
 
 interface
 
-uses SysUtils,Classes,Math,dglOpenGL;
+uses SysUtils,Classes,Math,{$ifdef fpcgl}gl,glext,{$else}dglOpenGL{$endif};
 
 const CubeMapTexs:array[0..5] of longword=(GL_TEXTURE_CUBE_MAP_POSITIVE_X,
                                            GL_TEXTURE_CUBE_MAP_NEGATIVE_X,

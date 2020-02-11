@@ -109,7 +109,7 @@ unit UnitOpenGLEnvMapFilterShader;
 
 interface
 
-uses dglOpenGL,UnitOpenGLShader;
+uses {$ifdef fpcgl}gl,glext,{$else}dglOpenGL,{$endif}UnitOpenGLShader;
 
 type TEnvMapFilterShader=class(TShader)
       public

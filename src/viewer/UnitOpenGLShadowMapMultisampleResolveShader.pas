@@ -109,7 +109,7 @@ unit UnitOpenGLShadowMapMultisampleResolveShader;
 
 interface
 
-uses dglOpenGL,UnitOpenGLShader;
+uses {$ifdef fpcgl}gl,glext,{$else}dglOpenGL,{$endif}UnitOpenGLShader;
 
 type TShadowMapMultisampleResolveShader=class(TShader)
       public

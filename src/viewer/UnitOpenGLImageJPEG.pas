@@ -114,7 +114,7 @@ uses SysUtils,Classes,Math,
       Windows,
      {$endif}
      UnitOpenGLImage,
-     dglOpenGL;
+     {$ifdef fpcgl}gl,glext{$else}dglOpenGL{$endif};
 
 type ELoadJPEGImage=class(Exception);
 

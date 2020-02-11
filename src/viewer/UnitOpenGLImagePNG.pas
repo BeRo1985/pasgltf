@@ -104,7 +104,7 @@ unit UnitOpenGLImagePNG; // from PasVulkan, so zlib-license and Copyright (C), B
 
 interface
 
-uses SysUtils,Classes,Math,{$ifdef delphi}PNGImage,{$else}{$ifdef fpc}FPImage,FPReadPNG,{$endif}{$endif}UnitOpenGLImage,dglOpenGL;
+uses SysUtils,Classes,Math,{$ifdef delphi}PNGImage,{$else}{$ifdef fpc}FPImage,FPReadPNG,{$endif}{$endif}UnitOpenGLImage,{$ifdef fpcgl}gl,glext{$else}dglOpenGL{$endif};
 
 type PPNGPixel=^TPNGPixel;
      TPNGPixel=packed record
