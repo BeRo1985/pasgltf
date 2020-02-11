@@ -1,12 +1,12 @@
 (******************************************************************************
  *                                 PasGLTF                                    *
  ******************************************************************************
- *                          Version 2018-12-23-14-09                          *
+ *                          Version 2020-02-12-00-29                          *
  ******************************************************************************
  *                                zlib license                                *
  *============================================================================*
  *                                                                            *
- * Copyright (C) 2018, Benjamin Rosseaux (benjamin@rosseaux.de)               *
+ * Copyright (C) 2018-2020, Benjamin Rosseaux (benjamin@rosseaux.de)          *
  *                                                                            *
  * This software is provided 'as-is', without any express or implied          *
  * warranty. In no event will the authors be held liable for any damages      *
@@ -3700,13 +3700,13 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   JSONObject:=TPasJSONItemObject(aJSONItem);
   begin
    JSONObjectItem:=JSONObject.Properties['extensions'];
-   if assigned(JSONObjectItem) then begin
+   if assigned(JSONObjectItem) and (JSONObjectItem is TPasJSONItemObject) then begin
     aBaseExtensionsExtrasObject.fExtensions.Merge(JSONObjectItem);
    end;
   end;
   begin
    JSONObjectItem:=JSONObject.Properties['extras'];
-   if assigned(JSONObjectItem) then begin
+   if assigned(JSONObjectItem) and (JSONObjectItem is TPasJSONItemObject) then begin
     aBaseExtensionsExtrasObject.fExtras.Merge(JSONObjectItem);
    end;
   end;

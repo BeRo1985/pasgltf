@@ -48,9 +48,9 @@ uses
 
 const Title='PasGLTF viewer';
 
-      Version='2018.08.29.09.04.0000';
+      Version='2020.02.12.00.30.0000';
 
-      Copyright='Copyright (C) 2018, Benjamin ''BeRo'' Rosseaux';
+      Copyright='Copyright (C) 2018-2020, Benjamin ''BeRo'' Rosseaux';
 
 // Force usage of dedicated GPU for OpenGL with Delphi and FreePascal/Lazarus on Multi-GPU systems such as Notebooks on Windows
 // Insert that into your main source file, which is for example the .dpr (Delphi) or .lpr (Lazarus) file
