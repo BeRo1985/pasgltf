@@ -1146,9 +1146,9 @@ var HasLights:boolean;
         Light^.Node:=-1;
         Light^.Type_:=TLightDataType.None;
         Light^.Intensity:=1.0;
-        Light^.Range:=0.0;
+        Light^.Range:=-1.0;
         Light^.InnerConeAngle:=0.0;
-        Light^.OuterConeAngle:=pi/4.0;
+        Light^.OuterConeAngle:=pi*0.25;
         Light^.Color[0]:=1.0;
         Light^.Color[1]:=1.0;
         Light^.Color[2]:=1.0;
@@ -4216,7 +4216,6 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      Light:PLight;
      LightShaderStorageBufferObjectDataItem:PLightShaderStorageBufferObjectDataItem;
      InstanceNode:TGLTFOpenGL.TInstance.PNode;
-     Position,Direction:TPasGLTF.TVector3;
      Matrix:TPasGLTF.TMatrix4x4;
  begin
   if length(fParent.fLights)>0 then begin
@@ -4230,14 +4229,8 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      TPasGLTF.TVector3(pointer(@Matrix[0])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[0])^));
      TPasGLTF.TVector3(pointer(@Matrix[4])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[4])^));
      TPasGLTF.TVector3(pointer(@Matrix[8])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[8])^));
-     Position:=Vector3MatrixMul(Matrix,Zero);
-     Direction:=Vector3Normalize(Vector3Sub(Vector3MatrixMul(Matrix,DownZ),Position));
-     LightShaderStorageBufferObjectDataItem^.PositionRange[0]:=Position[0];
-     LightShaderStorageBufferObjectDataItem^.PositionRange[1]:=Position[1];
-     LightShaderStorageBufferObjectDataItem^.PositionRange[2]:=Position[2];
-     LightShaderStorageBufferObjectDataItem^.Direction[0]:=Direction[0];
-     LightShaderStorageBufferObjectDataItem^.Direction[1]:=Direction[1];
-     LightShaderStorageBufferObjectDataItem^.Direction[2]:=Direction[2];
+     TPasGLTF.TVector3(pointer(@LightShaderStorageBufferObjectDataItem^.PositionRange)^):=Vector3MatrixMul(Matrix,Zero);
+     TPasGLTF.TVector3(pointer(@LightShaderStorageBufferObjectDataItem^.Direction)^):=Vector3Normalize(Vector3Sub(Vector3MatrixMul(Matrix,DownZ),TPasGLTF.TVector3(pointer(@LightShaderStorageBufferObjectDataItem^.PositionRange)^)));
     end else begin
      LightShaderStorageBufferObjectDataItem^.PositionRange[0]:=0.0;
      LightShaderStorageBufferObjectDataItem^.PositionRange[1]:=0.0;
