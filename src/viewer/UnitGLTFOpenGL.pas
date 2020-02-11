@@ -468,10 +468,13 @@ type EGLTFOpenGL=class(Exception);
               OuterConeAngle:TPasGLTFFloat;
               Color:TPasGLTF.TVector3;
             end;
+            PLight=^TLight;
+            TLights=array of TLight;
        const EmptyBoundingBox:TBoundingBox=(Min:(Infinity,Infinity,Infinity);Max:(NegInfinity,NegInfinity,NegInfinity));
       private
        fReady:boolean;
        fUploaded:boolean;
+       fLights:TLights;
        fAnimations:TAnimations;
        fMaterials:TMaterials;
        fMeshes:TMeshes;
@@ -516,6 +519,7 @@ type EGLTFOpenGL=class(Exception);
        function AcquireInstance:TGLTFOpenGL.TInstance;
       public
        property StaticBoundingBox:TBoundingBox read fStaticBoundingBox;
+       property Lights:TLights read fLights;
        property Animations:TAnimations read fAnimations;
        property Materials:TMaterials read fMaterials;
        property Meshes:TMeshes read fMeshes;
@@ -1042,6 +1046,7 @@ begin
  fRootPath:='';
  fReady:=false;
  fUploaded:=false;
+ fLights:=nil;
  fAnimations:=nil;
  fMaterials:=nil;
  fMeshes:=nil;
@@ -1071,6 +1076,7 @@ procedure TGLTFOpenGL.Clear;
 begin
  if fReady then begin
   fReady:=false;
+  fLights:=nil;
   fAnimations:=nil;
   fMaterials:=nil;
   fMeshes:=nil;
@@ -1100,9 +1106,10 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
  procedure LoadLights;
  var Index:TPasGLTFSizeInt;
      ExtensionObject:TPasJSONItemObject;
-     KHRLightsPunctualItem,LightsItem:TPasJSONItem;
-     KHRLightsPunctualObject:TPasJSONItemObject;
+     KHRLightsPunctualItem,LightsItem,LightItem:TPasJSONItem;
+     KHRLightsPunctualObject,LightObject:TPasJSONItemObject;
      LightsArray:TPasJSONItemArray;
+     Light:PLight;
  begin
   if aDocument.ExtensionsUsed.IndexOf('KHR_lights_punctual')>=0 then begin
    ExtensionObject:=aDocument.Extensions;
@@ -1113,7 +1120,29 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
      LightsItem:=KHRLightsPunctualObject.Properties['lights'];
      if assigned(LightsItem) and (LightsItem is TPasJSONItemArray) then begin
       LightsArray:=TPasJSONItemArray(LightsItem);
+      SetLength(fLights,LightsArray.Count);
       for Index:=0 to LightsArray.Count-1 do begin
+       LightItem:=LightsArray.Items[Index];
+       Light:=@fLights[Index];
+       Light^.Type_:=TLightDataType.None;
+       Light^.Intensity:=1.0;
+       Light^.Range:=0.0;
+       Light^.InnerConeAngle:=0.0;
+       Light^.OuterConeAngle:=pi/4.0;
+       Light^.Color[0]:=1.0;
+       Light^.Color[1]:=1.0;
+       Light^.Color[2]:=1.0;
+       if assigned(LightItem) and (LightItem is TPasJSONItemObject) then begin
+        LightObject:=TPasJSONItemObject(LightItem);
+        Light^.Type_:=TLightDataType.None;
+        Light^.Intensity:=TPasJSON.GetNumber(LightObject.Properties['intensity'],Light^.Intensity);
+        Light^.Range:=TPasJSON.GetNumber(LightObject.Properties['range'],Light^.Range);
+        Light^.InnerConeAngle:=TPasJSON.GetNumber(LightObject.Properties['innerConeAngle'],Light^.InnerConeAngle);
+        Light^.OuterConeAngle:=TPasJSON.GetNumber(LightObject.Properties['outerConeAngle'],Light^.OuterConeAngle);
+        Light^.Color[0]:=1.0;
+        Light^.Color[1]:=1.0;
+        Light^.Color[2]:=1.0;
+       end;
       end;
      end;
     end;
