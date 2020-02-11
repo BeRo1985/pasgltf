@@ -1122,8 +1122,8 @@ var HasLights:boolean;
  procedure LoadLights;
  var Index:TPasGLTFSizeInt;
      ExtensionObject:TPasJSONItemObject;
-     KHRLightsPunctualItem,LightsItem,LightItem,ColorItem:TPasJSONItem;
-     KHRLightsPunctualObject,LightObject:TPasJSONItemObject;
+     KHRLightsPunctualItem,LightsItem,LightItem,ColorItem,SpotItem:TPasJSONItem;
+     KHRLightsPunctualObject,LightObject,SpotObject:TPasJSONItemObject;
      LightsArray,ColorArray:TPasJSONItemArray;
      Light:PLight;
      TypeString:TPasJSONUTF8String;
@@ -1166,8 +1166,12 @@ var HasLights:boolean;
          end;
          Light^.Intensity:=TPasJSON.GetNumber(LightObject.Properties['intensity'],Light^.Intensity);
          Light^.Range:=TPasJSON.GetNumber(LightObject.Properties['range'],Light^.Range);
-         Light^.InnerConeAngle:=TPasJSON.GetNumber(LightObject.Properties['innerConeAngle'],Light^.InnerConeAngle);
-         Light^.OuterConeAngle:=TPasJSON.GetNumber(LightObject.Properties['outerConeAngle'],Light^.OuterConeAngle);
+         SpotItem:=LightObject.Properties['spot'];
+         if assigned(SpotItem) and (SpotItem is TPasJSONItemObject) then begin
+          SpotObject:=TPasJSONItemObject(SpotItem);
+          Light^.InnerConeAngle:=TPasJSON.GetNumber(SpotObject.Properties['innerConeAngle'],Light^.InnerConeAngle);
+          Light^.OuterConeAngle:=TPasJSON.GetNumber(SpotObject.Properties['outerConeAngle'],Light^.OuterConeAngle);
+         end;
          ColorItem:=LightObject.Properties['color'];
          if assigned(ColorItem) and (ColorItem is TPasJSONItemArray) then begin
           ColorArray:=TPasJSONItemArray(ColorItem);
