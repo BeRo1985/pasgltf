@@ -554,7 +554,7 @@ begin
      '          switch(light.metaData.x){'+#13#10+
      '            case 1u:'+#13#10+  // Directional
      '            case 2u:{'+#13#10+ // Point
-     '              lightAttenuation = 1.0;'+#13#10+
+     '              lightAttenuation *= 1.0;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '            case 3u:{'+#13#10+ // Spot
@@ -562,14 +562,12 @@ begin
      '              vec3 normalizedLightVector = normalize(lightVector);'+#13#10+
      '              float lightAngleScale = uintBitsToFloat(light.metaData.z);'+#13#10+
      '              float lightAngleOffset = uintBitsToFloat(light.metaData.w);'+#13#10+
-//   '              float angularAttenuation = smoothstep(0.9, 1.0, dot(spotlightDir, normalizedLightVector));'+#13#10+
      '              float angularAttenuation = clamp((dot(spotlightDir, normalizedLightVector) * lightAngleScale) + lightAngleOffset, 0.0, 1.0);'+#13#10+
-     '              angularAttenuation *= angularAttenuation;'+#13#10+
-     '              lightAttenuation = angularAttenuation;'+#13#10+
+     '              lightAttenuation *= angularAttenuation * angularAttenuation;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '            default:{'+#13#10+
-     '              lightAttenuation = 0.0;'+#13#10+
+     '              lightAttenuation *= 0.0;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '          }'+#13#10+
