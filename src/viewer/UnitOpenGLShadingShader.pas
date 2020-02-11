@@ -549,12 +549,12 @@ begin
      '      }else{'+#13#10+
      '        for(int lightIndex = 0, lightCount = int(lightMetaData.x); lightIndex < lightCount; lightIndex++){'+#13#10+
      '          Light light = lights[lightIndex];'+#13#10+
-     '          float lightAttenuation = 0.0f;'+#13#10+
-     '          float lightIntensity = 1.0f;'+#13#10+
+     '          float lightAttenuation = 0.0;'+#13#10+
+     '          float lightIntensity = 1.0;'+#13#10+
      '          vec3 lightVector = light.positionRange.xyz - vWorldSpacePosition.xyz;'+#13#10+
      '          switch(light.metaData.x){'+#13#10+
      '            case 1u:{'+#13#10+ // Directional
-     '              lightAttenuation = 1.0f;'+#13#10+
+     '              lightAttenuation = 1.0;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '            case 2u:{'+#13#10+ // Point
@@ -562,7 +562,7 @@ begin
      '              break;'+#13#10+
      '            }'+#13#10+
      '            case 3u:{'+#13#10+ // Spot
-     '              vec3 spotlightDir = light.direction.xyz;'+#13#10+
+     '              vec3 spotlightDir = -light.direction.xyz;'+#13#10+
      '              vec3 normalizedLightVector = normalize(-lightVector);'+#13#10+
      '              float lightAngleScale = uintBitsToFloat(light.metaData.z);'+#13#10+
      '              float lightAngleOffset = uintBitsToFloat(light.metaData.w);'+#13#10+
