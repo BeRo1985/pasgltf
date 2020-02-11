@@ -4211,6 +4211,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      LightShaderStorageBufferObjectDataItem:PLightShaderStorageBufferObjectDataItem;
      InstanceNode:TGLTFOpenGL.TInstance.PNode;
      Position,Direction:TPasGLTF.TVector3;
+     Matrix:TPasGLTF.TMatrix4x4;
  begin
   if length(fParent.fLights)>0 then begin
    for Index:=0 to length(fParent.fLights)-1 do begin
@@ -4219,12 +4220,16 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     NodeIndex:=Light.Node;
     if (NodeIndex>=0) and (NodeIndex<length(fNodes)) then begin
      InstanceNode:=@fNodes[NodeIndex];
-     Position[0]:=InstanceNode^.WorkMatrix[12];
-     Position[1]:=InstanceNode^.WorkMatrix[13];
-     Position[2]:=InstanceNode^.WorkMatrix[14];
-     Direction[0]:=InstanceNode^.WorkMatrix[8];
-     Direction[1]:=InstanceNode^.WorkMatrix[9];
-     Direction[2]:=InstanceNode^.WorkMatrix[10];
+     Matrix:=InstanceNode^.WorkMatrix;
+     TPasGLTF.TVector3(pointer(@Matrix[0])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[0])^));
+     TPasGLTF.TVector3(pointer(@Matrix[4])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[4])^));
+     TPasGLTF.TVector3(pointer(@Matrix[8])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[8])^));
+     Position[0]:=Matrix[12];
+     Position[1]:=Matrix[13];
+     Position[2]:=Matrix[14];
+     Direction[0]:=-Matrix[2];
+     Direction[1]:=-Matrix[6];
+     Direction[2]:=-Matrix[10];
      Direction:=Vector3Normalize(Direction);
      LightShaderStorageBufferObjectDataItem^.PositionRange[0]:=Position[0];
      LightShaderStorageBufferObjectDataItem^.PositionRange[1]:=Position[1];
