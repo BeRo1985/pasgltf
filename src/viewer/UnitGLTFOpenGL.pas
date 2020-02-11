@@ -320,6 +320,7 @@ type EGLTFOpenGL=class(Exception);
               Camera:TPasGLTFSizeInt;
               Skin:TPasGLTFSizeInt;
               Joint:TPasGLTFSizeInt;
+              Light:TPasGLTFSizeInt;
               Matrix:TPasGLTF.TMatrix4x4;
               Translation:TPasGLTF.TVector3;
               Rotation:TPasGLTF.TVector4;
@@ -442,12 +443,13 @@ type EGLTFOpenGL=class(Exception);
             TLightDataItem=packed record
              // uvec4 MetaData; begin
               Type_:TPasGLTFUInt32;
-              Index:TPasGLTFUInt32;
-              Reserved:array[0..1] of TPasGLTFUInt32;
+              Reserved:TPasGLTFUInt32;
+              InnerConeAngle:TPasGLTFFloat;
+              OuterConeAngle:TPasGLTFFloat;
              // uvec4 MetaData; end
              ColorIntensity:TPasGLTF.TVector4; // XYZ = Color RGB, W = Intensity
              PositionRange:TPasGLTF.TVector4; // XYZ = Position, W = Range
-             InnerConeAngleOuterConeAngle:TPasGLTF.TVector4; // X = InnerConeAngle, Y = OuterConeAngle
+             Direction:TPasGLTF.TVector4; // XYZ = Direction, W = Unused
             end;
             PLightDataItem=^TLightDataItem;
             TLightData=packed record
@@ -1103,6 +1105,7 @@ begin
 end;
 
 procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
+var HasLights:boolean;
  procedure LoadLights;
  var Index:TPasGLTFSizeInt;
      ExtensionObject:TPasJSONItemObject;
@@ -1112,7 +1115,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
      Light:PLight;
      TypeString:TPasJSONUTF8String;
  begin
-  if aDocument.ExtensionsUsed.IndexOf('KHR_lights_punctual')>=0 then begin
+  if HasLights then begin
    ExtensionObject:=aDocument.Extensions;
    if assigned(ExtensionObject) then begin
     KHRLightsPunctualItem:=ExtensionObject.Properties['KHR_lights_punctual'];
@@ -1127,6 +1130,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
        if assigned(LightItem) and (LightItem is TPasJSONItemObject) then begin
         LightObject:=TPasJSONItemObject(LightItem);
         Light:=@fLights[Index];
+        Light^.Node:=-1;
         TypeString:=TPasJSON.GetString(LightObject.Properties['type'],'');
         if TypeString='directional' then begin
          Light^.Type_:=TLightDataType.Directional;
@@ -2084,10 +2088,13 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
 
  end;
  procedure LoadNodes;
- var Index,WeightIndex,ChildrenIndex,Count:TPasGLTFSizeInt;
+ var Index,WeightIndex,ChildrenIndex,Count,LightIndex:TPasGLTFSizeInt;
      SourceNode:TPasGLTF.TNode;
      DestinationNode:PNode;
      Mesh:PMesh;
+     ExtensionObject:TPasJSONItemObject;
+     KHRLightsPunctualItem:TPasJSONItem;
+     KHRLightsPunctualObject:TPasJSONItemObject;
  begin
   SetLength(fNodes,aDocument.Nodes.Count);
   for Index:=0 to aDocument.Nodes.Count-1 do begin
@@ -2120,6 +2127,21 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
    SetLength(DestinationNode^.Children,SourceNode.Children.Count);
    for ChildrenIndex:=0 to length(DestinationNode^.Children)-1 do begin
     DestinationNode^.Children[ChildrenIndex]:=SourceNode.Children[ChildrenIndex];
+   end;
+   DestinationNode^.Light:=-1;
+   if HasLights then begin
+    ExtensionObject:=SourceNode.Extensions;
+    if assigned(ExtensionObject) then begin
+     KHRLightsPunctualItem:=ExtensionObject.Properties['KHR_lights_punctual'];
+     if assigned(KHRLightsPunctualItem) and (KHRLightsPunctualItem is TPasJSONItemObject) then begin
+      KHRLightsPunctualObject:=TPasJSONItemObject(KHRLightsPunctualItem);
+      LightIndex:=TPasJSON.GetInt64(KHRLightsPunctualObject.Properties['light'],-1);
+      if (LightIndex>=0) and (LightIndex<length(fLights)) then begin
+       fLights[LightIndex].Node:=Index;
+       DestinationNode^.Light:=LightIndex;
+      end;
+     end;
+    end;
    end;
   end;
  end;
@@ -2336,6 +2358,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
  end;
 begin
  if not fReady then begin
+  HasLights:=aDocument.ExtensionsUsed.IndexOf('KHR_lights_punctual')>=0;
   LoadLights;
   LoadAnimations;
   LoadImages;
