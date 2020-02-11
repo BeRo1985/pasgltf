@@ -1106,10 +1106,11 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
  procedure LoadLights;
  var Index:TPasGLTFSizeInt;
      ExtensionObject:TPasJSONItemObject;
-     KHRLightsPunctualItem,LightsItem,LightItem:TPasJSONItem;
+     KHRLightsPunctualItem,LightsItem,LightItem,ColorItem:TPasJSONItem;
      KHRLightsPunctualObject,LightObject:TPasJSONItemObject;
-     LightsArray:TPasJSONItemArray;
+     LightsArray,ColorArray:TPasJSONItemArray;
      Light:PLight;
+     TypeString:TPasJSONUTF8String;
  begin
   if aDocument.ExtensionsUsed.IndexOf('KHR_lights_punctual')>=0 then begin
    ExtensionObject:=aDocument.Extensions;
@@ -1124,7 +1125,16 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
       for Index:=0 to LightsArray.Count-1 do begin
        LightItem:=LightsArray.Items[Index];
        Light:=@fLights[Index];
-       Light^.Type_:=TLightDataType.None;
+       TypeString:=TPasJSON.GetString(LightObject.Properties['type'],'');
+       if TypeString='directional' then begin
+        Light^.Type_:=TLightDataType.Directional;
+       end else if TypeString='point' then begin
+        Light^.Type_:=TLightDataType.Point;
+       end else if TypeString='directional' then begin
+        Light^.Type_:=TLightDataType.Spot;
+       end else begin
+        Light^.Type_:=TLightDataType.None;
+       end;
        Light^.Intensity:=1.0;
        Light^.Range:=0.0;
        Light^.InnerConeAngle:=0.0;
@@ -1139,9 +1149,19 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
         Light^.Range:=TPasJSON.GetNumber(LightObject.Properties['range'],Light^.Range);
         Light^.InnerConeAngle:=TPasJSON.GetNumber(LightObject.Properties['innerConeAngle'],Light^.InnerConeAngle);
         Light^.OuterConeAngle:=TPasJSON.GetNumber(LightObject.Properties['outerConeAngle'],Light^.OuterConeAngle);
-        Light^.Color[0]:=1.0;
-        Light^.Color[1]:=1.0;
-        Light^.Color[2]:=1.0;
+        ColorItem:=LightObject.Properties['color'];
+        if assigned(ColorItem) and (ColorItem is TPasJSONItemArray) then begin
+         ColorArray:=TPasJSONItemArray(ColorItem);
+         if ColorArray.Count>0 then begin
+          Light^.Color[0]:=TPasJSON.GetNumber(ColorArray.Items[0],Light^.Color[0]);
+         end;
+         if ColorArray.Count>1 then begin
+          Light^.Color[1]:=TPasJSON.GetNumber(ColorArray.Items[1],Light^.Color[1]);
+         end;
+         if ColorArray.Count>2 then begin
+          Light^.Color[2]:=TPasJSON.GetNumber(ColorArray.Items[2],Light^.Color[2]);
+         end;
+        end;
        end;
       end;
      end;
