@@ -440,26 +440,31 @@ type EGLTFOpenGL=class(Exception);
                     Point=2;
                     Spot=3;
             end;
-            TLightDataItem=packed record
+            TLightShaderStorageBufferObjectDataItem=packed record
              // uvec4 MetaData; begin
               Type_:TPasGLTFUInt32;
               Reserved:TPasGLTFUInt32;
-              InnerConeAngle:TPasGLTFFloat;
-              OuterConeAngle:TPasGLTFFloat;
+              LightAngleScale:TPasGLTFFloat;
+              LightAngleOffset:TPasGLTFFloat;
              // uvec4 MetaData; end
              ColorIntensity:TPasGLTF.TVector4; // XYZ = Color RGB, W = Intensity
              PositionRange:TPasGLTF.TVector4; // XYZ = Position, W = Range
              Direction:TPasGLTF.TVector4; // XYZ = Direction, W = Unused
             end;
-            PLightDataItem=^TLightDataItem;
-            TLightData=packed record
+            PLightShaderStorageBufferObjectDataItem=^TLightShaderStorageBufferObjectDataItem;
+            TLightShaderStorageBufferObjectData=packed record
              // uvec4 MetaData; begin
               Count:TPasGLTFUInt32;
               Reserved:array[0..2] of TPasGLTFUInt32;
              // uvec4 MetaData; end
-             Lights:array[0..0] of TLightDataItem;
+             Lights:array[0..0] of TLightShaderStorageBufferObjectDataItem;
             end;
-            PLightData=^TLightData;
+            PLightShaderStorageBufferObjectData=^TLightShaderStorageBufferObjectData;
+            TLightShaderStorageBufferObject=record
+             ShaderStorageBufferObjectHandle:glUInt;
+             Size:TPasGLTFSizeInt;
+             Data:PLightShaderStorageBufferObjectData;
+            end;
             TLight=record
              public
               Type_:TPasGLTFUInt32;
@@ -493,6 +498,7 @@ type EGLTFOpenGL=class(Exception);
        fMorphTargetVertexShaderStorageBufferObjects:TMorphTargetVertexShaderStorageBufferObjects;
        fNodeMeshPrimitiveShaderStorageBufferObjects:TNodeMeshPrimitiveShaderStorageBufferObjects;
        fMaterialUniformBufferObjects:TMaterialUniformBufferObjects;
+       fLightShaderStorageBufferObject:TLightShaderStorageBufferObject;
        fVertexBufferObjectHandle:glInt;
        fIndexBufferObjectHandle:glInt;
        fVertexArrayHandle:glInt;
@@ -1065,6 +1071,7 @@ begin
  fMorphTargetVertexShaderStorageBufferObjects:=nil;
  fNodeMeshPrimitiveShaderStorageBufferObjects:=nil;
  fMaterialUniformBufferObjects:=nil;
+ FillChar(fLightShaderStorageBufferObject,SizeOf(TLightShaderStorageBufferObject),#0);
 end;
 
 destructor TGLTFOpenGL.Destroy;
@@ -1094,6 +1101,10 @@ begin
   fMorphTargetVertexShaderStorageBufferObjects:=nil;
   fNodeMeshPrimitiveShaderStorageBufferObjects:=nil;
   fMaterialUniformBufferObjects:=nil;
+  if assigned(fLightShaderStorageBufferObject.Data) then begin
+   FreeMem(fLightShaderStorageBufferObject.Data);
+  end;
+  FillChar(fLightShaderStorageBufferObject,SizeOf(TLightShaderStorageBufferObject),#0);
  end;
 end;
 
@@ -1131,16 +1142,7 @@ var HasLights:boolean;
         LightObject:=TPasJSONItemObject(LightItem);
         Light:=@fLights[Index];
         Light^.Node:=-1;
-        TypeString:=TPasJSON.GetString(LightObject.Properties['type'],'');
-        if TypeString='directional' then begin
-         Light^.Type_:=TLightDataType.Directional;
-        end else if TypeString='point' then begin
-         Light^.Type_:=TLightDataType.Point;
-        end else if TypeString='directional' then begin
-         Light^.Type_:=TLightDataType.Spot;
-        end else begin
-         Light^.Type_:=TLightDataType.None;
-        end;
+        Light^.Type_:=TLightDataType.None;
         Light^.Intensity:=1.0;
         Light^.Range:=0.0;
         Light^.InnerConeAngle:=0.0;
@@ -1150,7 +1152,16 @@ var HasLights:boolean;
         Light^.Color[2]:=1.0;
         if assigned(LightItem) and (LightItem is TPasJSONItemObject) then begin
          LightObject:=TPasJSONItemObject(LightItem);
-         Light^.Type_:=TLightDataType.None;
+         TypeString:=TPasJSON.GetString(LightObject.Properties['type'],'');
+         if TypeString='directional' then begin
+          Light^.Type_:=TLightDataType.Directional;
+         end else if TypeString='point' then begin
+          Light^.Type_:=TLightDataType.Point;
+         end else if TypeString='spot' then begin
+          Light^.Type_:=TLightDataType.Spot;
+         end else begin
+          Light^.Type_:=TLightDataType.None;
+         end;
          Light^.Intensity:=TPasJSON.GetNumber(LightObject.Properties['intensity'],Light^.Intensity);
          Light^.Range:=TPasJSON.GetNumber(LightObject.Properties['range'],Light^.Range);
          Light^.InnerConeAngle:=TPasJSON.GetNumber(LightObject.Properties['innerConeAngle'],Light^.InnerConeAngle);
@@ -2926,6 +2937,49 @@ var AllVertices:TAllVertices;
    glBindBuffer(GL_UNIFORM_BUFFER,0);
   end;
  end;
+ procedure CreateLightShaderStorageBufferObject;
+ var Index:TPasGLTFSizeInt;
+     Light:PLight;
+     LightShaderStorageBufferObjectDataItem:PLightShaderStorageBufferObjectDataItem;
+     InnerConeAngleCosinus,OuterConeAngleCosinus:TPasGLTFFloat;
+ begin
+  if fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle>0 then begin
+   glDeleteBuffers(1,@fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle);
+  end;
+  if assigned(fLightShaderStorageBufferObject.Data) then begin
+   FreeMem(fLightShaderStorageBufferObject.Data);
+  end;
+  FillChar(fLightShaderStorageBufferObject,SizeOf(TLightShaderStorageBufferObject),#0);
+  fLightShaderStorageBufferObject.Size:=SizeOf(TLightShaderStorageBufferObjectData)+(Max(0,length(fLights)-1)*SizeOf(TLightShaderStorageBufferObjectDataItem));
+  GetMem(fLightShaderStorageBufferObject.Data,fLightShaderStorageBufferObject.Size);
+  FillChar(fLightShaderStorageBufferObject.Data^,fLightShaderStorageBufferObject.Size,#0);
+  fLightShaderStorageBufferObject.Data^.Count:=length(fLights);
+  for Index:=0 to length(fLights)-1 do begin
+   Light:=@fLights[Index];
+   LightShaderStorageBufferObjectDataItem:=@fLightShaderStorageBufferObject.Data^.Lights[Index];
+   LightShaderStorageBufferObjectDataItem^.Type_:=Light^.Type_;
+   InnerConeAngleCosinus:=cos(Light^.InnerConeAngle);
+   OuterConeAngleCosinus:=cos(Light^.OuterConeAngle);
+   LightShaderStorageBufferObjectDataItem^.LightAngleScale:=1.0/Max(1e-3,InnerConeAngleCosinus-OuterConeAngleCosinus);
+   LightShaderStorageBufferObjectDataItem^.LightAngleOffset:=-(OuterConeAngleCosinus*LightShaderStorageBufferObjectDataItem^.LightAngleScale);
+   LightShaderStorageBufferObjectDataItem^.ColorIntensity[0]:=Light^.Color[0];
+   LightShaderStorageBufferObjectDataItem^.ColorIntensity[1]:=Light^.Color[1];
+   LightShaderStorageBufferObjectDataItem^.ColorIntensity[2]:=Light^.Color[2];
+   LightShaderStorageBufferObjectDataItem^.ColorIntensity[3]:=Light^.Intensity;
+   LightShaderStorageBufferObjectDataItem^.PositionRange[0]:=0.0;
+   LightShaderStorageBufferObjectDataItem^.PositionRange[1]:=0.0;
+   LightShaderStorageBufferObjectDataItem^.PositionRange[2]:=0.0;
+   LightShaderStorageBufferObjectDataItem^.PositionRange[3]:=Light^.Range;
+   LightShaderStorageBufferObjectDataItem^.Direction[0]:=0.0;
+   LightShaderStorageBufferObjectDataItem^.Direction[1]:=0.0;
+   LightShaderStorageBufferObjectDataItem^.Direction[2]:=-1.0;
+   LightShaderStorageBufferObjectDataItem^.Direction[3]:=0.0;
+  end;
+  glGenBuffers(1,@fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER,fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle);
+  glBufferData(GL_SHADER_STORAGE_BUFFER,fLightShaderStorageBufferObject.Size,fLightShaderStorageBufferObject.Data,GL_DYNAMIC_DRAW);
+  glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
+ end;
 begin
  if not fUploaded then begin
   fUploaded:=true;
@@ -2945,6 +2999,7 @@ begin
     CreateFrameGlobalsUniformBufferObject;
     CreateNodeMeshPrimitiveShaderStorageBufferObjects;
     CreateMaterialUniformBufferObjects;
+    CreateLightShaderStorageBufferObject;
    finally
     FreeAndNil(AllIndices);
    end;
@@ -3022,6 +3077,16 @@ procedure TGLTFOpenGL.Unload;
   end;
   fMaterialUniformBufferObjects:=nil;
  end;
+ procedure DestroyLightShaderStorageBufferObject;
+ begin
+  if fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle>0 then begin
+   glDeleteBuffers(1,@fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle);
+  end;
+  if assigned(fLightShaderStorageBufferObject.Data) then begin
+   FreeMem(fLightShaderStorageBufferObject.Data);
+  end;
+  FillChar(fLightShaderStorageBufferObject,SizeOf(TLightShaderStorageBufferObject),#0);
+ end;
 begin
  if fUploaded then begin
   fUploaded:=false;
@@ -3032,6 +3097,7 @@ begin
   DestroyNodeMeshPrimitiveShaderStorageBufferObjects;
   DestroyFrameGlobalsUniformBufferObject;
   DestroyMaterialUniformBufferObjects;
+  DestroyLightShaderStorageBufferObject;
  end;
 end;
 
@@ -4082,6 +4148,11 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
                        fParent.fNodeMeshPrimitiveShaderStorageBufferObjects[MeshPrimitiveMetaData^.ShaderStorageBufferObjectIndex].ShaderStorageBufferObjectHandle,
                        MeshPrimitiveMetaData^.ShaderStorageBufferObjectByteOffset,
                        MeshPrimitiveMetaData^.ShaderStorageBufferObjectByteSize);
+     glBindBufferRange(GL_SHADER_STORAGE_BUFFER,
+                       TShadingShader.ssboLightData,
+                       fParent.fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle,
+                       0,
+                       fParent.fLightShaderStorageBufferObject.Size);
      glDrawElements(Primitive^.PrimitiveMode,
                     Primitive^.CountIndices,
                     GL_UNSIGNED_INT,
@@ -4134,6 +4205,27 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
                    TShadingShader.uboFrameGlobals,
                    fParent.fFrameGlobalsUniformBufferObjectHandle);
  end;
+ procedure UpdateLights;
+ var Index:TPasGLTFSizeInt;
+     Light:PLight;
+     LightShaderStorageBufferObjectDataItem:PLightShaderStorageBufferObjectDataItem;
+ begin
+  if length(fParent.fLights)>0 then begin
+   for Index:=0 to length(fParent.fLights)-1 do begin
+    Light:=@fParent.fLights[Index];
+    LightShaderStorageBufferObjectDataItem:=@fParent.fLightShaderStorageBufferObject.Data^.Lights[Index];
+    LightShaderStorageBufferObjectDataItem^.PositionRange[0]:=0.0;
+    LightShaderStorageBufferObjectDataItem^.PositionRange[1]:=0.0;
+    LightShaderStorageBufferObjectDataItem^.PositionRange[2]:=0.0;
+    LightShaderStorageBufferObjectDataItem^.Direction[0]:=0.0;
+    LightShaderStorageBufferObjectDataItem^.Direction[1]:=0.0;
+    LightShaderStorageBufferObjectDataItem^.Direction[2]:=-1.0;
+   end;
+   glBindBuffer(GL_SHADER_STORAGE_BUFFER,fParent.fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle);
+   glBufferData(GL_SHADER_STORAGE_BUFFER,fParent.fLightShaderStorageBufferObject.Size,fParent.fLightShaderStorageBufferObject.Data,GL_DYNAMIC_DRAW);
+   glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
+  end;
+ end;
 var Index:TPasGLTFSizeInt;
     Scene:PScene;
     AlphaMode:TPasGLTF.TMaterial.TAlphaMode;
@@ -4142,6 +4234,7 @@ begin
  if assigned(Scene) then begin
   CurrentSkinShaderStorageBufferObjectHandle:=0;
   UpdateFrameGlobalsUniformBufferObject;
+  UpdateLights;
   glBindVertexArray(fParent.fVertexArrayHandle);
   glBindBuffer(GL_ARRAY_BUFFER,fParent.fVertexBufferObjectHandle);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fParent.fIndexBufferObjectHandle);

@@ -118,6 +118,7 @@ type TShadingShader=class(TShader)
              ssboJointMatrices=2;
              ssboMorphTargetVertices=3;
              ssboNodeMeshPrimitiveMetaData=4;
+             ssboLightData=5;
       public
        uBaseColorTexture:glInt;
        uMetallicRoughnessTexture:glInt;
@@ -273,6 +274,16 @@ begin
     '  vec4 metallicRoughnessNormalScaleOcclusionStrengthFactor;'+#13#10+
     '  uvec4 alphaCutOffFlagsTex0Tex1;'+#13#10+
     '} uMaterial;'+#13#10+
+    'struct Light {'+#13#10+
+    '  uvec4 metaData;'+#13#10+
+    '  vec4 colorIntensity;'+#13#10+
+    '  vec4 positionRange;'+#13#10+
+    '  vec4 direction;'+#13#10+
+    '};'+#13#10+
+    'layout(std430, binding = '+IntToStr(ssboLightData)+') buffer ssboLightData {'+#13#10+
+    '  uvec4 lightMetaData;'+#13#10+
+    '  Light lights[];'+#13#10+
+    '};'+#13#10+
     'vec3 convertLinearRGBToSRGB(vec3 c){'+#13#10+
     '  return mix((pow(c, vec3(1.0 / 2.4)) * vec3(1.055)) - vec3(5.5e-2),'+#13#10+
     '             c * vec3(12.92),'+#13#10+
@@ -503,6 +514,7 @@ begin
      '            shadow = 1.0,'+#13#10+
      '            reflectance = max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z);'+#13#10+
      '      vec3 viewDirection = normalize(vCameraRelativePosition);'+#13#10+
+     '      if(lightMetaData.x == 0u){'+#13#10+
 {    '      color.xyz += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
      '                                  pow(vec3(litIntensity), vec3(1.05, 1.02, 1.0)),'+#13#10+
      '                                  -uLightDirection,'+#13#10+
@@ -523,18 +535,70 @@ begin
      '                     // Bounce light'+#13#10+
      '                     (clamp(-normal.y, 0.0, 1.0) * vec3(0.18, 0.24, 0.24) * mix(0.5, 1.0, ambientOcclusion))'+#13#10+
      '                    ) * diffuseLambert(diffuseColorAlpha.xyz) * cavity));'+#13#10+ (*{}
- (**)'      color.xyz += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
-     '                                 pow(vec3(litIntensity), vec3(1.05, 1.02, 1.0)),'+#13#10+
-     '                                 -uLightDirection,'+#13#10+
-     '                                 normal.xyz,'+#13#10+
-     '                                 diffuseColorAlpha.xyz,'+#13#10+
-     '                                 specularColorRoughness.xyz,'+#13#10+
-     '                                 -viewDirection,'+#13#10+
-     '                                 refractiveAngle,'+#13#10+
-     '                                 transparency,'+#13#10+
-     '                                 specularColorRoughness.w,'+#13#10+
-     '                                 cavity);'+#13#10+(**)
-     '      {'+#13#10+
+ (**)'        color.xyz += doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
+     '                                   pow(vec3(litIntensity), vec3(1.05, 1.02, 1.0)),'+#13#10+
+     '                                   -uLightDirection,'+#13#10+
+     '                                   normal.xyz,'+#13#10+
+     '                                   diffuseColorAlpha.xyz,'+#13#10+
+     '                                   specularColorRoughness.xyz,'+#13#10+
+     '                                  -viewDirection,'+#13#10+
+     '                                  refractiveAngle,'+#13#10+
+     '                                   transparency,'+#13#10+
+     '                                  specularColorRoughness.w,'+#13#10+
+     '                                  cavity);'+#13#10+(**)
+     '      }else{'+#13#10+
+     '        for(int lightIndex = 0, lightCount = int(lightMetaData.x); lightIndex < lightCount; lightIndex++){'+#13#10+
+     '          Light light = lights[lightIndex];'+#13#10+
+     '          float lightAttenuation = 0.0f;'+#13#10+
+     '          float lightIntensity = 1.0f;'+#13#10+
+     '          switch(light.metaData.x){'+#13#10+
+     '            case 1u:{'+#13#10+ // Directional
+     '              lightAttenuation = 1.0f;'+#13#10+
+     '              break;'+#13#10+
+     '            }'+#13#10+
+     '            case 2u:{'+#13#10+ // Point
+     '              lightAttenuation = 1.0;'+#13#10+
+     '              break;'+#13#10+
+     '            }'+#13#10+
+     '            case 3u:{'+#13#10+ // Spot
+     '              vec3 spotlightDir = light.direction.xyz;'+#13#10+
+     '              vec3 normalizedLightVector = -viewDirection;'+#13#10+
+     '              float lightAngleScale = uintBitsToFloat(light.metaData.z);'+#13#10+
+     '              float lightAngleOffset = uintBitsToFloat(light.metaData.w);'+#13#10+
+     '              float angularAttenuation = clamp((dot(spotlightDir, normalizedLightVector) * lightAngleScale) + lightAngleOffset, 0.0, 1.0);'+#13#10+
+     '              angularAttenuation *= angularAttenuation;'+#13#10+
+     '              lightAttenuation = angularAttenuation;'+#13#10+
+     '              break;'+#13#10+
+     '            }'+#13#10+
+     '            default:{'+#13#10+
+     '              break;'+#13#10+
+     '            }'+#13#10+
+     '          }'+#13#10+
+     '          switch(light.metaData.x){'+#13#10+
+     '            case 2u:'+#13#10+  // Point
+     '            case 3u:{'+#13#10+ // Spot
+     '              float currentDistance = length(vWorldSpacePosition - light.positionRange.xyz);'+#13#10+
+     '              float f = currentDistance / light.positionRange.w;'+#13#10+
+     '              lightAttenuation *= (currentDistance > 0.0f) ? (clamp(1.0 - (f * f * f * f), 0.0, 1.0) / (currentDistance * currentDistance)) : 1.0;'+#13#10+
+     '              break;'+#13#10+
+     '            }'+#13#10+
+     '          }'+#13#10+
+     '          if(lightAttenuation.x > 0.0f){'+#13#10+
+     '            color.xyz += doSingleLight(light.colorIntensity.xyz,'+#13#10+
+     '                                       vec3(lightIntensity),'+#13#10+
+     '                                       -light.direction.xyz,'+#13#10+
+     '                                       normal.xyz,'+#13#10+
+     '                                       diffuseColorAlpha.xyz,'+#13#10+
+     '                                       specularColorRoughness.xyz,'+#13#10+
+     '                                       -viewDirection,'+#13#10+
+     '                                       refractiveAngle,'+#13#10+
+     '                                       transparency,'+#13#10+
+     '                                       specularColorRoughness.w,'+#13#10+
+     '                                       cavity) * lightAttenuation;'+#13#10+
+     '          }'+#13#10+
+     '        }'+#13#10+
+     '      }'+#13#10+
+     '      if(false){'+#13#10+
      '        vec3 reflectionVector = normalize(reflect(viewDirection, normal.xyz));'+#13#10+
      '        float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
      '              ao = cavity * ambientOcclusion,'+#13#10+
