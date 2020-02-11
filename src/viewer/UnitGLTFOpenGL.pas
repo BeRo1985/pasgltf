@@ -4206,20 +4206,40 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
                    fParent.fFrameGlobalsUniformBufferObjectHandle);
  end;
  procedure UpdateLights;
- var Index:TPasGLTFSizeInt;
+ var Index,NodeIndex:TPasGLTFSizeInt;
      Light:PLight;
      LightShaderStorageBufferObjectDataItem:PLightShaderStorageBufferObjectDataItem;
+     InstanceNode:TGLTFOpenGL.TInstance.PNode;
+     Position,Direction:TPasGLTF.TVector3;
  begin
   if length(fParent.fLights)>0 then begin
    for Index:=0 to length(fParent.fLights)-1 do begin
     Light:=@fParent.fLights[Index];
     LightShaderStorageBufferObjectDataItem:=@fParent.fLightShaderStorageBufferObject.Data^.Lights[Index];
-    LightShaderStorageBufferObjectDataItem^.PositionRange[0]:=0.0;
-    LightShaderStorageBufferObjectDataItem^.PositionRange[1]:=0.0;
-    LightShaderStorageBufferObjectDataItem^.PositionRange[2]:=0.0;
-    LightShaderStorageBufferObjectDataItem^.Direction[0]:=0.0;
-    LightShaderStorageBufferObjectDataItem^.Direction[1]:=0.0;
-    LightShaderStorageBufferObjectDataItem^.Direction[2]:=-1.0;
+    NodeIndex:=Light.Node;
+    if (NodeIndex>=0) and (NodeIndex<length(fNodes)) then begin
+     InstanceNode:=@fNodes[NodeIndex];
+     Position[0]:=InstanceNode^.WorkMatrix[12];
+     Position[1]:=InstanceNode^.WorkMatrix[13];
+     Position[2]:=InstanceNode^.WorkMatrix[14];
+     Direction[0]:=InstanceNode^.WorkMatrix[2];
+     Direction[1]:=InstanceNode^.WorkMatrix[6];
+     Direction[2]:=InstanceNode^.WorkMatrix[10];
+     Direction:=Vector3Normalize(Direction);
+     LightShaderStorageBufferObjectDataItem^.PositionRange[0]:=Position[0];
+     LightShaderStorageBufferObjectDataItem^.PositionRange[1]:=Position[1];
+     LightShaderStorageBufferObjectDataItem^.PositionRange[2]:=Position[2];
+     LightShaderStorageBufferObjectDataItem^.Direction[0]:=Direction[0];
+     LightShaderStorageBufferObjectDataItem^.Direction[1]:=Direction[1];
+     LightShaderStorageBufferObjectDataItem^.Direction[2]:=Direction[2];
+    end else begin
+     LightShaderStorageBufferObjectDataItem^.PositionRange[0]:=0.0;
+     LightShaderStorageBufferObjectDataItem^.PositionRange[1]:=0.0;
+     LightShaderStorageBufferObjectDataItem^.PositionRange[2]:=0.0;
+     LightShaderStorageBufferObjectDataItem^.Direction[0]:=0.0;
+     LightShaderStorageBufferObjectDataItem^.Direction[1]:=0.0;
+     LightShaderStorageBufferObjectDataItem^.Direction[2]:=-1.0;
+    end;
    end;
    glBindBuffer(GL_SHADER_STORAGE_BUFFER,fParent.fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle);
    glBufferData(GL_SHADER_STORAGE_BUFFER,fParent.fLightShaderStorageBufferObject.Size,fParent.fLightShaderStorageBufferObject.Data,GL_DYNAMIC_DRAW);

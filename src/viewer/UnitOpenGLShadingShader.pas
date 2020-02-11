@@ -551,6 +551,7 @@ begin
      '          Light light = lights[lightIndex];'+#13#10+
      '          float lightAttenuation = 0.0f;'+#13#10+
      '          float lightIntensity = 1.0f;'+#13#10+
+     '          vec3 lightVector = light.positionRange.xyz - vWorldSpacePosition.xyz;'+#13#10+
      '          switch(light.metaData.x){'+#13#10+
      '            case 1u:{'+#13#10+ // Directional
      '              lightAttenuation = 1.0f;'+#13#10+
@@ -562,7 +563,7 @@ begin
      '            }'+#13#10+
      '            case 3u:{'+#13#10+ // Spot
      '              vec3 spotlightDir = light.direction.xyz;'+#13#10+
-     '              vec3 normalizedLightVector = -viewDirection;'+#13#10+
+     '              vec3 normalizedLightVector = normalize(-lightVector);'+#13#10+
      '              float lightAngleScale = uintBitsToFloat(light.metaData.z);'+#13#10+
      '              float lightAngleOffset = uintBitsToFloat(light.metaData.w);'+#13#10+
      '              float angularAttenuation = clamp((dot(spotlightDir, normalizedLightVector) * lightAngleScale) + lightAngleOffset, 0.0, 1.0);'+#13#10+
@@ -577,9 +578,11 @@ begin
      '          switch(light.metaData.x){'+#13#10+
      '            case 2u:'+#13#10+  // Point
      '            case 3u:{'+#13#10+ // Spot
-     '              float currentDistance = length(vWorldSpacePosition - light.positionRange.xyz);'+#13#10+
-     '              float f = currentDistance / light.positionRange.w;'+#13#10+
-     '              lightAttenuation *= (currentDistance > 0.0f) ? (clamp(1.0 - (f * f * f * f), 0.0, 1.0) / (currentDistance * currentDistance)) : 1.0;'+#13#10+
+     '              if(light.positionRange.w > 0.0){'+#13#10+
+     '                float currentDistance = length(lightVector);'+#13#10+
+     '                float f = currentDistance / light.positionRange.w;'+#13#10+
+     '                lightAttenuation *= (currentDistance > 0.0f) ? (clamp(1.0 - (f * f * f * f), 0.0, 1.0) / (currentDistance * currentDistance)) : 1.0;'+#13#10+
+     '              }'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '          }'+#13#10+
