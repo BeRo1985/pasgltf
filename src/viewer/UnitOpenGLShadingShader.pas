@@ -554,15 +554,17 @@ begin
      '          switch(light.metaData.x){'+#13#10+
      '            case 1u:'+#13#10+  // Directional
      '            case 2u:{'+#13#10+ // Point
-     '              lightAttenuation *= 1.0;'+#13#10+
+//   '              lightAttenuation *= 0.0;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '            case 3u:{'+#13#10+ // Spot
-     '              vec3 spotlightDir = -light.direction.xyz;'+#13#10+
-     '              vec3 normalizedLightVector = normalize(lightVector);'+#13#10+
      '              float lightAngleScale = uintBitsToFloat(light.metaData.z);'+#13#10+
      '              float lightAngleOffset = uintBitsToFloat(light.metaData.w);'+#13#10+
-     '              float angularAttenuation = clamp((dot(spotlightDir, normalizedLightVector) * lightAngleScale) + lightAngleOffset, 0.0, 1.0);'+#13#10+
+     '              float angularAttenuation = clamp(fma(dot(normalize(light.direction.xyz), normalize(-lightVector)), lightAngleScale, lightAngleOffset), 0.0, 1.0);'+#13#10+
+{    '              float innerConeCosinus = uintBitsToFloat(light.metaData.z);'+#13#10+
+     '              float outerConeCosinus = uintBitsToFloat(light.metaData.w);'+#13#10+
+     '              float actualCosinus = dot(normalize(light.direction.xyz), normalize(-lightVector));'+#13#10+
+     '              float angularAttenuation = mix(0.0, mix(smoothstep(outerConeCosinus, innerConeCosinus, actualCosinus), 1.0, step(innerConeCosinus, actualCosinus)), step(outerConeCosinus, actualCosinus));'+#13#10+}
      '              lightAttenuation *= angularAttenuation * angularAttenuation;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
@@ -574,15 +576,15 @@ begin
      '          switch(light.metaData.x){'+#13#10+
      '            case 2u:'+#13#10+  // Point
      '            case 3u:{'+#13#10+ // Spot
-     '              float currentDistance = length(lightVector);'+#13#10+
-     '              if(currentDistance > 0.0){'+#13#10+
-     '                lightAttenuation *= 1.0 / (currentDistance * currentDistance);'+#13#10+
-     '                if(light.positionRange.w > 0.0){'+#13#10+
-     '                  float distanceByRange = currentDistance / light.positionRange.w;'+#13#10+
-     '                  lightAttenuation *= clamp(1.0 - (distanceByRange * distanceByRange * distanceByRange * distanceByRange), 0.0, 1.0);'+#13#10+
+     '              if(light.positionRange.w >= 0.0){'+#13#10+
+     '                float currentDistance = length(lightVector);'+#13#10+
+     '                if(currentDistance > 0.0){'+#13#10+
+     '                  lightAttenuation *= 1.0 / (currentDistance * currentDistance);'+#13#10+
+     '                  if(light.positionRange.w > 0.0){'+#13#10+
+     '                    float distanceByRange = currentDistance / light.positionRange.w;'+#13#10+
+     '                    lightAttenuation *= clamp(1.0 - (distanceByRange * distanceByRange * distanceByRange * distanceByRange), 0.0, 1.0);'+#13#10+
+     '                  }'+#13#10+
      '                }'+#13#10+
-     '              }else{'+#13#10+
-     '                lightAttenuation *= 1.0;'+#13#10+
      '              }'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+

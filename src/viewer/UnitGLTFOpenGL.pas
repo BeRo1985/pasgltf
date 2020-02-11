@@ -446,6 +446,8 @@ type EGLTFOpenGL=class(Exception);
               Reserved:TPasGLTFUInt32;
               LightAngleScale:TPasGLTFFloat;
               LightAngleOffset:TPasGLTFFloat;
+{             InnerConeAngle:TPasGLTFFloat;
+              OuterConeAngle:TPasGLTFFloat;}
              // uvec4 MetaData; end
              ColorIntensity:TPasGLTF.TVector4; // XYZ = Color RGB, W = Intensity
              PositionRange:TPasGLTF.TVector4; // XYZ = Position, W = Range
@@ -2960,8 +2962,10 @@ var AllVertices:TAllVertices;
    LightShaderStorageBufferObjectDataItem^.Type_:=Light^.Type_;
    InnerConeAngleCosinus:=cos(Light^.InnerConeAngle);
    OuterConeAngleCosinus:=cos(Light^.OuterConeAngle);
-   LightShaderStorageBufferObjectDataItem^.LightAngleScale:=1.0/Max(1e-3,InnerConeAngleCosinus-OuterConeAngleCosinus);
+   LightShaderStorageBufferObjectDataItem^.LightAngleScale:=1.0/Max(1e-5,InnerConeAngleCosinus-OuterConeAngleCosinus);
    LightShaderStorageBufferObjectDataItem^.LightAngleOffset:=-(OuterConeAngleCosinus*LightShaderStorageBufferObjectDataItem^.LightAngleScale);
+{  LightShaderStorageBufferObjectDataItem^.InnerConeAngle:=cos(Light^.InnerConeAngle);
+   LightShaderStorageBufferObjectDataItem^.OuterConeAngle:=cos(Light^.OuterConeAngle);}
    LightShaderStorageBufferObjectDataItem^.ColorIntensity[0]:=Light^.Color[0];
    LightShaderStorageBufferObjectDataItem^.ColorIntensity[1]:=Light^.Color[1];
    LightShaderStorageBufferObjectDataItem^.ColorIntensity[2]:=Light^.Color[2];
