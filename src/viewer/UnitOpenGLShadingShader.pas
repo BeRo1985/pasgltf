@@ -549,15 +549,11 @@ begin
      '      }else{'+#13#10+
      '        for(int lightIndex = 0, lightCount = int(lightMetaData.x); lightIndex < lightCount; lightIndex++){'+#13#10+
      '          Light light = lights[lightIndex];'+#13#10+
-     '          float lightAttenuation = 0.0;'+#13#10+
+     '          float lightAttenuation = 1.0;'+#13#10+
      '          vec3 lightVector = light.positionRange.xyz - vWorldSpacePosition.xyz;'+#13#10+
      '          switch(light.metaData.x){'+#13#10+
-     '            case 1u:{'+#13#10+ // Directional
-     '              lightAttenuation = 1.0;'+#13#10+
-     '              break;'+#13#10+
-     '            }'+#13#10+
+     '            case 1u:'+#13#10+  // Directional
      '            case 2u:{'+#13#10+ // Point
-     '              lightAttenuation = 1.0;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '            case 3u:{'+#13#10+ // Spot
@@ -571,6 +567,7 @@ begin
      '              break;'+#13#10+
      '            }'+#13#10+
      '            default:{'+#13#10+
+     '              lightAttenuation = 0.0;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '          }'+#13#10+
@@ -579,10 +576,10 @@ begin
      '            case 3u:{'+#13#10+ // Spot
      '              float currentDistance = length(lightVector);'+#13#10+
      '              if(currentDistance > 0.0){'+#13#10+
-     '               lightAttenuation = 1.0 / (currentDistance * currentDistance);'+#13#10+
-     '               if(light.positionRange.w > 0.0){'+#13#10+
-     '                 float distanceByRange = currentDistance / light.positionRange.w;'+#13#10+
-     '                 lightAttenuation *= clamp(1.0 - (distanceByRange * distanceByRange * distanceByRange * distanceByRange), 0.0, 1.0);'+#13#10+
+     '                lightAttenuation = 1.0 / (currentDistance * currentDistance);'+#13#10+
+     '                if(light.positionRange.w > 0.0){'+#13#10+
+     '                  float distanceByRange = currentDistance / light.positionRange.w;'+#13#10+
+     '                  lightAttenuation *= clamp(1.0 - (distanceByRange * distanceByRange * distanceByRange * distanceByRange), 0.0, 1.0);'+#13#10+
      '                }'+#13#10+
      '              }else{'+#13#10+
      '                lightAttenuation = 1.0;'+#13#10+
