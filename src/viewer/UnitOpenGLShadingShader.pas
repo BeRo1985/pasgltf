@@ -602,7 +602,7 @@ begin
      '          }'+#13#10+
      '        }'+#13#10+
      '      }'+#13#10+
-     '      if(false){'+#13#10+
+     '      if(lightMetaData.x == 0u){'+#13#10+
      '        vec3 reflectionVector = normalize(reflect(viewDirection, normal.xyz));'+#13#10+
      '        float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
      '              ao = cavity * ambientOcclusion,'+#13#10+
