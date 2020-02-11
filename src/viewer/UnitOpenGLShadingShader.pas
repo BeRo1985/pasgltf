@@ -554,6 +554,7 @@ begin
      '          switch(light.metaData.x){'+#13#10+
      '            case 1u:'+#13#10+  // Directional
      '            case 2u:{'+#13#10+ // Point
+     '              lightAttenuation = 1.0;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '            case 3u:{'+#13#10+ // Spot
@@ -561,6 +562,7 @@ begin
      '              vec3 normalizedLightVector = normalize(lightVector);'+#13#10+
      '              float lightAngleScale = uintBitsToFloat(light.metaData.z);'+#13#10+
      '              float lightAngleOffset = uintBitsToFloat(light.metaData.w);'+#13#10+
+//   '              float angularAttenuation = smoothstep(0.9, 1.0, dot(spotlightDir, normalizedLightVector));'+#13#10+
      '              float angularAttenuation = clamp((dot(spotlightDir, normalizedLightVector) * lightAngleScale) + lightAngleOffset, 0.0, 1.0);'+#13#10+
      '              angularAttenuation *= angularAttenuation;'+#13#10+
      '              lightAttenuation = angularAttenuation;'+#13#10+
@@ -576,18 +578,18 @@ begin
      '            case 3u:{'+#13#10+ // Spot
      '              float currentDistance = length(lightVector);'+#13#10+
      '              if(currentDistance > 0.0){'+#13#10+
-     '                lightAttenuation = 1.0 / (currentDistance * currentDistance);'+#13#10+
+     '                lightAttenuation *= 1.0 / (currentDistance * currentDistance);'+#13#10+
      '                if(light.positionRange.w > 0.0){'+#13#10+
      '                  float distanceByRange = currentDistance / light.positionRange.w;'+#13#10+
      '                  lightAttenuation *= clamp(1.0 - (distanceByRange * distanceByRange * distanceByRange * distanceByRange), 0.0, 1.0);'+#13#10+
      '                }'+#13#10+
      '              }else{'+#13#10+
-     '                lightAttenuation = 1.0;'+#13#10+
+     '                lightAttenuation *= 1.0;'+#13#10+
      '              }'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '          }'+#13#10+
-     '          if(lightAttenuation.x > 0.0f){'+#13#10+
+     '          if(lightAttenuation > 0.0){'+#13#10+
      '            color.xyz += doSingleLight(light.colorIntensity.xyz * light.colorIntensity.w,'+#13#10+
      '                                       vec3(1.0),'+#13#10+
      '                                       -light.direction.xyz,'+#13#10+
