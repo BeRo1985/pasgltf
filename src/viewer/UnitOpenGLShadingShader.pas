@@ -577,10 +577,15 @@ begin
      '          switch(light.metaData.x){'+#13#10+
      '            case 2u:'+#13#10+  // Point
      '            case 3u:{'+#13#10+ // Spot
-     '              if(light.positionRange.w > 0.0){'+#13#10+
-     '                float currentDistance = length(lightVector);'+#13#10+
-     '                float f = currentDistance / light.positionRange.w;'+#13#10+
-     '                lightAttenuation *= (currentDistance > 0.0f) ? (clamp(1.0 - (f * f * f * f), 0.0, 1.0) / (currentDistance * currentDistance)) : 1.0;'+#13#10+
+     '              float currentDistance = length(lightVector);'+#13#10+
+     '              if(currentDistance > 0.0){'+#13#10+
+     '               lightAttenuation = 1.0 / (currentDistance * currentDistance);'+#13#10+
+     '               if(light.positionRange.w > 0.0){'+#13#10+
+     '                 float distanceByRange = currentDistance / light.positionRange.w;'+#13#10+
+     '                 lightAttenuation *= clamp(1.0 - (distanceByRange * distanceByRange * distanceByRange * distanceByRange), 0.0, 1.0);'+#13#10+
+     '                }'+#13#10+
+     '              }else{'+#13#10+
+     '                lightAttenuation = 1.0;'+#13#10+
      '              }'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
