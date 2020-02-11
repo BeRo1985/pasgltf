@@ -432,6 +432,42 @@ type EGLTFOpenGL=class(Exception);
             end;
             PNodeMeshPrimitiveShaderStorageBufferObject=^TNodeMeshPrimitiveShaderStorageBufferObject;
             TNodeMeshPrimitiveShaderStorageBufferObjects=array of TNodeMeshPrimitiveShaderStorageBufferObject;
+            TLightDataType=class
+             public
+              const None=0;
+                    Directional=1;
+                    Point=2;
+                    Spot=3;
+            end;
+            TLightDataItem=packed record
+             // uvec4 MetaData; begin
+              Type_:TPasGLTFUInt32;
+              Index:TPasGLTFUInt32;
+              Reserved:array[0..1] of TPasGLTFUInt32;
+             // uvec4 MetaData; end
+             ColorIntensity:TPasGLTF.TVector4; // XYZ = Color RGB, W = Intensity
+             PositionRange:TPasGLTF.TVector4; // XYZ = Position, W = Range
+             InnerConeAngleOuterConeAngle:TPasGLTF.TVector4; // X = InnerConeAngle, Y = OuterConeAngle
+            end;
+            PLightDataItem=^TLightDataItem;
+            TLightData=packed record
+             // uvec4 MetaData; begin
+              Count:TPasGLTFUInt32;
+              Reserved:array[0..2] of TPasGLTFUInt32;
+             // uvec4 MetaData; end
+             Lights:array[0..0] of TLightDataItem;
+            end;
+            PLightData=^TLightData;
+            TLight=record
+             public
+              Type_:TPasGLTFUInt32;
+              Node:TPasGLTFInt32;
+              Intensity:TPasGLTFFloat;
+              Range:TPasGLTFFloat;
+              InnerConeAngle:TPasGLTFFloat;
+              OuterConeAngle:TPasGLTFFloat;
+              Color:TPasGLTF.TVector3;
+            end;
        const EmptyBoundingBox:TBoundingBox=(Min:(Infinity,Infinity,Infinity);Max:(NegInfinity,NegInfinity,NegInfinity));
       private
        fReady:boolean;
@@ -1061,6 +1097,29 @@ begin
 end;
 
 procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
+ procedure LoadLights;
+ var Index:TPasGLTFSizeInt;
+     ExtensionObject:TPasJSONItemObject;
+     KHRLightsPunctualItem,LightsItem:TPasJSONItem;
+     KHRLightsPunctualObject:TPasJSONItemObject;
+     LightsArray:TPasJSONItemArray;
+ begin
+  if aDocument.ExtensionsUsed.IndexOf('KHR_lights_punctual')>=0 then begin
+   ExtensionObject:=aDocument.Extensions;
+   if assigned(ExtensionObject) then begin
+    KHRLightsPunctualItem:=ExtensionObject.Properties['KHR_lights_punctual'];
+    if assigned(KHRLightsPunctualItem) and (KHRLightsPunctualItem is TPasJSONItemObject) then begin
+     KHRLightsPunctualObject:=TPasJSONItemObject(KHRLightsPunctualItem);
+     LightsItem:=KHRLightsPunctualObject.Properties['lights'];
+     if assigned(LightsItem) and (LightsItem is TPasJSONItemArray) then begin
+      LightsArray:=TPasJSONItemArray(LightsItem);
+      for Index:=0 to LightsArray.Count-1 do begin
+      end;
+     end;
+    end;
+   end;
+  end;
+ end;
  procedure LoadAnimations;
  var Index,ChannelIndex,ValueIndex:TPasGLTFSizeInt;
      SourceAnimation:TPasGLTF.TAnimation;
@@ -2225,6 +2284,7 @@ procedure TGLTFOpenGL.LoadFromDocument(const aDocument:TPasGLTF.TDocument);
  end;
 begin
  if not fReady then begin
+  LoadLights;
   LoadAnimations;
   LoadImages;
   LoadSamplers;
