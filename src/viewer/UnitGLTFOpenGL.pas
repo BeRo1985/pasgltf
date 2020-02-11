@@ -21,7 +21,6 @@ type EGLTFOpenGL=class(Exception);
 
      TGLTFOpenGL=class
       public
-       const MaxMorphTargets=256;
        type TGetURI=function(const aURI:TPasGLTFUTF8String):TStream of object;
             TBoundingBox=record
              case boolean of
@@ -391,11 +390,6 @@ type EGLTFOpenGL=class(Exception);
             end;
             PMorphTargetVertexShaderStorageBufferObject=^TMorphTargetVertexShaderStorageBufferObject;
             TMorphTargetVertexShaderStorageBufferObjects=array of TMorphTargetVertexShaderStorageBufferObject;
-            TMorphTargetUniformBuffer=packed record
-             MetaData:TPasGLTF.TInt32Vector4; // x = count of weights, y = count of morph vertices, z = start buffer index, w = unused
-             Weights:array[0..MaxMorphTargets-1] of TPasGLTFFloat;
-            end;
-            PMorphTargetUniformBuffer=^TMorphTargetUniformBuffer;
             TFrameGlobalsUniformBufferObjectData=packed record
              InverseViewMatrix:TPasGLTF.TMatrix4x4;
              ModelMatrix:TPasGLTF.TMatrix4x4;
