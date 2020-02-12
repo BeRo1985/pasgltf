@@ -3229,27 +3229,21 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
   end;
  end;
  procedure ProcessAnimation(const aAnimationIndex:TPasGLTFSizeInt);
-  function CubicSplineInterpolate(const t,y0,y1,y2,y3:TPasGLTFFloat):TPasGLTFFloat;
-  var t2,n:TPasGLTFFloat;
-  begin
-   t2:=t*t;
-   n:=((y3-y2)-y0)+y1;
-   result:=(n*t*t2)+(((y0-y1)-n)*t2)+((y2-y0)*t)+y1;
-  end;
  var ChannelIndex,
      InputTimeArrayIndex,
      WeightIndex,
      CountWeights,
+     ElementIndex,
      l,r,m:TPasGLTFSizeInt;
      Animation:TGLTFOpenGL.PAnimation;
      AnimationChannel:TGLTFOpenGL.TAnimation.PChannel;
      Node:TGLTFOpenGL.TInstance.PNode;
-     Time,Factor,Scalar,Value:TPasGLTFFloat;
+     Time,Factor,Scalar,Value,SqrFactor,CubeFactor,KeyDelta,v0,v1,a,b:TPasGLTFFloat;
      Vector3:TPasGLTF.TVector3;
      Vector4:TPasGLTF.TVector4;
-     Vector3s:array[-1..2] of TPasGLTF.PVector3;
-     Vector4s:array[-1..2] of TPasGLTF.PVector4;
-     TimeIndices:array[-1..2] of TPasGLTFSizeInt;
+     Vector3s:array[0..1] of TPasGLTF.PVector3;
+     Vector4s:array[0..1] of TPasGLTF.PVector4;
+     TimeIndices:array[0..1] of TPasGLTFSizeInt;
  begin
 
   Animation:=@fParent.fAnimations[aAnimationIndex];
@@ -3307,13 +3301,13 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     if TimeIndices[1]>=0 then begin
 
      TimeIndices[0]:=Max(0,TimeIndices[1]-1);
-     TimeIndices[-1]:=Max(0,TimeIndices[0]-1);
-     TimeIndices[2]:=Min(Max(TimeIndices[1]+1,0),length(AnimationChannel^.InputTimeArray)-1);
+
+     KeyDelta:=AnimationChannel^.InputTimeArray[TimeIndices[1]]-AnimationChannel^.InputTimeArray[TimeIndices[0]];
 
      if SameValue(TimeIndices[0],TimeIndices[1]) then begin
       Factor:=0.0;
      end else begin
-      Factor:=(Time-AnimationChannel^.InputTimeArray[TimeIndices[0]])/(AnimationChannel^.InputTimeArray[TimeIndices[1]]-AnimationChannel^.InputTimeArray[TimeIndices[0]]);
+      Factor:=(Time-AnimationChannel^.InputTimeArray[TimeIndices[0]])/KeyDelta;
       if Factor<0.0 then begin
        Factor:=0.0;
       end else if Factor>1.0 then begin
@@ -3338,13 +3332,12 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
          Vector3:=AnimationChannel^.OutputVector3Array[TimeIndices[0]];
         end;
         TAnimation.TChannel.TInterpolation.CubicSpline:begin
-         Vector3s[-1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[-1]];
-         Vector3s[0]:=@AnimationChannel^.OutputVector3Array[TimeIndices[0]];
-         Vector3s[1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[1]];
-         Vector3s[2]:=@AnimationChannel^.OutputVector3Array[TimeIndices[2]];
-         Vector3[0]:=CubicSplineInterpolate(Factor,Vector3s[-1]^[0],Vector3s[0]^[0],Vector3s[1]^[0],Vector3s[2]^[0]);
-         Vector3[1]:=CubicSplineInterpolate(Factor,Vector3s[-1]^[1],Vector3s[0]^[1],Vector3s[1]^[1],Vector3s[2]^[1]);
-         Vector3[2]:=CubicSplineInterpolate(Factor,Vector3s[-1]^[2],Vector3s[0]^[2],Vector3s[1]^[2],Vector3s[2]^[2]);
+         SqrFactor:=sqr(Factor);
+         CubeFactor:=SqrFactor*Factor;
+         Vector3:=Vector3Add(Vector3Add(Vector3Add(Vector3Scale(AnimationChannel^.OutputVector3Array[(TimeIndices[0]*3)+1],((2.0*CubeFactor)-(3.0*SqrFactor))+1.0),
+                                                   Vector3Scale(AnimationChannel^.OutputVector3Array[(TimeIndices[1]*3)+0],KeyDelta*((CubeFactor-(2.0*SqrFactor))+Factor))),
+                                       Vector3Scale(AnimationChannel^.OutputVector3Array[(TimeIndices[1]*3)+1],(3.0*SqrFactor)-(2.0*CubeFactor))),
+                             Vector3Scale(AnimationChannel^.OutputVector3Array[(TimeIndices[1]*3)+0],KeyDelta*(CubeFactor-SqrFactor)));
         end;
         else begin
          Assert(false);
@@ -3372,18 +3365,12 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
          Vector4:=AnimationChannel^.OutputVector4Array[TimeIndices[0]];
         end;
         TAnimation.TChannel.TInterpolation.CubicSpline:begin
-         // Kochanek–Bartels spline with cubic-spline-mode constant parameter values
-         Vector4:=QuaternionKochanekBartelsSplineInterpolate(Factor,
-                                                             -1.0,
-                                                             0,
-                                                             1.0,
-                                                             2.0,
-                                                             AnimationChannel^.OutputVector4Array[TimeIndices[-1]],
-                                                             AnimationChannel^.OutputVector4Array[TimeIndices[0]],
-                                                             AnimationChannel^.OutputVector4Array[TimeIndices[1]],
-                                                             AnimationChannel^.OutputVector4Array[TimeIndices[2]],
-                                                             0.0,0.0,0.0,
-                                                             0.0,0.0,0.0);
+         SqrFactor:=sqr(Factor);
+         CubeFactor:=SqrFactor*Factor;
+         Vector4:=Vector4Normalize(QuaternionAdd(QuaternionAdd(QuaternionAdd(QuaternionScalarMul(AnimationChannel^.OutputVector4Array[(TimeIndices[0]*3)+1],((2.0*CubeFactor)-(3.0*SqrFactor))+1.0),
+                                                                             QuaternionScalarMul(AnimationChannel^.OutputVector4Array[(TimeIndices[1]*3)+0],KeyDelta*((CubeFactor-(2.0*SqrFactor))+Factor))),
+                                                               QuaternionScalarMul(AnimationChannel^.OutputVector4Array[(TimeIndices[1]*3)+1],(3.0*SqrFactor)-(2.0*CubeFactor))),
+                                                 QuaternionScalarMul(AnimationChannel^.OutputVector4Array[(TimeIndices[1]*3)+0],KeyDelta*(CubeFactor-SqrFactor))));
         end;
         else begin
          Assert(false);
@@ -3408,12 +3395,13 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
          end;
         end;
         TAnimation.TChannel.TInterpolation.CubicSpline:begin
+         SqrFactor:=sqr(Factor);
+         CubeFactor:=SqrFactor*Factor;
          for WeightIndex:=0 to CountWeights-1 do begin
-          Node^.OverwriteWeights[WeightIndex]:=CubicSplineInterpolate(Factor,
-                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[-1]*CountWeights)+WeightIndex],
-                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex],
-                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[1]*CountWeights)+WeightIndex],
-                                                                      AnimationChannel^.OutputScalarArray[(TimeIndices[2]*CountWeights)+WeightIndex]);
+          Node^.OverwriteWeights[WeightIndex]:=((((2.0*CubeFactor)-(3.0*SqrFactor))+1.0)*AnimationChannel^.OutputScalarArray[(((TimeIndices[0]*3)+1)*CountWeights)+WeightIndex])+
+                                               (((CubeFactor-(2.0*SqrFactor))+Factor)*KeyDelta*AnimationChannel^.OutputScalarArray[(((TimeIndices[0]*3)+2)*CountWeights)+WeightIndex])+
+                                               (((3.0*SqrFactor)-(2.0*CubeFactor))*AnimationChannel^.OutputScalarArray[(((TimeIndices[1]*3)+1)*CountWeights)+WeightIndex])+
+                                               ((CubeFactor-SqrFactor)*KeyDelta*AnimationChannel^.OutputScalarArray[(((TimeIndices[1]*3)+0)*CountWeights)+WeightIndex]);
          end;
         end;
         else begin
