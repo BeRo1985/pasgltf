@@ -429,7 +429,7 @@ begin
     '  }else{'+#13#10+
     '    texel = defaultValue;'+#13#10+
     '  }'+#13#10+
-    '   return texel;'+#13#10+
+    '  return texel;'+#13#10+
     '}'+#13#10+
     'void main(){'+#13#10+
     '  vec4 color = vec4(0.0);'+#13#10+

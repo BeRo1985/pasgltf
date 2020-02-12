@@ -44,7 +44,8 @@ unit UnitOpenGLImagePNG; // from PasVulkan, so zlib-license and Copyright (C), B
  {$ifndef cpu64}
   {$define cpu32}
  {$endif}
- {$define delphi} 
+ //{$define delphi}
+ {$undef delphi}
  {$undef HasSAR}
  {$define UseDIV}
  {$define HAS_TYPE_EXTENDED}
