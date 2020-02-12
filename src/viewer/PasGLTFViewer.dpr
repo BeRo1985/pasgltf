@@ -251,7 +251,13 @@ var CameraViewProjectionMatrix,
  function GetLightModelMatrix:UnitMath3D.TMatrix4x4;
  var LightForwardVector,LightSideVector,LightUpvector,p:UnitMath3D.TVector3;
  begin
+{$ifdef fpc}
   LightForwardVector:=Vector3Neg(Vector3Norm(LightDirection));
+{$else}
+  // Workaround for a bug in the 64-bit Delphi 10.3.3 Win64 compiler regarding stack allocation and register allocation
+  LightForwardVector:=Vector3Norm(LightDirection);
+  LightForwardVector:=Vector3Neg(LightForwardVector);
+{$endif}
   p.x:=abs(LightForwardVector.x);
   p.y:=abs(LightForwardVector.y);
   p.z:=abs(LightForwardVector.z);
@@ -769,7 +775,7 @@ begin
    glBindFrameBuffer(GL_FRAMEBUFFER,0);
    glDisable(GL_MULTISAMPLE);
   end;
- begin
+  begin
    glBindFrameBuffer(GL_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
    glDrawBuffer(GL_COLOR_ATTACHMENT0);
    glViewport(0,0,ShadowMapFBOs[0].Width,ShadowMapFBOs[0].Height);
@@ -824,7 +830,7 @@ begin
    glBindVertexArray(0);
    ShadowMapBlurShader.Unbind;
    glBindFrameBuffer(GL_FRAMEBUFFER,0);
-  end;
+  end;     (**)
  end;
  begin
   glBindFrameBuffer(GL_FRAMEBUFFER,HDRSceneFBO.FBOs[0]);

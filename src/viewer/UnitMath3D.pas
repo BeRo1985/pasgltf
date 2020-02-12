@@ -102,6 +102,9 @@ unit UnitMath3D; // Copyright (C) 2006-2017, Benjamin Rosseaux - License: zlib
  {$endif}
 {$endif}
 
+{$undef caninline}
+
+{$undef cpu386asm}
 {$ifdef cpu386}
  {$define cpu386asm}
 {$endif}
