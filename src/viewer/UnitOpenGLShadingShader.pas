@@ -301,7 +301,7 @@ begin
     'const float PI = 3.14159265358979323846,'+#13#10+
     '            PI2 = 6.283185307179586476925286766559,'+#13#10+
     '            OneOverPI = 1.0 / PI;'+#13#10+
-    'float sheenRoughness = 0.0;'+#13#10+
+    'float sheenRoughness = 0.0, reflectance = 0.0;'+#13#10+
     'vec4 sheenColorIntensityFactor = uMaterial.sheenColorFactorSheenIntensityFactor;'+#13#10+
     'uint flags = uMaterial.alphaCutOffFlagsTex0Tex1.y,'+#13#10+
     '     shadingModel = (flags >> 0u) & 0xfu;'+#13#10+
@@ -360,7 +360,7 @@ begin
     '  if((flags & (1u << 6u)) != 0u){'+#13#10+
     '    float sheenDistribution = sheenDistributionCarlie(sheenRoughness, nDotH);'+#13#10+
     '    float sheenVisibility = visibilityNeubelt(nDotL, nDotV);'+#13#10+
-    '    result += sheenColorIntensityFactor.xyz * sheenColorIntensityFactor.w * sheenDistribution * sheenVisibility * PI;'+#13#10+
+    '    result += (sheenColorIntensityFactor.xyz * sheenColorIntensityFactor.w * sheenDistribution * sheenVisibility * PI) * (1.0 - reflectance);'+#13#10+
     '  }'+#13#10+
     '  result *= ((materialCavity * nDotL * lightColor) * lightLit);'+#13#10+
     '  return result;'+#13#10+
@@ -538,8 +538,8 @@ begin
      '            transparency = 0.0,'+#13#10+
      '            refractiveAngle = 0.0,'+#13#10+
      '            ambientOcclusion = 1.0,'+#13#10+
-     '            shadow = 1.0,'+#13#10+
-     '            reflectance = max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z);'+#13#10+
+     '            shadow = 1.0;'+#13#10+
+     '      reflectance = max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z);'+#13#10+
      '      vec3 viewDirection = normalize(vCameraRelativePosition);'+#13#10+
      '      if(lightMetaData.x == 0u){'+#13#10+
 {    '      color.xyz += (doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+
