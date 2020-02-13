@@ -198,16 +198,25 @@ type EGLTFOpenGL=class(Exception);
                     SpecularGlossinessTexture:TTexture;
                    end;
                    PPBRSpecularGlossiness=^TPBRSpecularGlossiness;
+                   TPBRSheen=record
+                    Active:boolean;
+                    IntensityFactor:TPasGLTFFloat;
+                    ColorFactor:TPasGLTF.TVector3;
+                    ColorIntensityTexture:TTexture;
+                   end;
+                   PPBRSheen=^TPBRSheen;
                    TUniformBufferObjectData=packed record // 128 bytes
                     BaseColorFactor:TPasGLTF.TVector4;
                     SpecularFactor:TPasGLTF.TVector4; // actually TVector3, but for easier and more convenient alignment reasons a TVector4
                     EmissiveFactor:TPasGLTF.TVector4; // actually TVector3, but for easier and more convenient alignment reasons a TVector4
                     MetallicRoughnessNormalScaleOcclusionStrengthFactor:TPasGLTF.TVector4;
+                    SheenColorFactorSheenIntensityFactor:TPasGLTF.TVector4;
+                    ClearcoatFactorClearcoatRoughnessFactor:TPasGLTF.TVector4;
                     // uvec4 AlphaCutOffFlags begin
                      AlphaCutOff:TPasGLTFFloat; // for with uintBitsToFloat on GLSL code side
                      Flags:TPasGLTFUInt32;
-                     Reversed0:TPasGLTFUInt32;
-                     Reversed1:TPasGLTFUInt32;
+                     Textures0:TPasGLTFUInt32;
+                     Textures1:TPasGLTFUInt32;
                     // uvec4 uAlphaCutOffFlags end
                    end;
                    PUniformBufferObjectData=^TUniformBufferObjectData;
@@ -231,6 +240,7 @@ type EGLTFOpenGL=class(Exception);
               EmissiveTexture:TTexture;
               PBRMetallicRoughness:TPBRMetallicRoughness;
               PBRSpecularGlossiness:TPBRSpecularGlossiness;
+              PBRSheen:TPBRSheen;
               UniformBufferObjectData:TUniformBufferObjectData;
               UniformBufferObjectIndex:TPasGLTFSizeInt;
               UniformBufferObjectOffset:TPasGLTFSizeInt;
@@ -580,8 +590,8 @@ const EmptyMaterialUniformBufferObjectData:TGLTFOpenGL.TMaterial.TUniformBufferO
         MetallicRoughnessNormalScaleOcclusionStrengthFactor:(1.0,1.0,1.0,1.0);
         AlphaCutOff:1.0;
         Flags:0;
-        Reversed0:$ffffffff;
-        Reversed1:$ffffffff;
+        Textures0:$ffffffff;
+        Textures1:$ffffffff;
        );
 
 function CompareFloats(const a,b:TPasGLTFFloat):TPasGLTFInt32;
@@ -1365,6 +1375,37 @@ var HasLights:boolean;
    end;
 
    begin
+    DestinationMaterial^.PBRSheen.IntensityFactor:=1.0;
+    DestinationMaterial^.PBRSheen.ColorFactor[0]:=1.0;
+    DestinationMaterial^.PBRSheen.ColorFactor[1]:=1.0;
+    DestinationMaterial^.PBRSheen.ColorFactor[2]:=1.0;
+    DestinationMaterial^.PBRSheen.ColorIntensityTexture.Index:=-1;
+    DestinationMaterial^.PBRSheen.ColorIntensityTexture.TexCoord:=0;
+    JSONItem:=SourceMaterial.Extensions.Properties['KHR_materials_sheen'];
+    if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
+     JSONObject:=TPasJSONItemObject(JSONItem);
+     DestinationMaterial^.PBRSheen.Active:=true;
+     DestinationMaterial^.PBRSheen.IntensityFactor:=TPasJSON.GetNumber(JSONObject.Properties['intensityFactor'],TPasJSON.GetNumber(JSONObject.Properties['sheenFactor'],1.0));
+     JSONItem:=JSONObject.Properties['colorFactor'];
+     if not assigned(JSONItem) then begin
+      JSONItem:=JSONObject.Properties['sheenColor'];
+     end;
+     if assigned(JSONItem) and (JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=3) then begin
+      DestinationMaterial^.PBRSheen.ColorFactor[0]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],1.0);
+      DestinationMaterial^.PBRSheen.ColorFactor[1]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[1],1.0);
+      DestinationMaterial^.PBRSheen.ColorFactor[2]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[2],1.0);
+     end;
+     JSONItem:=JSONObject.Properties['colorIntensityTexture'];
+     if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
+      DestinationMaterial^.PBRSheen.ColorIntensityTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],-1);
+      DestinationMaterial^.PBRSheen.ColorIntensityTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],0);
+     end;
+    end else begin
+     DestinationMaterial^.PBRSheen.Active:=false;
+    end;
+   end;
+
+   begin
     UniformBufferObjectData:=@DestinationMaterial^.UniformBufferObjectData;
     UniformBufferObjectData^.Flags:=0;
     case SourceMaterial.AlphaMode of
@@ -1385,16 +1426,16 @@ var HasLights:boolean;
     if SourceMaterial.DoubleSided then begin
      UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (1 shl 5);
     end;
-    UniformBufferObjectData.Reversed0:=$ffffffff;
-    UniformBufferObjectData.Reversed1:=$ffffffff;
+    UniformBufferObjectData.Textures0:=$ffffffff;
+    UniformBufferObjectData.Textures1:=$ffffffff;
     case DestinationMaterial^.ShadingModel of
      TMaterial.TShadingModel.PBRMetallicRoughness:begin
       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or ((0 and $f) shl 0);
       if (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
-       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (0 shl 2))) or ((SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord and $f) shl (0 shl 2));
+       UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (0 shl 2))) or ((SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord and $f) shl (0 shl 2));
       end;
       if (SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
-       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (1 shl 2))) or ((SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord and $f) shl (1 shl 2));
+       UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (1 shl 2))) or ((SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord and $f) shl (1 shl 2));
       end;
       UniformBufferObjectData^.BaseColorFactor:=SourceMaterial.PBRMetallicRoughness.BaseColorFactor;
       UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[0]:=SourceMaterial.PBRMetallicRoughness.MetallicFactor;
@@ -1405,10 +1446,10 @@ var HasLights:boolean;
      TMaterial.TShadingModel.PBRSpecularGlossiness:begin
       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or ((1 and $f) shl 0);
       if (DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fTextures)) then begin
-       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (0 shl 2))) or ((DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord and $f) shl (0 shl 2));
+       UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (0 shl 2))) or ((DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord and $f) shl (0 shl 2));
       end;
       if (DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fTextures)) then begin
-       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (1 shl 2))) or ((DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord and $f) shl (1 shl 2));
+       UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (1 shl 2))) or ((DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord and $f) shl (1 shl 2));
       end;
       UniformBufferObjectData^.BaseColorFactor:=DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor;
       UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[0]:=1.0;
@@ -1423,7 +1464,7 @@ var HasLights:boolean;
      TMaterial.TShadingModel.Unlit:begin
       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or ((2 and $f) shl 0);
       if (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
-       UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (0 shl 2))) or ((SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord and $f) shl (0 shl 2));
+       UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (0 shl 2))) or ((SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord and $f) shl (0 shl 2));
       end;
       UniformBufferObjectData^.BaseColorFactor:=SourceMaterial.PBRMetallicRoughness.BaseColorFactor;
      end;
@@ -1432,18 +1473,29 @@ var HasLights:boolean;
      end;
     end;
     if (SourceMaterial.NormalTexture.Index>=0) and (SourceMaterial.NormalTexture.Index<length(fTextures)) then begin
-     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (2 shl 2))) or ((SourceMaterial.NormalTexture.TexCoord and $f) shl (2 shl 2));
+     UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (2 shl 2))) or ((SourceMaterial.NormalTexture.TexCoord and $f) shl (2 shl 2));
     end;
     if (SourceMaterial.OcclusionTexture.Index>=0) and (SourceMaterial.OcclusionTexture.Index<length(fTextures)) then begin
-     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (3 shl 2))) or ((SourceMaterial.OcclusionTexture.TexCoord and $f) shl (3 shl 2));
+     UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (3 shl 2))) or ((SourceMaterial.OcclusionTexture.TexCoord and $f) shl (3 shl 2));
     end;
     if (SourceMaterial.EmissiveTexture.Index>=0) and (SourceMaterial.EmissiveTexture.Index<length(fTextures)) then begin
-     UniformBufferObjectData.Reversed0:=(UniformBufferObjectData.Reversed0 and not ($f shl (4 shl 2))) or ((SourceMaterial.EmissiveTexture.TexCoord and $f) shl (4 shl 2));
+     UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (4 shl 2))) or ((SourceMaterial.EmissiveTexture.TexCoord and $f) shl (4 shl 2));
     end;
     UniformBufferObjectData^.EmissiveFactor[0]:=SourceMaterial.EmissiveFactor[0];
     UniformBufferObjectData^.EmissiveFactor[1]:=SourceMaterial.EmissiveFactor[1];
     UniformBufferObjectData^.EmissiveFactor[2]:=SourceMaterial.EmissiveFactor[2];
     UniformBufferObjectData^.EmissiveFactor[3]:=0.0;
+
+    if DestinationMaterial^.PBRSheen.Active then begin
+     UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (1 shl 6);
+     UniformBufferObjectData^.SheenColorFactorSheenIntensityFactor[0]:=DestinationMaterial^.PBRSheen.ColorFactor[0];
+     UniformBufferObjectData^.SheenColorFactorSheenIntensityFactor[1]:=DestinationMaterial^.PBRSheen.ColorFactor[1];
+     UniformBufferObjectData^.SheenColorFactorSheenIntensityFactor[2]:=DestinationMaterial^.PBRSheen.ColorFactor[2];
+     UniformBufferObjectData^.SheenColorFactorSheenIntensityFactor[3]:=DestinationMaterial^.PBRSheen.IntensityFactor;
+     if (DestinationMaterial^.PBRSheen.ColorIntensityTexture.Index>=0) and (DestinationMaterial^.PBRSheen.ColorIntensityTexture.Index<length(fTextures)) then begin
+      UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (1 shl 2))) or ((DestinationMaterial^.PBRSheen.ColorIntensityTexture.TexCoord and $f) shl (5 shl 2));
+     end;
+    end;
 
    end;
 
@@ -4099,6 +4151,10 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
       if (Material^.EmissiveTexture.Index>=0) and (Material^.EmissiveTexture.Index<length(fParent.fTextures)) then begin
        glActiveTexture(GL_TEXTURE4);
        glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.EmissiveTexture.Index].Handle);
+      end;
+      if (Material^.PBRSheen.ColorIntensityTexture.Index>=0) and (Material^.PBRSheen.ColorIntensityTexture.Index<length(fParent.fTextures)) then begin
+       glActiveTexture(GL_TEXTURE5);
+       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRSheen.ColorIntensityTexture.Index].Handle);
       end;
       glBindBufferRange(GL_UNIFORM_BUFFER,
                         TShadingShader.uboMaterial,

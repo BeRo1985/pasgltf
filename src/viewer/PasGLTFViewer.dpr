@@ -856,13 +856,13 @@ begin
    EnvMapDrawShader.Unbind;
   end;
   begin
-   glActiveTexture(GL_TEXTURE5);
+   glActiveTexture(GL_TEXTURE6);
    glBindTexture(GL_TEXTURE_2D,BRDFLUTFBO.TextureHandles[0]);
    if Shadows then begin
-    glActiveTexture(GL_TEXTURE6);
+    glActiveTexture(GL_TEXTURE7);
     glBindTexture(GL_TEXTURE_2D,ShadowMapFBOs[2].TextureHandles[0]);
    end;
-   glActiveTexture(GL_TEXTURE7);
+   glActiveTexture(GL_TEXTURE8);
    glBindTexture(GL_TEXTURE_CUBE_MAP,EnvMapFBO.TextureHandles[0]);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);

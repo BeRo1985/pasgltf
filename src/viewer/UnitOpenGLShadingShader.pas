@@ -125,6 +125,7 @@ type TShadingShader=class(TShader)
        uNormalTexture:glInt;
        uOcclusionTexture:glInt;
        uEmissiveTexture:glInt;
+       uSheenColorIntensityTexture:glInt;
        uLightDirection:glInt;
        uBRDFLUTTexture:glInt;
        uShadowMapTexture:glInt;
@@ -255,6 +256,7 @@ begin
     'uniform sampler2D uNormalTexture;'+#13#10+
     'uniform sampler2D uOcclusionTexture;'+#13#10+
     'uniform sampler2D uEmissiveTexture;'+#13#10+
+    'uniform sampler2D uSheenColorIntensityTexture;'+#13#10+
     'uniform sampler2D uBRDFLUTTexture;'+#13#10+
     'uniform sampler2D uShadowMapTexture;'+#13#10+
     'uniform samplerCube uEnvMapTexture;'+#13#10+
@@ -272,6 +274,8 @@ begin
     '  vec4 specularFactor;'+#13#10+
     '  vec4 emissiveFactor;'+#13#10+
     '  vec4 metallicRoughnessNormalScaleOcclusionStrengthFactor;'+#13#10+
+    '  vec4 sheenColorFactorSheenIntensityFactor;'+#13#10+
+    '  vec4 clearcoatFactorClearcoatRoughnessFactor;'+#13#10+
     '  uvec4 alphaCutOffFlagsTex0Tex1;'+#13#10+
     '} uMaterial;'+#13#10+
     'struct Light {'+#13#10+
@@ -295,7 +299,12 @@ begin
     '             lessThan(c, vec3(4.045e-2)));'+#13#10+
     '}'+#13#10+
     'const float PI = 3.14159265358979323846,'+#13#10+
+    '            PI2 = 6.283185307179586476925286766559,'+#13#10+
     '            OneOverPI = 1.0 / PI;'+#13#10+
+    'float sheenRoughness = 0.0;'+#13#10+
+    'vec4 sheenColorIntensityFactor = uMaterial.sheenColorFactorSheenIntensityFactor;'+#13#10+
+    'uint flags = uMaterial.alphaCutOffFlagsTex0Tex1.y,'+#13#10+
+    '     shadingModel = (flags >> 0u) & 0xfu;'+#13#10+
     'vec3 diffuseLambert(vec3 diffuseColor){'+#13#10+
     '  return diffuseColor * OneOverPI;'+#13#10+
     '}'+#13#10+
@@ -320,6 +329,13 @@ begin
     '  vec2 GVL = (vec2(nDotV, nDotL) * (1.0 - k)) + vec2(k);'+#13#10+
     '  return 0.25 / (GVL.x * GVL.y);'+#13#10+
     '}'+#13#10+
+    'float visibilityNeubelt(float NdotL, float NdotV){'+#13#10+
+    '  return clamp(1.0 / (4.0 * ((NdotL + NdotV) - (NdotL * NdotV))), 0.0, 1.0);'+#13#10+
+    '}'+#13#10+
+    'float sheenDistributionCarlie(float sheenRoughness, float NdotH){'+#13#10+
+    '  float invR = 1.0 / (sheenRoughness * sheenRoughness);'+#13#10+
+    '  return (2.0 + invR) * pow(1.0 - (NdotH * NdotH), invR * 0.5) / PI2;'+#13#10+
+    '}'+#13#10+
     'vec3 doSingleLight(const in vec3 lightColor,'+#13#10+
     '                   const in vec3 lightLit,'+#13#10+
     '                   const in vec3 lightDirection,'+#13#10+
@@ -340,11 +356,18 @@ begin
     '  vec3 specular = specularF(specularColor, max(vDotH, refractiveAngle)) *'+#13#10+
     '                  specularD(materialRoughness, nDotH) *'+#13#10+
     '                  specularG(materialRoughness, nDotV, nDotL);'+#13#10+
-    '  return (diffuse + specular) * ((materialCavity * nDotL * lightColor) * lightLit);'+#13#10+
+    '  vec3 result = diffuse + specular;'+#13#10+
+    '  if((flags & (1u << 6u)) != 0u){'+#13#10+
+    '    float sheenDistribution = sheenDistributionCarlie(sheenRoughness, nDotH);'+#13#10+
+    '    float sheenVisibility = visibilityNeubelt(nDotL, nDotV);'+#13#10+
+    '    result += sheenColorIntensityFactor.xyz * sheenColorIntensityFactor.w * sheenDistribution * sheenVisibility * PI;'+#13#10+
+    '  }'+#13#10+
+    '  result *= ((materialCavity * nDotL * lightColor) * lightLit);'+#13#10+
+    '  return result;'+#13#10+
     '}'+#13#10+
     'vec4 getEnvMap(sampler2D texEnvMap, float texLOD, vec3 rayDirection){'+#13#10+
     '  rayDirection = normalize(rayDirection);'+#13#10+
-    '  return textureLod(texEnvMap, (vec2((atan(rayDirection.z, rayDirection.x) / 6.283185307179586476925286766559) + 0.5, acos(rayDirection.y) / 3.1415926535897932384626433832795)), texLOD);'+#13#10+
+    '  return textureLod(texEnvMap, (vec2((atan(rayDirection.z, rayDirection.x) / PI2) + 0.5, acos(rayDirection.y) / 3.1415926535897932384626433832795)), texLOD);'+#13#10+
     '}'+#13#10+
     'float computeMSM(in vec4 moments, in float fragmentDepth, in float depthBias, in float momentBias){'+#13#10+
     '  vec4 b = mix(moments, vec4(0.5), momentBias);'+#13#10+
@@ -432,9 +455,7 @@ begin
     '  return texel;'+#13#10+
     '}'+#13#10+
     'void main(){'+#13#10+
-    '  vec4 color = vec4(0.0);'+#13#10+
-    '  uint flags = uMaterial.alphaCutOffFlagsTex0Tex1.y,'+#13#10+
-    '       shadingModel = (flags >> 0u) & 0xfu;'+#13#10;
+    '  vec4 color = vec4(0.0);'+#13#10;
  if aShadowMap then begin
   f:=f+
        '  vec4 t = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
@@ -507,6 +528,12 @@ begin
      '      normal *= (((flags & (1u << 5u)) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
      '      vec4 occlusionTexture = textureFetch(uOcclusionTexture, 3, vec4(1.0));'+#13#10+
      '      vec4 emissiveTexture = textureFetchSRGB(uEmissiveTexture, 4, vec4(1.0)); '+#13#10+
+     '      if((flags & (1u << 6u)) != 0u){'+#13#10+
+     '        if((texCoordIndices.x & 0x00f00000u) != 0x00f00000u){'+#13#10+
+     '          sheenColorIntensityFactor *= textureFetchSRGB(uSheenColorIntensityTexture, 5, vec4(1.0));'+#13#10+
+     '        }'+#13#10+
+     '        sheenRoughness = max(specularColorRoughness.w, 1e-7);'+#13#10+
+     '      }'+#13#10+
      '      float cavity = clamp(mix(1.0, occlusionTexture.x, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
      '            transparency = 0.0,'+#13#10+
      '            refractiveAngle = 0.0,'+#13#10+
@@ -663,6 +690,7 @@ begin
  uNormalTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uNormalTexture')));
  uOcclusionTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uOcclusionTexture')));
  uEmissiveTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveTexture')));
+ uSheenColorIntensityTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uSheenColorIntensityTexture')));
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
  uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
  uShadowMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uShadowMapTexture')));
@@ -675,9 +703,10 @@ begin
  glUniform1i(uNormalTexture,2);
  glUniform1i(uOcclusionTexture,3);
  glUniform1i(uEmissiveTexture,4);
- glUniform1i(uBRDFLUTTexture,5);
- glUniform1i(uShadowMapTexture,6);
- glUniform1i(uEnvMapTexture,7);
+ glUniform1i(uSheenColorIntensityTexture,5);
+ glUniform1i(uBRDFLUTTexture,6);
+ glUniform1i(uShadowMapTexture,7);
+ glUniform1i(uEnvMapTexture,8);
 end;
 
 end.
