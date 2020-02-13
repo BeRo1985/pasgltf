@@ -301,8 +301,8 @@ begin
     'const float PI = 3.14159265358979323846,'+#13#10+
     '            PI2 = 6.283185307179586476925286766559,'+#13#10+
     '            OneOverPI = 1.0 / PI;'+#13#10+
-    'float sheenRoughness = 0.0, reflectance = 0.0;'+#13#10+
-    'vec4 sheenColorIntensityFactor = uMaterial.sheenColorFactorSheenIntensityFactor;'+#13#10+
+    'float sheenRoughness, reflectance;'+#13#10+
+    'vec4 sheenColorIntensityFactor;'+#13#10+
     'uint flags, shadingModel;'+#13#10+
     'vec3 diffuseLambert(vec3 diffuseColor){'+#13#10+
     '  return diffuseColor * OneOverPI;'+#13#10+
@@ -530,6 +530,7 @@ begin
      '      vec4 occlusionTexture = textureFetch(uOcclusionTexture, 3, vec4(1.0));'+#13#10+
      '      vec4 emissiveTexture = textureFetchSRGB(uEmissiveTexture, 4, vec4(1.0)); '+#13#10+
      '      if((flags & (1u << 6u)) != 0u){'+#13#10+
+     '        sheenColorIntensityFactor = uMaterial.sheenColorFactorSheenIntensityFactor;'+#13#10+
      '        if((texCoordIndices.x & 0x00f00000u) != 0x00f00000u){'+#13#10+
      '          sheenColorIntensityFactor *= textureFetchSRGB(uSheenColorIntensityTexture, 5, vec4(1.0));'+#13#10+
      '        }'+#13#10+
