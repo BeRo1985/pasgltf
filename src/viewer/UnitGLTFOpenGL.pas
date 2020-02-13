@@ -205,7 +205,7 @@ type EGLTFOpenGL=class(Exception);
                     ColorIntensityTexture:TTexture;
                    end;
                    PPBRSheen=^TPBRSheen;
-                   TUniformBufferObjectData=packed record // 128 bytes
+                   TUniformBufferObjectData=packed record
                     BaseColorFactor:TPasGLTF.TVector4;
                     SpecularFactor:TPasGLTF.TVector4; // actually TVector3, but for easier and more convenient alignment reasons a TVector4
                     EmissiveFactor:TPasGLTF.TVector4; // actually TVector3, but for easier and more convenient alignment reasons a TVector4
@@ -218,6 +218,7 @@ type EGLTFOpenGL=class(Exception);
                      Textures0:TPasGLTFUInt32;
                      Textures1:TPasGLTFUInt32;
                     // uvec4 uAlphaCutOffFlags end
+                    TextureTransforms:array[0..1] of TPasGLTF.TMatrix4x4;
                    end;
                    PUniformBufferObjectData=^TUniformBufferObjectData;
                    TShadingModel=
@@ -589,10 +590,13 @@ const EmptyMaterialUniformBufferObjectData:TGLTFOpenGL.TMaterial.TUniformBufferO
         SpecularFactor:(1.0,1.0,1.0,0.0);
         EmissiveFactor:(0.0,0.0,0.0,0.0);
         MetallicRoughnessNormalScaleOcclusionStrengthFactor:(1.0,1.0,1.0,1.0);
+        SheenColorFactorSheenIntensityFactor:(1.0,1.0,1.0,1.0);
+        ClearcoatFactorClearcoatRoughnessFactor:(1.0,1.0,1.0,1.0);
         AlphaCutOff:1.0;
         Flags:0;
         Textures0:$ffffffff;
         Textures1:$ffffffff;
+        TextureTransforms:((1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0));
        );
 
 function CompareFloats(const a,b:TPasGLTFFloat):TPasGLTFInt32;
@@ -1449,6 +1453,7 @@ var HasLights:boolean;
     end;
     UniformBufferObjectData.Textures0:=$ffffffff;
     UniformBufferObjectData.Textures1:=$ffffffff;
+    UniformBufferObjectData.TextureTransforms:=EmptyMaterialUniformBufferObjectData.TextureTransforms;
     case DestinationMaterial^.ShadingModel of
      TMaterial.TShadingModel.PBRMetallicRoughness:begin
       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or ((0 and $f) shl 0);
