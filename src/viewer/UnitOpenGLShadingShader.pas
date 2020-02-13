@@ -303,8 +303,7 @@ begin
     '            OneOverPI = 1.0 / PI;'+#13#10+
     'float sheenRoughness = 0.0, reflectance = 0.0;'+#13#10+
     'vec4 sheenColorIntensityFactor = uMaterial.sheenColorFactorSheenIntensityFactor;'+#13#10+
-    'uint flags = uMaterial.alphaCutOffFlagsTex0Tex1.y,'+#13#10+
-    '     shadingModel = (flags >> 0u) & 0xfu;'+#13#10+
+    'uint flags, shadingModel;'+#13#10+
     'vec3 diffuseLambert(vec3 diffuseColor){'+#13#10+
     '  return diffuseColor * OneOverPI;'+#13#10+
     '}'+#13#10+
@@ -455,6 +454,8 @@ begin
     '  return texel;'+#13#10+
     '}'+#13#10+
     'void main(){'+#13#10+
+    '  flags = uMaterial.alphaCutOffFlagsTex0Tex1.y;'+#13#10+
+    '  shadingModel = (flags >> 0u) & 0xfu;'+#13#10+
     '  vec4 color = vec4(0.0);'+#13#10;
  if aShadowMap then begin
   f:=f+
