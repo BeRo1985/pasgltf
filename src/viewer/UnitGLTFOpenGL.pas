@@ -178,9 +178,16 @@ type EGLTFOpenGL=class(Exception);
             TVertices=array of TVertex;
             TMaterial=record
              public
-              type TTexture=record
+              type TTextureTransform=record
+                    Offset:TPasGLTF.TVector2;
+                    Rotation:TPasGLTFFloat;
+                    Scale:TPasGLTF.TVector2;
+                   end;
+                   PTextureTransform=^TTextureTransform;
+                   TTexture=record
                     Index:TPasGLTFSizeInt;
                     TexCoord:TPasGLTFSizeInt;
+                    TextureTransform:TTextureTransform;
                    end;
                    PTexture=^TTexture;
                    TPBRMetallicRoughness=record
@@ -218,7 +225,7 @@ type EGLTFOpenGL=class(Exception);
                      Textures0:TPasGLTFUInt32;
                      Textures1:TPasGLTFUInt32;
                     // uvec4 uAlphaCutOffFlags end
-                    TextureTransforms:array[0..1] of TPasGLTF.TMatrix4x4;
+                    TextureTransforms:array[0..15] of TPasGLTF.TMatrix4x4;
                    end;
                    PUniformBufferObjectData=^TUniformBufferObjectData;
                    TShadingModel=
@@ -596,7 +603,24 @@ const EmptyMaterialUniformBufferObjectData:TGLTFOpenGL.TMaterial.TUniformBufferO
         Flags:0;
         Textures0:$ffffffff;
         Textures1:$ffffffff;
-        TextureTransforms:((1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0));
+        TextureTransforms:(
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0),
+         (1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0)
+        );
        );
 
 function CompareFloats(const a,b:TPasGLTFFloat):TPasGLTFInt32;
@@ -620,6 +644,13 @@ function Vector2Sub(const a,b:TVector2):TVector2;
 begin
  result[0]:=a[0]-b[0];
  result[1]:=a[1]-b[1];
+end;
+
+function Vector3(const aX,aY,aZ:TPasGLTFFloat):TVector3;
+begin
+ result[0]:=aX;
+ result[1]:=aY;
+ result[2]:=aZ;
 end;
 
 function Vector3Add(const a,b:TVector3):TVector3;
@@ -875,6 +906,30 @@ begin
                                                            QuaternionMul(q2,QuaternionExp(QuaternionScalarMul(QuaternionSub(qLog21,qTIn),0.5))),
                                                            t),
                                   2.0*(t*(1.0-t)));
+end;
+
+function MatrixFrom2DRotation(const aRotation:TPasGLTFFloat):TMatrix;
+var Sinus,Cosinus:TPasGLTFFloat;
+begin
+ Sinus:=0.0;
+ Cosinus:=0.0;
+ SinCos(aRotation,Sinus,Cosinus);
+ result[0]:=Cosinus;
+ result[1]:=Sinus;
+ result[2]:=0.0;
+ result[3]:=0.0;
+ result[4]:=-Sinus;
+ result[5]:=Cosinus;
+ result[6]:=0.0;
+ result[7]:=0.0;
+ result[8]:=0.0;
+ result[9]:=0.0;
+ result[10]:=1.0;
+ result[11]:=0.0;
+ result[12]:=0.0;
+ result[13]:=0.0;
+ result[14]:=0.0;
+ result[15]:=1.0;
 end;
 
 function MatrixFromRotation(const aRotation:TVector4):TMatrix;
@@ -1311,6 +1366,40 @@ var HasLights:boolean;
 
  end;
  procedure LoadMaterials;
+  procedure LoadTextureTransform(const aExtensionsItem:TPasJSONItem;var aTexture:TMaterial.TTexture);
+  var JSONItem:TPasJSONItem;
+      JSONObject:TPasJSONItemObject;
+  begin
+   aTexture.TextureTransform.Offset[0]:=0.0;
+   aTexture.TextureTransform.Offset[1]:=0.0;
+   aTexture.TextureTransform.Rotation:=0.0;
+   aTexture.TextureTransform.Scale[0]:=1.0;
+   aTexture.TextureTransform.Scale[1]:=1.0;
+   if assigned(aExtensionsItem) and (aExtensionsItem is TPasJSONItemObject) then begin
+    JSONItem:=TPasJSONItemObject(aExtensionsItem).Properties['KHR_texture_transform'];
+    if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
+     JSONObject:=TPasJSONItemObject(JSONItem);
+     aTexture.TexCoord:=TPasJSON.GetInt64(JSONObject.Properties['texCoord'],aTexture.TexCoord);
+     JSONItem:=JSONObject.Properties['offset'];
+     if assigned(JSONItem) and (JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=2) then begin
+      aTexture.TextureTransform.Offset[0]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],aTexture.TextureTransform.Offset[0]);
+      aTexture.TextureTransform.Offset[1]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[1],aTexture.TextureTransform.Offset[1]);
+     end;
+     aTexture.TextureTransform.Rotation:=TPasJSON.GetNumber(JSONObject.Properties['rotation'],aTexture.TextureTransform.Rotation);
+     JSONItem:=JSONObject.Properties['scale'];
+     if assigned(JSONItem) and (JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=2) then begin
+      aTexture.TextureTransform.Scale[0]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[0],aTexture.TextureTransform.Scale[0]);
+      aTexture.TextureTransform.Scale[1]:=TPasJSON.GetNumber(TPasJSONItemArray(JSONItem).Items[1],aTexture.TextureTransform.Scale[1]);
+     end;
+    end;
+   end;
+  end;
+  function ConvertTextureTransformToMatrix(const aTextureTransform:TMaterial.TTextureTransform):TPasGLTF.TMatrix4x4;
+  begin
+   result:=MatrixMul(MatrixMul(MatrixFrom2DRotation(-aTextureTransform.Rotation),
+                               MatrixFromScale(Vector3(aTextureTransform.Scale[0],aTextureTransform.Scale[1],1.0))),
+                     MatrixFromTranslation(Vector3(aTextureTransform.Offset[0],aTextureTransform.Offset[1],0.0)));
+  end;
  var Index:TPasGLTFSizeInt;
      SourceMaterial:TPasGLTF.TMaterial;
      DestinationMaterial:PMaterial;
@@ -1335,22 +1424,27 @@ var HasLights:boolean;
     DestinationMaterial^.EmissiveFactor:=SourceMaterial.EmissiveFactor;
     DestinationMaterial^.EmissiveTexture.Index:=SourceMaterial.EmissiveTexture.Index;
     DestinationMaterial^.EmissiveTexture.TexCoord:=SourceMaterial.EmissiveTexture.TexCoord;
+    LoadTextureTransform(SourceMaterial.EmissiveTexture.Extensions,DestinationMaterial^.EmissiveTexture);
     DestinationMaterial^.NormalTexture.Index:=SourceMaterial.NormalTexture.Index;
     DestinationMaterial^.NormalTexture.TexCoord:=SourceMaterial.NormalTexture.TexCoord;
     DestinationMaterial^.NormalTextureScale:=SourceMaterial.NormalTexture.Scale;
+    LoadTextureTransform(SourceMaterial.NormalTexture.Extensions,DestinationMaterial^.NormalTexture);
     DestinationMaterial^.OcclusionTexture.Index:=SourceMaterial.OcclusionTexture.Index;
     DestinationMaterial^.OcclusionTexture.TexCoord:=SourceMaterial.OcclusionTexture.TexCoord;
     DestinationMaterial^.OcclusionTextureStrength:=SourceMaterial.OcclusionTexture.Strength;
+    LoadTextureTransform(SourceMaterial.OcclusionTexture.Extensions,DestinationMaterial^.OcclusionTexture);
    end;
 
    begin
     DestinationMaterial^.PBRMetallicRoughness.BaseColorFactor:=SourceMaterial.PBRMetallicRoughness.BaseColorFactor;
     DestinationMaterial^.PBRMetallicRoughness.BaseColorTexture.Index:=SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index;
     DestinationMaterial^.PBRMetallicRoughness.BaseColorTexture.TexCoord:=SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord;
+    LoadTextureTransform(SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Extensions,DestinationMaterial^.PBRMetallicRoughness.BaseColorTexture);
     DestinationMaterial^.PBRMetallicRoughness.RoughnessFactor:=SourceMaterial.PBRMetallicRoughness.RoughnessFactor;
     DestinationMaterial^.PBRMetallicRoughness.MetallicFactor:=SourceMaterial.PBRMetallicRoughness.MetallicFactor;
     DestinationMaterial^.PBRMetallicRoughness.MetallicRoughnessTexture.Index:=SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.Index;
     DestinationMaterial^.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord:=SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord;
+    LoadTextureTransform(SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.Extensions,DestinationMaterial^.PBRMetallicRoughness.MetallicRoughnessTexture);
    end;
 
    JSONItem:=SourceMaterial.Extensions.Properties['KHR_materials_unlit'];
@@ -1380,6 +1474,7 @@ var HasLights:boolean;
       if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
        DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index);
        DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord);
+       LoadTextureTransform(TPasJSONItemObject(JSONItem).Properties['extensions'],DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture);
       end;
       DestinationMaterial^.PBRSpecularGlossiness.GlossinessFactor:=TPasJSON.GetNumber(JSONObject.Properties['glossinessFactor'],DestinationMaterial^.PBRSpecularGlossiness.GlossinessFactor);
       JSONItem:=JSONObject.Properties['specularFactor'];
@@ -1392,6 +1487,7 @@ var HasLights:boolean;
       if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
        DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index);
        DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord);
+       LoadTextureTransform(TPasJSONItemObject(JSONItem).Properties['extensions'],DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture);
       end;
      end;
     end else begin
@@ -1424,6 +1520,7 @@ var HasLights:boolean;
      if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
       DestinationMaterial^.PBRSheen.ColorIntensityTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],-1);
       DestinationMaterial^.PBRSheen.ColorIntensityTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],0);
+      LoadTextureTransform(TPasJSONItemObject(JSONItem).Properties['extensions'],DestinationMaterial^.PBRSheen.ColorIntensityTexture);
      end;
     end else begin
      DestinationMaterial^.PBRSheen.Active:=false;
@@ -1459,9 +1556,11 @@ var HasLights:boolean;
       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or ((0 and $f) shl 0);
       if (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
        UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (0 shl 2))) or ((SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord and $f) shl (0 shl 2));
+       UniformBufferObjectData.TextureTransforms[0]:=ConvertTextureTransformToMatrix(DestinationMaterial^.PBRMetallicRoughness.BaseColorTexture.TextureTransform);
       end;
       if (SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
        UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (1 shl 2))) or ((SourceMaterial.PBRMetallicRoughness.MetallicRoughnessTexture.TexCoord and $f) shl (1 shl 2));
+       UniformBufferObjectData.TextureTransforms[1]:=ConvertTextureTransformToMatrix(DestinationMaterial^.PBRMetallicRoughness.MetallicRoughnessTexture.TextureTransform);
       end;
       UniformBufferObjectData^.BaseColorFactor:=SourceMaterial.PBRMetallicRoughness.BaseColorFactor;
       UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[0]:=SourceMaterial.PBRMetallicRoughness.MetallicFactor;
@@ -1473,9 +1572,11 @@ var HasLights:boolean;
       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or ((1 and $f) shl 0);
       if (DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fTextures)) then begin
        UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (0 shl 2))) or ((DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TexCoord and $f) shl (0 shl 2));
+       UniformBufferObjectData.TextureTransforms[0]:=ConvertTextureTransformToMatrix(DestinationMaterial^.PBRSpecularGlossiness.DiffuseTexture.TextureTransform);
       end;
       if (DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fTextures)) then begin
        UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (1 shl 2))) or ((DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TexCoord and $f) shl (1 shl 2));
+       UniformBufferObjectData.TextureTransforms[1]:=ConvertTextureTransformToMatrix(DestinationMaterial^.PBRSpecularGlossiness.SpecularGlossinessTexture.TextureTransform);
       end;
       UniformBufferObjectData^.BaseColorFactor:=DestinationMaterial^.PBRSpecularGlossiness.DiffuseFactor;
       UniformBufferObjectData^.MetallicRoughnessNormalScaleOcclusionStrengthFactor[0]:=1.0;
@@ -1491,6 +1592,7 @@ var HasLights:boolean;
       UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or ((2 and $f) shl 0);
       if (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (SourceMaterial.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
        UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (0 shl 2))) or ((SourceMaterial.PBRMetallicRoughness.BaseColorTexture.TexCoord and $f) shl (0 shl 2));
+       UniformBufferObjectData.TextureTransforms[0]:=ConvertTextureTransformToMatrix(DestinationMaterial^.PBRMetallicRoughness.BaseColorTexture.TextureTransform);
       end;
       UniformBufferObjectData^.BaseColorFactor:=SourceMaterial.PBRMetallicRoughness.BaseColorFactor;
      end;
@@ -1500,12 +1602,15 @@ var HasLights:boolean;
     end;
     if (SourceMaterial.NormalTexture.Index>=0) and (SourceMaterial.NormalTexture.Index<length(fTextures)) then begin
      UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (2 shl 2))) or ((SourceMaterial.NormalTexture.TexCoord and $f) shl (2 shl 2));
+     UniformBufferObjectData.TextureTransforms[2]:=ConvertTextureTransformToMatrix(DestinationMaterial^.NormalTexture.TextureTransform);
     end;
     if (SourceMaterial.OcclusionTexture.Index>=0) and (SourceMaterial.OcclusionTexture.Index<length(fTextures)) then begin
      UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (3 shl 2))) or ((SourceMaterial.OcclusionTexture.TexCoord and $f) shl (3 shl 2));
+     UniformBufferObjectData.TextureTransforms[3]:=ConvertTextureTransformToMatrix(DestinationMaterial^.OcclusionTexture.TextureTransform);
     end;
     if (SourceMaterial.EmissiveTexture.Index>=0) and (SourceMaterial.EmissiveTexture.Index<length(fTextures)) then begin
      UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (4 shl 2))) or ((SourceMaterial.EmissiveTexture.TexCoord and $f) shl (4 shl 2));
+     UniformBufferObjectData.TextureTransforms[4]:=ConvertTextureTransformToMatrix(DestinationMaterial^.EmissiveTexture.TextureTransform);
     end;
     UniformBufferObjectData^.EmissiveFactor[0]:=SourceMaterial.EmissiveFactor[0];
     UniformBufferObjectData^.EmissiveFactor[1]:=SourceMaterial.EmissiveFactor[1];
@@ -1520,6 +1625,7 @@ var HasLights:boolean;
      UniformBufferObjectData^.SheenColorFactorSheenIntensityFactor[3]:=DestinationMaterial^.PBRSheen.IntensityFactor;
      if (DestinationMaterial^.PBRSheen.ColorIntensityTexture.Index>=0) and (DestinationMaterial^.PBRSheen.ColorIntensityTexture.Index<length(fTextures)) then begin
       UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (1 shl 2))) or ((DestinationMaterial^.PBRSheen.ColorIntensityTexture.TexCoord and $f) shl (5 shl 2));
+      UniformBufferObjectData.TextureTransforms[5]:=ConvertTextureTransformToMatrix(DestinationMaterial^.PBRSheen.ColorIntensityTexture.TextureTransform);
      end;
     end;
 

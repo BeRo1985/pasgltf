@@ -195,16 +195,6 @@ begin
     '  mat4 shadowMapMatrix;'+#13#10+
     '  mat4 normalMatrix;'+#13#10+
     '} uFrameGlobals;'+#13#10+
-    'layout(std140, binding = '+IntToStr(uboMaterial)+') uniform uboMaterial {'+#13#10+
-    '  vec4 baseColorFactor;'+#13#10+
-    '  vec4 specularFactor;'+#13#10+
-    '  vec4 emissiveFactor;'+#13#10+
-    '  vec4 metallicRoughnessNormalScaleOcclusionStrengthFactor;'+#13#10+
-    '  vec4 sheenColorFactorSheenIntensityFactor;'+#13#10+
-    '  vec4 clearcoatFactorClearcoatRoughnessFactor;'+#13#10+
-    '  uvec4 alphaCutOffFlagsTex0Tex1;'+#13#10+
-    '  mat4 textureTransforms[2];'+#13#10+
-    '} uMaterial;'+#13#10+
     'struct MorphTargetVertex {'+#13#10+
     '  vec4 position;'+#13#10+
     '  vec4 normal;'+#13#10+
@@ -237,8 +227,8 @@ begin
     '  vNormal = normalize(normalMatrix * normal);'+#13#10+
     '  vTangent = normalize(normalMatrix * tangent);'+#13#10+
     '  vBitangent = cross(vNormal, vTangent) * aTangent.w;'+#13#10+
-    '  vTexCoord0 = (uMaterial.textureTransforms[0] * vec3(aTexCoord0, 1.0).xyzz).xy;'+#13#10+
-    '  vTexCoord1 = (uMaterial.textureTransforms[1] * vec3(aTexCoord1, 1.0).xyzz).xy;'+#13#10+
+    '  vTexCoord0 = aTexCoord0;'+#13#10+
+    '  vTexCoord1 = aTexCoord1;'+#13#10+
     '  vColor = aColor0;'+#13#10+
     '  vec4 worldSpacePosition = modelMatrix * vec4(position, 1.0);'+#13#10+
     '  vWorldSpacePosition = worldSpacePosition.xyz / worldSpacePosition.w;'+#13#10;
@@ -289,7 +279,7 @@ begin
     '  vec4 sheenColorFactorSheenIntensityFactor;'+#13#10+
     '  vec4 clearcoatFactorClearcoatRoughnessFactor;'+#13#10+
     '  uvec4 alphaCutOffFlagsTex0Tex1;'+#13#10+
-    '  mat4 textureTransforms[2];'+#13#10+
+    '  mat4 textureTransforms[16];'+#13#10+
     '} uMaterial;'+#13#10+
     'struct Light {'+#13#10+
     '  uvec4 metaData;'+#13#10+
@@ -453,13 +443,13 @@ begin
     'vec2 texCoords[2] = vec2[2](vTexCoord0, vTexCoord1);'+#13#10+
     'vec4 textureFetch(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
     '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
-    '  return (which < 0x2u) ? texture(tex, texCoords[int(which)]) : defaultValue;'+#13#10+
+    '  return (which < 0x2u) ? texture(tex, (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy) : defaultValue;'+#13#10+
     '}'+#13#10+
     'vec4 textureFetchSRGB(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
     '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
     '  vec4 texel;'+#13#10+
     '  if(which < 0x2u){'+#13#10+
-    '    texel = texture(tex, texCoords[int(which)]);'+#13#10+
+    '    texel = texture(tex, (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy);'+#13#10+
     '    texel.xyz = convertSRGBToLinearRGB(texel.xyz);'+#13#10+
     '  }else{'+#13#10+
     '    texel = defaultValue;'+#13#10+
