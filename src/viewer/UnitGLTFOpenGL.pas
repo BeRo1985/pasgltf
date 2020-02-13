@@ -179,6 +179,7 @@ type EGLTFOpenGL=class(Exception);
             TMaterial=record
              public
               type TTextureTransform=record
+                    Active:boolean;
                     Offset:TPasGLTF.TVector2;
                     Rotation:TPasGLTFFloat;
                     Scale:TPasGLTF.TVector2;
@@ -1370,6 +1371,7 @@ var HasLights:boolean;
   var JSONItem:TPasJSONItem;
       JSONObject:TPasJSONItemObject;
   begin
+   aTexture.TextureTransform.Active:=false;
    aTexture.TextureTransform.Offset[0]:=0.0;
    aTexture.TextureTransform.Offset[1]:=0.0;
    aTexture.TextureTransform.Rotation:=0.0;
@@ -1379,6 +1381,7 @@ var HasLights:boolean;
     JSONItem:=TPasJSONItemObject(aExtensionsItem).Properties['KHR_texture_transform'];
     if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
      JSONObject:=TPasJSONItemObject(JSONItem);
+     aTexture.TextureTransform.Active:=true;
      aTexture.TexCoord:=TPasJSON.GetInt64(JSONObject.Properties['texCoord'],aTexture.TexCoord);
      JSONItem:=JSONObject.Properties['offset'];
      if assigned(JSONItem) and (JSONItem is TPasJSONItemArray) and (TPasJSONItemArray(JSONItem).Count=2) then begin
@@ -1396,9 +1399,13 @@ var HasLights:boolean;
   end;
   function ConvertTextureTransformToMatrix(const aTextureTransform:TMaterial.TTextureTransform):TPasGLTF.TMatrix4x4;
   begin
-   result:=MatrixMul(MatrixMul(MatrixFrom2DRotation(-aTextureTransform.Rotation),
-                               MatrixFromScale(Vector3(aTextureTransform.Scale[0],aTextureTransform.Scale[1],1.0))),
-                     MatrixFromTranslation(Vector3(aTextureTransform.Offset[0],aTextureTransform.Offset[1],0.0)));
+   if aTextureTransform.Active then begin
+    result:=MatrixMul(MatrixMul(MatrixFrom2DRotation(-aTextureTransform.Rotation),
+                                MatrixFromScale(Vector3(aTextureTransform.Scale[0],aTextureTransform.Scale[1],1.0))),
+                      MatrixFromTranslation(Vector3(aTextureTransform.Offset[0],aTextureTransform.Offset[1],0.0)));
+   end else begin
+    result:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+   end;
   end;
  var Index:TPasGLTFSizeInt;
      SourceMaterial:TPasGLTF.TMaterial;
