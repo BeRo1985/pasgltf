@@ -193,6 +193,7 @@ begin
     '  mat4 modelMatrix;'+#13#10+
     '  mat4 viewProjectionMatrix;'+#13#10+
     '  mat4 shadowMapMatrix;'+#13#10+
+    '  mat4 normalMatrix;'+#13#10+
     '} uFrameGlobals;'+#13#10+
     'struct MorphTargetVertex {'+#13#10+
     '  vec4 position;'+#13#10+
@@ -268,6 +269,7 @@ begin
     '  mat4 modelMatrix;'+#13#10+
     '  mat4 viewProjectionMatrix;'+#13#10+
     '  mat4 shadowMapMatrix;'+#13#10+
+    '  mat4 normalMatrix;'+#13#10+
     '} uFrameGlobals;'+#13#10+
     'layout(std140, binding = '+IntToStr(uboMaterial)+') uniform uboMaterial {'+#13#10+
     '  vec4 baseColorFactor;'+#13#10+
@@ -579,6 +581,7 @@ begin
      '        for(int lightIndex = 0, lightCount = int(lightMetaData.x); lightIndex < lightCount; lightIndex++){'+#13#10+
      '          Light light = lights[lightIndex];'+#13#10+
      '          float lightAttenuation = 1.0;'+#13#10+
+     '          vec3 lightDirection = normalize((uFrameGlobals.normalMatrix * vec4(light.direction.xyz, 1.0)).xyz);'+#13#10+
      '          vec3 lightVector = light.positionRange.xyz - vWorldSpacePosition.xyz;'+#13#10+
      '          switch(light.metaData.x){'+#13#10+
      '            case 1u:'+#13#10+  // Directional
@@ -621,7 +624,7 @@ begin
      '          if(lightAttenuation > 0.0){'+#13#10+
      '            color.xyz += doSingleLight(light.colorIntensity.xyz * light.colorIntensity.w,'+#13#10+
      '                                       vec3(1.0),'+#13#10+
-     '                                       -light.direction.xyz,'+#13#10+
+     '                                       -lightDirection,'+#13#10+
      '                                       normal.xyz,'+#13#10+
      '                                       diffuseColorAlpha.xyz,'+#13#10+
      '                                       specularColorRoughness.xyz,'+#13#10+

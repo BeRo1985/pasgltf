@@ -406,6 +406,7 @@ type EGLTFOpenGL=class(Exception);
              ModelMatrix:TPasGLTF.TMatrix4x4;
              ViewProjectionMatrix:TPasGLTF.TMatrix4x4;
              ShadowMapMatrix:TPasGLTF.TMatrix4x4;
+             NormalMatrix:TPasGLTF.TMatrix4x4;
             end;
             PFrameGlobalsUniformBufferObjectData=^TFrameGlobalsUniformBufferObjectData;
             TMaterialUniformBufferObject=record
@@ -1013,6 +1014,26 @@ begin
  end else begin
   result:=ma;
  end;
+end;
+
+function MatrixTranspose(const ma:TPasGLTF.TMatrix4x4):TPasGLTF.TMatrix4x4;
+begin
+ result[0]:=ma[0];
+ result[1]:=ma[4];
+ result[2]:=ma[8];
+ result[3]:=ma[12];
+ result[4]:=ma[1];
+ result[5]:=ma[5];
+ result[6]:=ma[9];
+ result[7]:=ma[13];
+ result[8]:=ma[2];
+ result[9]:=ma[6];
+ result[10]:=ma[10];
+ result[11]:=ma[14];
+ result[12]:=ma[3];
+ result[13]:=ma[7];
+ result[14]:=ma[11];
+ result[15]:=ma[15];
 end;
 
 function MatrixScale(const a:TPasGLTF.TMatrix4x4;const s:TPasGLTFFloat):TPasGLTF.TMatrix4x4;
@@ -4247,6 +4268,12 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
    p^.ModelMatrix:=aModelMatrix;
    p^.ViewProjectionMatrix:=MatrixMul(aViewMatrix,aProjectionMatrix);
    p^.ShadowMapMatrix:=aShadowMapMatrix;
+   p^.NormalMatrix:=aModelMatrix;
+   p^.NormalMatrix[3]:=0.0;
+   p^.NormalMatrix[7]:=0.0;
+   p^.NormalMatrix[11]:=0.0;
+   p^.NormalMatrix[15]:=1.0;
+   p^.NormalMatrix:=MatrixTranspose(MatrixInverse(p^.NormalMatrix));
    glUnmapBuffer(GL_UNIFORM_BUFFER);
   end;
   glBindBufferBase(GL_UNIFORM_BUFFER,

@@ -267,7 +267,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
-        <Debugger_RunParams>&quot;C:\Users\BeRo\Documents\Projects\GitHubSVN\PASGLTF.github\trunk\ref\sketchfab\ciber_warrior_series_-zx_oscar_creativo\scene.gltf&quot;</Debugger_RunParams>
+        <Debugger_RunParams>&quot;C:\Users\BeRo\Documents\Projects\GitHubSVN\PASGLTF.github\trunk\ref\lighting-punctual\helmet\LightingPunctual-DamagedHelmet.gltf&quot;</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
