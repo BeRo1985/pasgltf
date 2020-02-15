@@ -310,9 +310,10 @@ begin
     'const float PI = 3.14159265358979323846,'+#13#10+
     '            PI2 = 6.283185307179586476925286766559,'+#13#10+
     '            OneOverPI = 1.0 / PI;'+#13#10+
-    'float sheenRoughness, reflectance, clearcoatFactor, clearcoatRoughness;'+#13#10+
+    'float sheenRoughness, cavity, transparency, refractiveAngle, ambientOcclusion,'+#13#10+
+     '     shadow, reflectance, clearcoatFactor, clearcoatRoughness;'+#13#10+
     'vec4 sheenColorIntensityFactor;'+#13#10+
-    'vec3 clearcoatF0, clearcoatF90, clearcoatNormal;'+#13#10+
+    'vec3 clearcoatF0, clearcoatNormal;'+#13#10+
     'uint flags, shadingModel;'+#13#10+
     'vec3 diffuseLambert(vec3 diffuseColor){'+#13#10+
     '  return diffuseColor * OneOverPI;'+#13#10+
@@ -322,9 +323,6 @@ begin
     '        FdV = 1.0 + ((FD90 - 1.0) * pow(1.0 - nDotV, 5.0)),'+#13#10+
     '        FdL = 1.0 + ((FD90 - 1.0) * pow(1.0 - nDotL, 5.0));'+#13#10+
     '  return diffuseColor * (OneOverPI * FdV * FdL);'+#13#10+
-    '}'+#13#10+
-    'vec3 fresnel(vec3 f0, vec3 f90, float vDotH){'+#13#10+
-    '  return mix(f0, f90, vec3(pow(clamp(1.0 - vDotH, 0.0, 1.0), 5.0)));'+#13#10+
     '}'+#13#10+
     'vec3 specularF(const in vec3 specularColor, const in float vDotH){'+#13#10+
     '  float fc = pow(1.0 - vDotH, 5.0);'+#13#10+
@@ -381,7 +379,7 @@ begin
     '    float nDotV = clamp(abs(dot(clearcoatNormal, viewDirection)) + 1e-5, 0.0, 1.0);'+#13#10+
     '    float nDotH = clamp(dot(clearcoatNormal, halfVector), 0.0, 1.0);'+#13#10+
     '    vec3 lit = vec3((materialCavity * nDotL * lightColor) * lightLit);'+#13#10+
-    '    clearcoatOutput += fresnel(clearcoatF0, clearcoatF90, max(vDotH, refractiveAngle)) *'+#13#10+
+    '    clearcoatOutput += specularF(clearcoatF0, max(vDotH, refractiveAngle)) *'+#13#10+
     '                       specularD(clearcoatRoughness, nDotH) *'+#13#10+
     '                       specularG(clearcoatRoughness, nDotV, nDotL) *'+#13#10+
     '                       lit;'+#13#10+
@@ -390,6 +388,19 @@ begin
     'vec4 getEnvMap(sampler2D texEnvMap, float texLOD, vec3 rayDirection){'+#13#10+
     '  rayDirection = normalize(rayDirection);'+#13#10+
     '  return textureLod(texEnvMap, (vec2((atan(rayDirection.z, rayDirection.x) / PI2) + 0.5, acos(rayDirection.y) / 3.1415926535897932384626433832795)), texLOD);'+#13#10+
+    '}'+#13#10+
+    'vec3 getDiffuseImageBasedLight(const in vec3 normal, const in vec3 diffuseColor){'+#13#10+
+    '  float ao = cavity * ambientOcclusion;'+#13#10+
+    '  return (textureLod(uEnvMapTexture, normal.xyz, float(uEnvMapMaxLevel)).xyz * diffuseColor * ao) * OneOverPI;'+#13#10+
+    '}'+#13#10+
+    'vec3 getSpecularImageBasedLight(const in vec3 normal, const in vec3 specularColor, const in float roughness, const in vec3 viewDirection, const in float litIntensity){'+#13#10+
+    '  vec3 reflectionVector = normalize(reflect(viewDirection, normal.xyz));'+#13#10+
+    '  float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
+    '        ao = cavity * ambientOcclusion,'+#13#10+
+    '        lit = mix(1.0, litIntensity, max(0.0, dot(reflectionVector, -uLightDirection) * (1.0 - (roughness * roughness)))),'+#13#10+
+    '        specularOcclusion = clamp((pow(NdotV + (ao * lit), roughness * roughness) - 1.0) + (ao * lit), 0.0, 1.0);'+#13#10+
+    '  vec2 brdf = textureLod(uBRDFLUTTexture, vec2(roughness, NdotV), 0.0).xy;'+#13#10+
+    '  return (textureLod(uEnvMapTexture, reflectionVector,'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(roughness))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColor.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColor.x, specularColor.y), specularColor.z) * 50.0, 0.0, 1.0))) * specularOcclusion) * OneOverPI;'+#13#10+
     '}'+#13#10+
     'float computeMSM(in vec4 moments, in float fragmentDepth, in float depthBias, in float momentBias){'+#13#10+
     '  vec4 b = mix(moments, vec4(0.5), momentBias);'+#13#10+
@@ -563,7 +574,6 @@ begin
      '        clearcoatFactor = uMaterial.clearcoatFactorClearcoatRoughnessFactor.x;'+#13#10+
      '        clearcoatRoughness = uMaterial.clearcoatFactorClearcoatRoughnessFactor.y;'+#13#10+
      '        clearcoatF0 = vec3(0.04);'+#13#10+
-     '        clearcoatF90 = clamp(clearcoatF0 * 50.0, vec3(0.0), vec3(1.0));'+#13#10+
      '        if((texCoordIndices.x & 0x0f000000u) != 0x0f000000u){'+#13#10+
      '          clearcoatFactor *= textureFetch(uClearcoatTexture, 6, vec4(1.0)).x;'+#13#10+
      '        }'+#13#10+
@@ -579,11 +589,11 @@ begin
      '        clearcoatNormal *= (((flags & (1u << 5u)) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
      '        clearcoatRoughness = clamp(clearcoatRoughness, 0.0, 1.0);'+#13#10+
      '      }'+#13#10+
-     '      float cavity = clamp(mix(1.0, occlusionTexture.x, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0),'+#13#10+
-     '            transparency = 0.0,'+#13#10+
-     '            refractiveAngle = 0.0,'+#13#10+
-     '            ambientOcclusion = 1.0,'+#13#10+
-     '            shadow = 1.0;'+#13#10+
+     '      cavity = clamp(mix(1.0, occlusionTexture.x, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0);'+#13#10+
+     '      transparency = 0.0;'+#13#10+
+     '      refractiveAngle = 0.0;'+#13#10+
+     '      ambientOcclusion = 1.0;'+#13#10+
+     '      shadow = 1.0;'+#13#10+
      '      reflectance = max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z);'+#13#10+
      '      vec3 viewDirection = normalize(vCameraRelativePosition);'+#13#10+
      '      diffuseOutput = specularOutput = sheenOutput = clearcoatOutput = vec3(0.0);'+#13#10+
@@ -658,26 +668,12 @@ begin
      '          }'+#13#10+
      '        }'+#13#10+
      '      }'+#13#10+
-     '      {'+#13#10+
-     '        vec3 reflectionVector = normalize(reflect(viewDirection, normal.xyz));'+#13#10+
-     '        float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
-     '              ao = cavity * ambientOcclusion,'+#13#10+
-     '              lit = mix(1.0, litIntensity, max(0.0, dot(reflectionVector, -uLightDirection) * (1.0 - (specularColorRoughness.w * specularColorRoughness.w)))),'+#13#10+
-     '              specularOcclusion = clamp((pow(NdotV + (ao * lit), specularColorRoughness.w * specularColorRoughness.w) - 1.0) + (ao * lit), 0.0, 1.0);'+#13#10+
-     '         vec2 brdf = textureLod(uBRDFLUTTexture, vec2(specularColorRoughness.w, NdotV), 0.0).xy;'+#13#10+
-     '         diffuseOutput += (textureLod(uEnvMapTexture, normal.xyz, float(uEnvMapMaxLevel)).xyz * diffuseColorAlpha.xyz * ao) * OneOverPI;'+#13#10+
-     '         specularOutput += (textureLod(uEnvMapTexture, reflectionVector,'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(specularColorRoughness.w))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColorRoughness.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z) * 50.0, 0.0, 1.0))) * specularOcclusion) * OneOverPI;'+#13#10+
-     '      }'+#13#10+
+     '      diffuseOutput += getDiffuseImageBasedLight(normal.xyz, diffuseColorAlpha.xyz);'+#13#10+
+     '      specularOutput += getSpecularImageBasedLight(normal.xyz, specularColorRoughness.xyz, specularColorRoughness.w, viewDirection, litIntensity);'+#13#10+
      '      vec3 clearcoatBlendFactor = vec3(0.0);'+#13#10+
      '      if((flags & (1u << 7u)) != 0u){'+#13#10+
-     '        vec3 reflectionVector = normalize(reflect(viewDirection, clearcoatNormal.xyz));'+#13#10+
-     '        float NdotV = clamp(abs(dot(clearcoatNormal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
-     '              ao = cavity * ambientOcclusion,'+#13#10+
-     '              lit = mix(1.0, litIntensity, max(0.0, dot(reflectionVector, -uLightDirection) * (1.0 - (clearcoatRoughness * clearcoatRoughness)))),'+#13#10+
-     '              specularOcclusion = clamp((pow(NdotV + (ao * lit), clearcoatRoughness * clearcoatRoughness) - 1.0) + (ao * lit), 0.0, 1.0);'+#13#10+
-     '         vec2 brdf = textureLod(uBRDFLUTTexture, vec2(clearcoatRoughness, NdotV), 0.0).xy;'+#13#10+
-     '         clearcoatOutput += (textureLod(uEnvMapTexture, reflectionVector,'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(clearcoatRoughness))), 0.0, float(uEnvMapMaxLevel))).xyz * ((clearcoatF0.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(clearcoatF0.x, clearcoatF0.y), clearcoatF0.z) * 50.0, 0.0, 1.0))) * specularOcclusion) * OneOverPI;'+#13#10+
-     '         clearcoatBlendFactor = vec3(clearcoatFactor * fresnel(clearcoatF0, clearcoatF90, clamp(dot(clearcoatNormal, -viewDirection), 0.0, 1.0)));'+#13#10+
+     '        clearcoatOutput += getSpecularImageBasedLight(clearcoatNormal.xyz, clearcoatF0.xyz, clearcoatRoughness, viewDirection, litIntensity);'+#13#10+
+     '        clearcoatBlendFactor = vec3(clearcoatFactor * specularF(clearcoatF0, clamp(dot(clearcoatNormal, -viewDirection), 0.0, 1.0)));'+#13#10+
      '      }'+#13#10+
      '      color = vec4(vec3(((diffuseOutput +'+#13#10+
      '                          (sheenOutput * (1.0 - reflectance)) +'+#13#10+
@@ -687,7 +683,7 @@ begin
      '                            clearcoatOutput,'+#13#10+
      '                            clearcoatBlendFactor)),'+#13#10+
      '                   diffuseColorAlpha.w);'+#13#10+
-//   '      color = vec4(clearcoatOutput * clearcoatBlendFactor, diffuseColorAlpha.w);'+#13#10+
+//    '      color = vec4(clearcoatOutput * clearcoatBlendFactor, diffuseColorAlpha.w);'+#13#10+
      '      break;'+#13#10+
      '    }'+#13#10+
      '    case smUnlit:{'+#13#10+
