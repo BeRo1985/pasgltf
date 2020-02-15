@@ -346,7 +346,7 @@ begin
     '  float invR = 1.0 / (sheenRoughness * sheenRoughness);'+#13#10+
     '  return (2.0 + invR) * pow(1.0 - (NdotH * NdotH), invR * 0.5) / PI2;'+#13#10+
     '}'+#13#10+
-    'vec3 diffuseOutput, specularOutput, sheenOutput, clearcoatOutput;'+#13#10+
+    'vec3 diffuseOutput, specularOutput, sheenOutput, clearcoatOutput, clearcoatBlendFactor;'+#13#10+
     'void doSingleLight(const in vec3 lightColor,'+#13#10+
     '                   const in vec3 lightLit,'+#13#10+
     '                   const in vec3 lightDirection,'+#13#10+
@@ -670,7 +670,6 @@ begin
      '      }'+#13#10+
      '      diffuseOutput += getDiffuseImageBasedLight(normal.xyz, diffuseColorAlpha.xyz);'+#13#10+
      '      specularOutput += getSpecularImageBasedLight(normal.xyz, specularColorRoughness.xyz, specularColorRoughness.w, viewDirection, litIntensity);'+#13#10+
-     '      vec3 clearcoatBlendFactor = vec3(0.0);'+#13#10+
      '      if((flags & (1u << 7u)) != 0u){'+#13#10+
      '        clearcoatOutput += getSpecularImageBasedLight(clearcoatNormal.xyz, clearcoatF0.xyz, clearcoatRoughness, viewDirection, litIntensity);'+#13#10+
      '        clearcoatBlendFactor = vec3(clearcoatFactor * specularF(clearcoatF0, clamp(dot(clearcoatNormal, -viewDirection), 0.0, 1.0)));'+#13#10+
@@ -683,7 +682,7 @@ begin
      '                            clearcoatOutput,'+#13#10+
      '                            clearcoatBlendFactor)),'+#13#10+
      '                   diffuseColorAlpha.w);'+#13#10+
-//    '      color = vec4(clearcoatOutput * clearcoatBlendFactor, diffuseColorAlpha.w);'+#13#10+
+//   '      color = vec4(clearcoatOutput * clearcoatBlendFactor, diffuseColorAlpha.w);'+#13#10+
      '      break;'+#13#10+
      '    }'+#13#10+
      '    case smUnlit:{'+#13#10+
