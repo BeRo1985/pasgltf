@@ -563,6 +563,16 @@ begin
      '      normal *= (((flags & (1u << 5u)) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
      '      vec4 occlusionTexture = textureFetch(uOcclusionTexture, 3, vec4(1.0));'+#13#10+
      '      vec4 emissiveTexture = textureFetchSRGB(uEmissiveTexture, 4, vec4(1.0)); '+#13#10+
+     '      cavity = clamp(mix(1.0, occlusionTexture.x, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0);'+#13#10+
+     '      transparency = 0.0;'+#13#10+
+     '      refractiveAngle = 0.0;'+#13#10+
+     '      ambientOcclusion = 1.0;'+#13#10+
+     '      shadow = 1.0;'+#13#10+
+     '      reflectance = max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z);'+#13#10+
+     '      vec3 viewDirection = normalize(vCameraRelativePosition);'+#13#10+
+     '      diffuseOutput = specularOutput = sheenOutput = clearcoatOutput = vec3(0.0);'+#13#10+
+     '      diffuseOutput += getDiffuseImageBasedLight(normal.xyz, diffuseColorAlpha.xyz);'+#13#10+
+     '      specularOutput += getSpecularImageBasedLight(normal.xyz, specularColorRoughness.xyz, specularColorRoughness.w, viewDirection, litIntensity);'+#13#10+
      '      if((flags & (1u << 6u)) != 0u){'+#13#10+
      '        sheenColorIntensityFactor = uMaterial.sheenColorFactorSheenIntensityFactor;'+#13#10+
      '        if((texCoordIndices.x & 0x00f00000u) != 0x00f00000u){'+#13#10+
@@ -588,15 +598,9 @@ begin
      '        }'+#13#10+
      '        clearcoatNormal *= (((flags & (1u << 5u)) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
      '        clearcoatRoughness = clamp(clearcoatRoughness, 0.0, 1.0);'+#13#10+
+     '        clearcoatOutput += getSpecularImageBasedLight(clearcoatNormal.xyz, clearcoatF0.xyz, clearcoatRoughness, viewDirection, litIntensity);'+#13#10+
+     '        clearcoatBlendFactor = vec3(clearcoatFactor * specularF(clearcoatF0, clamp(dot(clearcoatNormal, -viewDirection), 0.0, 1.0)));'+#13#10+
      '      }'+#13#10+
-     '      cavity = clamp(mix(1.0, occlusionTexture.x, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0);'+#13#10+
-     '      transparency = 0.0;'+#13#10+
-     '      refractiveAngle = 0.0;'+#13#10+
-     '      ambientOcclusion = 1.0;'+#13#10+
-     '      shadow = 1.0;'+#13#10+
-     '      reflectance = max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z);'+#13#10+
-     '      vec3 viewDirection = normalize(vCameraRelativePosition);'+#13#10+
-     '      diffuseOutput = specularOutput = sheenOutput = clearcoatOutput = vec3(0.0);'+#13#10+
      '      if(lightMetaData.x == 0u){'+#13#10+
      '        doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
      '                      pow(vec3(litIntensity), vec3(1.05, 1.02, 1.0)),'+#13#10+
@@ -667,12 +671,6 @@ begin
      '                          cavity);'+#13#10+
      '          }'+#13#10+
      '        }'+#13#10+
-     '      }'+#13#10+
-     '      diffuseOutput += getDiffuseImageBasedLight(normal.xyz, diffuseColorAlpha.xyz);'+#13#10+
-     '      specularOutput += getSpecularImageBasedLight(normal.xyz, specularColorRoughness.xyz, specularColorRoughness.w, viewDirection, litIntensity);'+#13#10+
-     '      if((flags & (1u << 7u)) != 0u){'+#13#10+
-     '        clearcoatOutput += getSpecularImageBasedLight(clearcoatNormal.xyz, clearcoatF0.xyz, clearcoatRoughness, viewDirection, litIntensity);'+#13#10+
-     '        clearcoatBlendFactor = vec3(clearcoatFactor * specularF(clearcoatF0, clamp(dot(clearcoatNormal, -viewDirection), 0.0, 1.0)));'+#13#10+
      '      }'+#13#10+
      '      color = vec4(vec3(((diffuseOutput +'+#13#10+
      '                          (sheenOutput * (1.0 - reflectance)) +'+#13#10+
