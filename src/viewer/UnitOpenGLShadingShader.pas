@@ -242,6 +242,7 @@ begin
     '  gl_Position = uFrameGlobals.viewProjectionMatrix * worldSpacePosition;'+#13#10+
     '}'+#13#10;
  f:='#version 430'+#13#10+
+    '#extension GL_ARB_bindless_texture : require'+#13#10+
     'layout(location = 0) out vec4 oOutput;'+#13#10+
     'in vec3 vWorldSpacePosition;'+#13#10;
  if aShadowMap then begin
