@@ -213,6 +213,15 @@ type EGLTFOpenGL=class(Exception);
                     ColorIntensityTexture:TTexture;
                    end;
                    PPBRSheen=^TPBRSheen;
+                   TPBRClearCoat=record
+                    Active:boolean;
+                    Factor:TPasGLTFFloat;
+                    Texture:TTexture;
+                    RoughnessFactor:TPasGLTFFloat;
+                    RoughnessTexture:TTexture;
+                    NormalTexture:TTexture;
+                   end;
+                   PPBRClearCoat=^TPBRClearCoat;
                    TUniformBufferObjectData=packed record
                     BaseColorFactor:TPasGLTF.TVector4;
                     SpecularFactor:TPasGLTF.TVector4; // actually TVector3, but for easier and more convenient alignment reasons a TVector4
@@ -250,6 +259,7 @@ type EGLTFOpenGL=class(Exception);
               PBRMetallicRoughness:TPBRMetallicRoughness;
               PBRSpecularGlossiness:TPBRSpecularGlossiness;
               PBRSheen:TPBRSheen;
+              PBRClearCoat:TPBRClearCoat;
               UniformBufferObjectData:TUniformBufferObjectData;
               UniformBufferObjectIndex:TPasGLTFSizeInt;
               UniformBufferObjectOffset:TPasGLTFSizeInt;
@@ -599,7 +609,7 @@ const EmptyMaterialUniformBufferObjectData:TGLTFOpenGL.TMaterial.TUniformBufferO
         EmissiveFactor:(0.0,0.0,0.0,0.0);
         MetallicRoughnessNormalScaleOcclusionStrengthFactor:(1.0,1.0,1.0,1.0);
         SheenColorFactorSheenIntensityFactor:(1.0,1.0,1.0,1.0);
-        ClearcoatFactorClearcoatRoughnessFactor:(1.0,1.0,1.0,1.0);
+        ClearcoatFactorClearcoatRoughnessFactor:(0.0,0.0,1.0,1.0);
         AlphaCutOff:1.0;
         Flags:0;
         Textures0:$ffffffff;
@@ -1503,6 +1513,7 @@ var HasLights:boolean;
    end;
 
    begin
+    DestinationMaterial^.PBRSheen.Active:=false;
     DestinationMaterial^.PBRSheen.IntensityFactor:=1.0;
     DestinationMaterial^.PBRSheen.ColorFactor[0]:=1.0;
     DestinationMaterial^.PBRSheen.ColorFactor[1]:=1.0;
@@ -1529,8 +1540,43 @@ var HasLights:boolean;
       DestinationMaterial^.PBRSheen.ColorIntensityTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],0);
       LoadTextureTransform(TPasJSONItemObject(JSONItem).Properties['extensions'],DestinationMaterial^.PBRSheen.ColorIntensityTexture);
      end;
-    end else begin
-     DestinationMaterial^.PBRSheen.Active:=false;
+    end;
+   end;
+
+   begin
+    DestinationMaterial^.PBRClearCoat.Active:=false;
+    DestinationMaterial^.PBRClearCoat.Factor:=0.0;
+    DestinationMaterial^.PBRClearCoat.Texture.Index:=-1;
+    DestinationMaterial^.PBRClearCoat.Texture.TexCoord:=0;
+    DestinationMaterial^.PBRClearCoat.RoughnessFactor:=0.0;
+    DestinationMaterial^.PBRClearCoat.RoughnessTexture.Index:=-1;
+    DestinationMaterial^.PBRClearCoat.RoughnessTexture.TexCoord:=0;
+    DestinationMaterial^.PBRClearCoat.NormalTexture.Index:=-1;
+    DestinationMaterial^.PBRClearCoat.NormalTexture.TexCoord:=0;
+    JSONItem:=SourceMaterial.Extensions.Properties['KHR_materials_clearcoat'];
+    if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
+     JSONObject:=TPasJSONItemObject(JSONItem);
+     DestinationMaterial^.PBRClearCoat.Active:=true;
+     DestinationMaterial^.PBRClearCoat.Factor:=TPasJSON.GetNumber(JSONObject.Properties['intensityFactor'],TPasJSON.GetNumber(JSONObject.Properties['clearcoatFactor'],DestinationMaterial^.PBRClearCoat.Factor));
+     JSONItem:=JSONObject.Properties['clearcoatTexture'];
+     if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
+      DestinationMaterial^.PBRClearCoat.Texture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],-1);
+      DestinationMaterial^.PBRClearCoat.Texture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],0);
+      LoadTextureTransform(TPasJSONItemObject(JSONItem).Properties['extensions'],DestinationMaterial^.PBRClearCoat.Texture);
+     end;
+     DestinationMaterial^.PBRClearCoat.RoughnessFactor:=TPasJSON.GetNumber(JSONObject.Properties['intensityFactor'],TPasJSON.GetNumber(JSONObject.Properties['clearcoatRoughnessFactor'],DestinationMaterial^.PBRClearCoat.RoughnessFactor));
+     JSONItem:=JSONObject.Properties['clearcoatRoughnessTexture'];
+     if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
+      DestinationMaterial^.PBRClearCoat.RoughnessTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],-1);
+      DestinationMaterial^.PBRClearCoat.RoughnessTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],0);
+      LoadTextureTransform(TPasJSONItemObject(JSONItem).Properties['extensions'],DestinationMaterial^.PBRClearCoat.RoughnessTexture);
+     end;
+     JSONItem:=JSONObject.Properties['clearcoatNormalTexture'];
+     if assigned(JSONItem) and (JSONItem is TPasJSONItemObject) then begin
+      DestinationMaterial^.PBRClearCoat.NormalTexture.Index:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['index'],-1);
+      DestinationMaterial^.PBRClearCoat.NormalTexture.TexCoord:=TPasJSON.GetInt64(TPasJSONItemObject(JSONItem).Properties['texCoord'],0);
+      LoadTextureTransform(TPasJSONItemObject(JSONItem).Properties['extensions'],DestinationMaterial^.PBRClearCoat.NormalTexture);
+     end;
     end;
    end;
 
@@ -1631,8 +1677,26 @@ var HasLights:boolean;
      UniformBufferObjectData^.SheenColorFactorSheenIntensityFactor[2]:=DestinationMaterial^.PBRSheen.ColorFactor[2];
      UniformBufferObjectData^.SheenColorFactorSheenIntensityFactor[3]:=DestinationMaterial^.PBRSheen.IntensityFactor;
      if (DestinationMaterial^.PBRSheen.ColorIntensityTexture.Index>=0) and (DestinationMaterial^.PBRSheen.ColorIntensityTexture.Index<length(fTextures)) then begin
-      UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (1 shl 2))) or ((DestinationMaterial^.PBRSheen.ColorIntensityTexture.TexCoord and $f) shl (5 shl 2));
+      UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (5 shl 2))) or ((DestinationMaterial^.PBRSheen.ColorIntensityTexture.TexCoord and $f) shl (5 shl 2));
       UniformBufferObjectData.TextureTransforms[5]:=ConvertTextureTransformToMatrix(DestinationMaterial^.PBRSheen.ColorIntensityTexture.TextureTransform);
+     end;
+    end;
+
+    if DestinationMaterial^.PBRClearCoat.Active then begin
+     UniformBufferObjectData^.Flags:=UniformBufferObjectData^.Flags or (1 shl 7);
+     UniformBufferObjectData^.ClearcoatFactorClearcoatRoughnessFactor[0]:=DestinationMaterial^.PBRClearCoat.Factor;
+     UniformBufferObjectData^.ClearcoatFactorClearcoatRoughnessFactor[1]:=DestinationMaterial^.PBRClearCoat.RoughnessFactor;
+     if (DestinationMaterial^.PBRClearCoat.Texture.Index>=0) and (DestinationMaterial^.PBRClearCoat.Texture.Index<length(fTextures)) then begin
+      UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (6 shl 2))) or ((DestinationMaterial^.PBRClearCoat.Texture.TexCoord and $f) shl (6 shl 2));
+      UniformBufferObjectData.TextureTransforms[6]:=ConvertTextureTransformToMatrix(DestinationMaterial^.PBRClearCoat.Texture.TextureTransform);
+     end;
+     if (DestinationMaterial^.PBRClearCoat.RoughnessTexture.Index>=0) and (DestinationMaterial^.PBRClearCoat.RoughnessTexture.Index<length(fTextures)) then begin
+      UniformBufferObjectData.Textures0:=(UniformBufferObjectData.Textures0 and not ($f shl (7 shl 2))) or ((DestinationMaterial^.PBRClearCoat.RoughnessTexture.TexCoord and $f) shl (7 shl 2));
+      UniformBufferObjectData.TextureTransforms[7]:=ConvertTextureTransformToMatrix(DestinationMaterial^.PBRClearCoat.RoughnessTexture.TextureTransform);
+     end;
+     if (DestinationMaterial^.PBRClearCoat.NormalTexture.Index>=0) and (DestinationMaterial^.PBRClearCoat.NormalTexture.Index<length(fTextures)) then begin
+      UniformBufferObjectData.Textures1:=(UniformBufferObjectData.Textures1 and not ($f shl (0 shl 2))) or ((DestinationMaterial^.PBRClearCoat.NormalTexture.TexCoord and $f) shl (0 shl 2));
+      UniformBufferObjectData.TextureTransforms[8]:=ConvertTextureTransformToMatrix(DestinationMaterial^.PBRClearCoat.NormalTexture.TextureTransform);
      end;
     end;
 
@@ -4294,6 +4358,18 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
       if (Material^.PBRSheen.ColorIntensityTexture.Index>=0) and (Material^.PBRSheen.ColorIntensityTexture.Index<length(fParent.fTextures)) then begin
        glActiveTexture(GL_TEXTURE5);
        glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRSheen.ColorIntensityTexture.Index].Handle);
+      end;
+      if (Material^.PBRClearCoat.Texture.Index>=0) and (Material^.PBRClearCoat.Texture.Index<length(fParent.fTextures)) then begin
+       glActiveTexture(GL_TEXTURE6);
+       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRClearCoat.Texture.Index].Handle);
+      end;
+      if (Material^.PBRClearCoat.RoughnessTexture.Index>=0) and (Material^.PBRClearCoat.RoughnessTexture.Index<length(fParent.fTextures)) then begin
+       glActiveTexture(GL_TEXTURE7);
+       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRClearCoat.RoughnessTexture.Index].Handle);
+      end;
+      if (Material^.PBRClearCoat.NormalTexture.Index>=0) and (Material^.PBRClearCoat.NormalTexture.Index<length(fParent.fTextures)) then begin
+       glActiveTexture(GL_TEXTURE8);
+       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRClearCoat.NormalTexture.Index].Handle);
       end;
       glBindBufferRange(GL_UNIFORM_BUFFER,
                         TShadingShader.uboMaterial,

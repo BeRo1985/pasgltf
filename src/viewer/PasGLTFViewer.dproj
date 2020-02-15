@@ -267,7 +267,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
-        <Debugger_RunParams>&quot;d:\GitHubSVN\PASGLTF.github\trunk\ref\2.0\TextureTransformTest\glTF\TextureTransformTest.glb&quot;</Debugger_RunParams>
+        <Debugger_RunParams>&quot;d:\GitHubSVN\PASGLTF.github\trunk\ref\ClearCoatTest\glTF-Binary\ClearCoatTest.glb&quot;</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
