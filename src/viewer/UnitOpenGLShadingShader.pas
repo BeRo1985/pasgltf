@@ -703,7 +703,7 @@ begin
      '                   diffuseColorAlpha.w);'+#13#10+
 //   '      color = vec4(clearcoatOutput * clearcoatBlendFactor, diffuseColorAlpha.w);'+#13#10+
 {$ifdef PasGLTFExtraEmissionOutput}
-     '      emissionColor.xyz = vec4(emissiveTexture.xyz * uMaterial.emissiveFactor.xyz, 1.0);'+#13#10+
+     '      emissionColor.xyz = vec4((emissiveTexture.xyz * uMaterial.emissiveFactor.xyz) * (vec3(1.0) - clearcoatBlendFactor), 1.0);'+#13#10+
 {$endif}
      '      break;'+#13#10+
      '    }'+#13#10+
