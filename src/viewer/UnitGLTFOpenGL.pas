@@ -4414,7 +4414,6 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
       MeshPrimitiveMetaData:TGLTFOpenGL.TNode.PMeshPrimitiveMetaData;
       DoDraw:boolean;
   begin
-   glGetError;
    for PrimitiveIndex:=0 to length(aMesh.Primitives)-1 do begin
     Primitive:=@aMesh.Primitives[PrimitiveIndex];
     DoDraw:=false;
@@ -4522,9 +4521,6 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
                         fParent.fMaterialUniformBufferObjects[Material^.UniformBufferObjectIndex].UniformBufferObjectHandle,
                         Material^.UniformBufferObjectOffset,
                         SizeOf(TMaterial.TUniformBufferObjectData));
-      if glGetError<>0 then begin
-       writeln('5');
-      end;
       DoDraw:=true;
      end;
     end else begin
@@ -4542,9 +4538,6 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
                         fParent.fMaterialUniformBufferObjects[0].UniformBufferObjectHandle,
                         0,
                         SizeOf(TMaterial.TUniformBufferObjectData));
-      if glGetError<>0 then begin
-       writeln('4');
-      end;
       DoDraw:=true;
      end;
     end;
@@ -4556,9 +4549,6 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
                         MorphTargetVertexShaderStorageBufferObject^.ShaderStorageBufferObjectHandle,
                         Primitive^.MorphTargetVertexShaderStorageBufferObjectByteOffset,
                         Primitive^.MorphTargetVertexShaderStorageBufferObjectByteSize);
-      if glGetError<>0 then begin
-       writeln('3');
-      end;
      end;
      MeshPrimitiveMetaData:=@Node^.MeshPrimitiveMetaDataArray[PrimitiveIndex];
      glBindBufferRange(GL_SHADER_STORAGE_BUFFER,
@@ -4566,20 +4556,11 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
                        fParent.fNodeMeshPrimitiveShaderStorageBufferObjects[MeshPrimitiveMetaData^.ShaderStorageBufferObjectIndex].ShaderStorageBufferObjectHandle,
                        MeshPrimitiveMetaData^.ShaderStorageBufferObjectByteOffset,
                        MeshPrimitiveMetaData^.ShaderStorageBufferObjectByteSize);
-     if glGetError<>0 then begin
-      writeln('0');
-     end;
      glBindBufferRange(GL_SHADER_STORAGE_BUFFER,
                        TShadingShader.ssboLightData,
                        fParent.fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle,
                        0,
                        fParent.fLightShaderStorageBufferObject.Size);
-     if glGetError<>0 then begin
-      writeln('1');
-     end;
-     if glGetError<>0 then begin
-      writeln('2');
-     end;
      glDrawElements(Primitive^.PrimitiveMode,
                     Primitive^.CountIndices,
                     GL_UNSIGNED_INT,

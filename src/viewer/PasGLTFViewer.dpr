@@ -2,7 +2,6 @@ program PasGLTFViewer;
 {$ifdef fpc}
  {$mode delphi}
 {$endif}
-{$apptype console}
 {$ifdef profiledebug}
  {$apptype console}
 {$endif}
