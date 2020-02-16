@@ -573,6 +573,9 @@ type EGLTFOpenGL=class(Exception);
        procedure Unload;
        function GetAnimationBeginTime(const aAnimation:TPasGLTFSizeInt):TPasGLTFFloat;
        function GetAnimationEndTime(const aAnimation:TPasGLTFSizeInt):TPasGLTFFloat;
+{$ifndef PasGLTFBindlessTextures}
+       procedure SetExternalTexture(const aTextureName:TPasGLTFUTF8String;const aHandle:glUInt);
+{$endif}
        function AcquireInstance:TGLTFOpenGL.TInstance;
       public
        property StaticBoundingBox:TBoundingBox read fStaticBoundingBox;
@@ -3553,6 +3556,21 @@ begin
   end;
  end;
 end;
+
+{$ifndef PasGLTFBindlessTextures}
+procedure TGLTFOpenGL.SetExternalTexture(const aTextureName:TPasGLTFUTF8String;const aHandle:glUInt);
+var Index:TPasGLTFSizeInt;
+    Texture:TGLTFOpenGL.PTexture;
+begin
+ for Index:=0 to length(fTextures)-1 do begin
+  Texture:=@fTextures[Index];
+  if assigned(Texture) and (Texture^.Name=aTextureName) then begin
+   Texture^.ExternalHandle:=aHandle;
+   break;
+  end;
+ end;
+end;
+{$endif}
 
 function TGLTFOpenGL.AcquireInstance:TGLTFOpenGL.TInstance;
 begin
