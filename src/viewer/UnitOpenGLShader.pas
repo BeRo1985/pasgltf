@@ -109,7 +109,7 @@ unit UnitOpenGLShader;
 
 interface
 
-uses SysUtils,Classes,dglOpenGL;
+uses SysUtils,Classes,{$ifdef fpcgl}gl,glext{$else}dglOpenGL{$endif};
 
 type EShaderException=class(Exception);
 
