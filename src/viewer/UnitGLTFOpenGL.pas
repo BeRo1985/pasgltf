@@ -391,6 +391,9 @@ type EGLTFOpenGL=class(Exception);
              Image:TPasGLTFSizeInt;
              Sampler:TPasGLTFSizeInt;
              Handle:glUInt;
+{$ifdef PasGLTFBindlessTextures}
+             BindlessHandle:glUInt64;
+{$endif}
             end;
             PTexture=^TTexture;
             TTextures=array of TTexture;
@@ -2919,6 +2922,13 @@ var AllVertices:TAllVertices;
     end;
    end;
    Texture^.Handle:=Handle;
+{$ifdef PasGLTFBindlessTextures}
+   Texture^.BindlessHandle:=glGetTextureHandleARB(Texture^.Handle);
+   if Texture^.BindlessHandle<>0 then begin
+    glMakeTextureHandleResidentARB(Texture^.BindlessHandle);
+   end;
+   glBindTexture(GL_TEXTURE_2D,0);
+{$endif}
   end;
   glBindTexture(GL_TEXTURE_2D,0);
  end;
@@ -3137,25 +3147,11 @@ var AllVertices:TAllVertices;
   glBindBuffer(GL_UNIFORM_BUFFER,0);
  end;
  procedure CreateMaterialUniformBufferObjects;
- var Index,MaterialIndex,Count,MaterialDataSize:TPasGLTFSizeInt;
-     TextureUnit:glInt;
+ var Index,MaterialIndex,Count,MaterialDataSize{$ifndef PasGLTFBindlessTextures},TextureUnit{$endif}:TPasGLTFSizeInt;
      UniformBufferObjectData:TMaterial.PUniformBufferObjectData;
      Material:PMaterial;
      MaterialUniformBufferObject:PMaterialUniformBufferObject;
      p:PPasGLTFUInt8Array;
-{$ifdef PasGLTFBindlessTextures}
-  function GetBindlessTextureHandle(const aTextureHandle:glUInt):glUInt64;
-  begin
-   glActiveTexture(TextureUnit);
-   inc(TextureUnit);
-   glBindTexture(GL_TEXTURE_2D,aTextureHandle);
-   result:=glGetTextureHandleARB(aTextureHandle);
-   if result<>0 then begin
-    glMakeTextureHandleResidentARB(result);
-   end;
-   glBindTexture(GL_TEXTURE_2D,0);
-  end;
-{$endif}
  begin
   fMaterialUniformBufferObjects:=nil;
   Count:=0;
@@ -3220,27 +3216,26 @@ var AllVertices:TAllVertices;
       Material:=@fMaterials[MaterialUniformBufferObject^.Materials[MaterialIndex]];
 {$ifdef PasGLTFBindlessTextures}
       Material^.UniformBufferObjectData.TextureHandles:=EmptyMaterialUniformBufferObjectData.TextureHandles;
-      TextureUnit:=GL_TEXTURE3;
       case Material^.ShadingModel of
        TGLTFOpenGL.TMaterial.TShadingModel.PBRMetallicRoughness:begin
         if (Material^.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material^.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
-         Material^.UniformBufferObjectData.TextureHandles[0]:=GetBindlessTextureHandle(fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
+         Material^.UniformBufferObjectData.TextureHandles[0]:=fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index].BindlessHandle;
         end;
         if (Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fTextures)) then begin
-         Material^.UniformBufferObjectData.TextureHandles[1]:=GetBindlessTextureHandle(fTextures[Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index].Handle);
+         Material^.UniformBufferObjectData.TextureHandles[1]:=fTextures[Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index].BindlessHandle;
         end;
        end;
        TGLTFOpenGL.TMaterial.TShadingModel.PBRSpecularGlossiness:begin
         if (Material^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (Material^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fTextures)) then begin
-         Material^.UniformBufferObjectData.TextureHandles[0]:=GetBindlessTextureHandle(fTextures[Material^.PBRSpecularGlossiness.DiffuseTexture.Index].Handle);
+         Material^.UniformBufferObjectData.TextureHandles[0]:=fTextures[Material^.PBRSpecularGlossiness.DiffuseTexture.Index].BindlessHandle;
         end;
         if (Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fTextures)) then begin
-         Material^.UniformBufferObjectData.TextureHandles[1]:=GetBindlessTextureHandle(fTextures[Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index].Handle);
+         Material^.UniformBufferObjectData.TextureHandles[1]:=fTextures[Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index].BindlessHandle;
         end;
        end;
        TGLTFOpenGL.TMaterial.TShadingModel.Unlit:begin
         if (Material^.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material^.PBRMetallicRoughness.BaseColorTexture.Index<length(fTextures)) then begin
-         Material^.UniformBufferObjectData.TextureHandles[0]:=GetBindlessTextureHandle(fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
+         Material^.UniformBufferObjectData.TextureHandles[0]:=fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index].BindlessHandle;
         end;
        end;
        else begin
@@ -3248,25 +3243,25 @@ var AllVertices:TAllVertices;
        end;
       end;
       if (Material^.NormalTexture.Index>=0) and (Material^.NormalTexture.Index<length(fTextures)) then begin
-       Material^.UniformBufferObjectData.TextureHandles[2]:=GetBindlessTextureHandle(fTextures[Material^.NormalTexture.Index].Handle);
+       Material^.UniformBufferObjectData.TextureHandles[2]:=fTextures[Material^.NormalTexture.Index].BindlessHandle;
       end;
       if (Material^.OcclusionTexture.Index>=0) and (Material^.OcclusionTexture.Index<length(fTextures)) then begin
-       Material^.UniformBufferObjectData.TextureHandles[3]:=GetBindlessTextureHandle(fTextures[Material^.OcclusionTexture.Index].Handle);
+       Material^.UniformBufferObjectData.TextureHandles[3]:=fTextures[Material^.OcclusionTexture.Index].BindlessHandle;
       end;
       if (Material^.EmissiveTexture.Index>=0) and (Material^.EmissiveTexture.Index<length(fTextures)) then begin
-       Material^.UniformBufferObjectData.TextureHandles[4]:=GetBindlessTextureHandle(fTextures[Material^.EmissiveTexture.Index].Handle);
+       Material^.UniformBufferObjectData.TextureHandles[4]:=fTextures[Material^.EmissiveTexture.Index].BindlessHandle;
       end;
       if (Material^.PBRSheen.ColorIntensityTexture.Index>=0) and (Material^.PBRSheen.ColorIntensityTexture.Index<length(fTextures)) then begin
-       Material^.UniformBufferObjectData.TextureHandles[5]:=GetBindlessTextureHandle(fTextures[Material^.PBRSheen.ColorIntensityTexture.Index].Handle);
+       Material^.UniformBufferObjectData.TextureHandles[5]:=fTextures[Material^.PBRSheen.ColorIntensityTexture.Index].BindlessHandle;
       end;
       if (Material^.PBRClearCoat.Texture.Index>=0) and (Material^.PBRClearCoat.Texture.Index<length(fTextures)) then begin
-       Material^.UniformBufferObjectData.TextureHandles[6]:=GetBindlessTextureHandle(fTextures[Material^.PBRClearCoat.Texture.Index].Handle);
+       Material^.UniformBufferObjectData.TextureHandles[6]:=fTextures[Material^.PBRClearCoat.Texture.Index].BindlessHandle;
       end;
       if (Material^.PBRClearCoat.RoughnessTexture.Index>=0) and (Material^.PBRClearCoat.RoughnessTexture.Index<length(fTextures)) then begin
-       Material^.UniformBufferObjectData.TextureHandles[7]:=GetBindlessTextureHandle(fTextures[Material^.PBRClearCoat.RoughnessTexture.Index].Handle);
+       Material^.UniformBufferObjectData.TextureHandles[7]:=fTextures[Material^.PBRClearCoat.RoughnessTexture.Index].BindlessHandle;
       end;
       if (Material^.PBRClearCoat.NormalTexture.Index>=0) and (Material^.PBRClearCoat.NormalTexture.Index<length(fTextures)) then begin
-       Material^.UniformBufferObjectData.TextureHandles[8]:=GetBindlessTextureHandle(fTextures[Material^.PBRClearCoat.NormalTexture.Index].Handle);
+       Material^.UniformBufferObjectData.TextureHandles[8]:=fTextures[Material^.PBRClearCoat.NormalTexture.Index].BindlessHandle;
       end;
 {$else}
       Material^.UniformBufferObjectData.TextureIndices:=EmptyMaterialUniformBufferObjectData.TextureIndices;
@@ -3427,6 +3422,11 @@ procedure TGLTFOpenGL.Unload;
  var Index:TPasGLTFSizeInt;
  begin
   for Index:=0 to length(fTextures)-1 do begin
+{$ifdef PasGLTFBindlessTextures}
+   if fTextures[Index].BindlessHandle>0 then begin
+    glMakeTextureHandleNonResidentARB(fTextures[Index].BindlessHandle);
+   end;
+{$endif}
    if fTextures[Index].Handle>0 then begin
     glDeleteTextures(1,@fTextures[Index].Handle);
    end;
@@ -3470,21 +3470,8 @@ procedure TGLTFOpenGL.Unload;
   glDeleteBuffers(1,@fFrameGlobalsUniformBufferObjectHandle);
  end;
  procedure DestroyMaterialUniformBufferObjects;
- var Index{$ifdef PasGLTFBindlessTextures},TextureIndex{$endif}:TPasGLTFSizeInt;
-{$ifdef PasGLTFBindlessTextures}
-     UniformBufferObjectData:TGLTFOpenGL.TMaterial.PUniformBufferObjectData;
-{$endif}
+ var Index:TPasGLTFSizeInt;
  begin
-{$ifdef PasGLTFBindlessTextures}
-  for Index:=0 to length(fMaterials)-1 do begin
-   UniformBufferObjectData:=@fMaterials[Index].UniformBufferObjectData;
-   for TextureIndex:=0 to length(UniformBufferObjectData^.TextureHandles)-1 do begin
-    if UniformBufferObjectData^.TextureHandles[TextureIndex]>0 then begin
-     glMakeTextureHandleNonResidentARB(UniformBufferObjectData^.TextureHandles[TextureIndex]);
-    end;
-   end;
-  end;
-{$endif}
   for Index:=0 to length(fMaterialUniformBufferObjects)-1 do begin
    if fMaterialUniformBufferObjects[Index].UniformBufferObjectHandle>0 then begin
     glDeleteBuffers(1,@fMaterialUniformBufferObjects[Index].UniformBufferObjectHandle);
