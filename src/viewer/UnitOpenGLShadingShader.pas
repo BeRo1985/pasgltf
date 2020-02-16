@@ -84,6 +84,7 @@ unit UnitOpenGLShadingShader;
   {$undef HAS_TYPE_RAWBYTESTRING}
   {$undef HAS_TYPE_UTF8STRING}
  {$endif}
+ {$legacyifend on}
 {$endif}
 {$ifdef win32}
  {$define windows}
@@ -124,9 +125,9 @@ type TShadingShader=class(TShader)
        uBRDFLUTTexture:glInt;
        uShadowMapTexture:glInt;
        uEnvMapTexture:glInt;
-{$ifndef PasGLTFBindlessTextures}
+{$if not defined(PasGLTFBindlessTextures)}
        uTextures:glInt;
-{$endif}
+{$ifend}
        uEnvMapMaxLevel:glInt;
        uShadows:glInt;
        constructor Create(const aSkinned,aAlphaTest,aShadowMap:boolean);
@@ -275,11 +276,11 @@ begin
     '  vec4 clearcoatFactorClearcoatRoughnessFactor;'+#13#10+
     '  uvec4 alphaCutOffFlagsTex0Tex1;'+#13#10+
     '  mat4 textureTransforms[16];'+#13#10+
-{$ifdef PasGLTFBindlessTextures}
+{$if defined(PasGLTFBindlessTextures)}
     '  uvec4 textureHandles[8];'+#13#10+
-{$else}
+{$elseif defined(PasGLTFIndicatedTextures) and not defined(PasGLTFBindlessTextures)}
     '  ivec4 textureIndices[4];'+#13#10+
-{$endif}
+{$ifend}
     '} uMaterial;'+#13#10+
     'struct Light {'+#13#10+
     '  uvec4 metaData;'+#13#10+
@@ -468,27 +469,31 @@ begin
     'vec2 texCoords[2] = vec2[2](vTexCoord0, vTexCoord1);'+#13#10+
     'vec4 textureFetch(const in int textureIndex, const in vec4 defaultValue){'+#13#10+
     '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
-{$ifdef PasGLTFBindlessTextures}
+{$if defined(PasGLTFBindlessTextures)}
     '  uvec4 textureHandleContainer = uMaterial.textureHandles[textureIndex >> 1];'+#13#10+
     '  int textureHandleBaseIndex = (textureIndex & 1) << 1;'+#13#10+
     '  uvec2 textureHandleUVec2 = uvec2(textureHandleContainer[textureHandleBaseIndex], textureHandleContainer[textureHandleBaseIndex + 1]);'+#13#10+
     '  return (which < 0x2u) ? texture(sampler2D(textureHandleUVec2), (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy) : defaultValue;'+#13#10+
-{$else}
+{$elseif defined(PasGLTFIndicatedTextures) and not defined(PasGLTFBindlessTextures)}
     '  return (which < 0x2u) ? texture(uTextures[uMaterial.textureIndices[textureIndex >> 2][textureIndex & 3]], (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy) : defaultValue;'+#13#10+
-{$endif}
+{$else}
+    '  return (which < 0x2u) ? texture(uTextures[textureIndex], (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy) : defaultValue;'+#13#10+
+{$ifend}
     '}'+#13#10+
     'vec4 textureFetchSRGB(const in int textureIndex, const in vec4 defaultValue){'+#13#10+
     '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
     '  vec4 texel;'+#13#10+
     '  if(which < 0x2u){'+#13#10+
-{$ifdef PasGLTFBindlessTextures}
+{$if defined(PasGLTFBindlessTextures)}
     '    uvec4 textureHandleContainer = uMaterial.textureHandles[textureIndex >> 1];'+#13#10+
     '    int textureHandleBaseIndex = (textureIndex & 1) << 1;'+#13#10+
     '    uvec2 textureHandleUVec2 = uvec2(textureHandleContainer[textureHandleBaseIndex], textureHandleContainer[textureHandleBaseIndex + 1]);'+#13#10+
     '    texel = texture(sampler2D(textureHandleUVec2), (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy);'+#13#10+
-{$else}
+{$elseif defined(PasGLTFIndicatedTextures) and not defined(PasGLTFBindlessTextures)}
     '    texel = texture(uTextures[uMaterial.textureIndices[textureIndex >> 2][textureIndex & 3]], (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy);'+#13#10+
-{$endif}
+{$else}
+    '    texel = texture(uTextures[textureIndex], (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy);'+#13#10+
+{$ifend}
     '    texel.xyz = convertSRGBToLinearRGB(texel.xyz);'+#13#10+
     '  }else{'+#13#10+
     '    texel = defaultValue;'+#13#10+
@@ -730,26 +735,26 @@ begin
 end;
 
 procedure TShadingShader.BindVariables;
-{$ifndef PasGLTFBindlessTextures}
+{$if not defined(PasGLTFBindlessTextures)}
 const Textures:array[0..15] of glInt=(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18);
-{$endif}
+{$ifend}
 begin
  inherited BindVariables;
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
  uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
  uShadowMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uShadowMapTexture')));
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
-{$ifndef PasGLTFBindlessTextures}
+{$if not defined(PasGLTFBindlessTextures)}
  uTextures:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uTextures')));
-{$endif}
+{$ifend}
  uEnvMapMaxLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapMaxLevel')));
  uShadows:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uShadows')));
  glUniform1i(uBRDFLUTTexture,0);
  glUniform1i(uShadowMapTexture,1);
  glUniform1i(uEnvMapTexture,2);
-{$ifndef PasGLTFBindlessTextures}
+{$if not defined(PasGLTFBindlessTextures)}
  glUniform1iv(uTextures,16,@Textures[0]);
-{$endif}
+{$ifend}
 end;
 
 end.
