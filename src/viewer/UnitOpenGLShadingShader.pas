@@ -495,21 +495,6 @@ begin
     '  }'+#13#10+
     '  return texel;'+#13#10+
     '}'+#13#10+
-    'vec4 textureFetch(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
-    '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
-    '  return (which < 0x2u) ? texture(tex, (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy) : defaultValue;'+#13#10+
-    '}'+#13#10+
-    'vec4 textureFetchSRGB(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
-    '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
-    '  vec4 texel;'+#13#10+
-    '  if(which < 0x2u){'+#13#10+
-    '    texel = texture(tex, (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy);'+#13#10+
-    '    texel.xyz = convertSRGBToLinearRGB(texel.xyz);'+#13#10+
-    '  }else{'+#13#10+
-    '    texel = defaultValue;'+#13#10+
-    '  }'+#13#10+
-    '  return texel;'+#13#10+
-    '}'+#13#10+
     'void main(){'+#13#10+
     '  flags = uMaterial.alphaCutOffFlagsTex0Tex1.y;'+#13#10+
     '  shadingModel = (flags >> 0u) & 0xfu;'+#13#10+
