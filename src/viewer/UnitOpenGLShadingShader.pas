@@ -241,6 +241,9 @@ begin
     '#extension GL_ARB_bindless_texture : require'+#13#10+
 {$endif}
     'layout(location = 0) out vec4 oOutput;'+#13#10+
+{$ifdef PasGLTFExtraEmissionOutput}
+    'layout(location = 1) out vec4 oEmission;'+#13#10+
+{$endif}
     'in vec3 vWorldSpacePosition;'+#13#10;
  if aShadowMap then begin
  end else begin
@@ -502,8 +505,7 @@ begin
     '}'+#13#10+
     'void main(){'+#13#10+
     '  flags = uMaterial.alphaCutOffFlagsTex0Tex1.y;'+#13#10+
-    '  shadingModel = (flags >> 0u) & 0xfu;'+#13#10+
-    '  vec4 color = vec4(0.0);'+#13#10;
+    '  shadingModel = (flags >> 0u) & 0xfu;'+#13#10;
  if aShadowMap then begin
   f:=f+
        '  vec4 t = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
@@ -513,6 +515,10 @@ begin
        '  oOutput = m;'+#13#10+
        '  float alpha = textureFetch(0, vec4(1.0)).w * uMaterial.baseColorFactor.w * vColor.w;'+#13#10;
  end else begin
+  f:=f+'  vec4 color = vec4(0.0);'+#13#10;
+{$ifdef PasGLTFExtraEmissionOutput}
+  f:=f+'  vec4 emissionColor = vec4(0.0);'+#13#10;
+{$endif}
   f:=f+
 //   '  vec2 shadowOffsetData = getShadowOffsets(vWorldSpacePosition, vNormal, uLightDirection).xy;'+#13#10+
 //   '  vec3 shadowOffset = ((shadowOffsetData.x * vNormal) + (shadowOffsetData.y * uLightDirection));'+#13#10+
@@ -686,14 +692,19 @@ begin
      '        }'+#13#10+
      '      }'+#13#10+
      '      color = vec4(vec3(((diffuseOutput +'+#13#10+
-     '                          (sheenOutput * (1.0 - reflectance)) +'+#13#10+
-     '                          (emissiveTexture.xyz * uMaterial.emissiveFactor.xyz)) * '+#13#10+
+{$ifndef PasGLTFExtraEmissionOutput}
+     '                          (emissiveTexture.xyz * uMaterial.emissiveFactor.xyz) +'+#13#10+
+{$endif}
+     '                          (sheenOutput * (1.0 - reflectance))) * '+#13#10+
      '                         (vec3(1.0) - clearcoatBlendFactor)) +'+#13#10+
      '                        mix(specularOutput,'+#13#10+
      '                            clearcoatOutput,'+#13#10+
      '                            clearcoatBlendFactor)),'+#13#10+
      '                   diffuseColorAlpha.w);'+#13#10+
 //   '      color = vec4(clearcoatOutput * clearcoatBlendFactor, diffuseColorAlpha.w);'+#13#10+
+{$ifdef PasGLTFExtraEmissionOutput}
+     '      emissionColor.xyz = vec4(emissiveTexture.xyz * uMaterial.emissiveFactor.xyz, 1.0);'+#13#10+
+{$endif}
      '      break;'+#13#10+
      '    }'+#13#10+
      '    case smUnlit:{'+#13#10+
@@ -701,8 +712,12 @@ begin
      '      break;'+#13#10+
      '    }'+#13#10+
      '  }'+#13#10+
-     '  float alpha = color.w * vColor.w;'+#13#10+
-     '  oOutput = vec4(color.xyz * vColor.xyz, mix(1.0, alpha, float(int(uint((flags >> 4u) & 1u)))));'+#13#10;
+     '  float alpha = mix(1.0, color.w * vColor.w, float(int(uint((flags >> 4u) & 1u))));'+#13#10+
+     '  oOutput = vec4(color.xyz * vColor.xyz, alpha);'+#13#10+
+{$ifdef PasGLTFExtraEmissionOutput}
+     '  oEmission = vec4(emissionColor.xyz * vColor.xyz, alpha);'+#13#10+
+{$endif}
+     '';
  end;
  if aAlphaTest then begin
   f:=f+'  if(alpha < uintBitsToFloat(uMaterial.alphaCutOffFlagsTex0Tex1.x)){'+#13#10+
