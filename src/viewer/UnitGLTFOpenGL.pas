@@ -7,6 +7,8 @@ unit UnitGLTFOpenGL;
  {$ifdef cpuamd64}
   {$asmmode intel}
  {$endif}
+{$else}
+ {$legacyifend on}
 {$endif}
 {$m+}
 
@@ -393,6 +395,8 @@ type EGLTFOpenGL=class(Exception);
              Handle:glUInt;
 {$ifdef PasGLTFBindlessTextures}
              BindlessHandle:glUInt64;
+{$else}
+             ExternalHandle:glUInt;
 {$endif}
             end;
             PTexture=^TTexture;
@@ -511,6 +515,7 @@ type EGLTFOpenGL=class(Exception);
             end;
             TLight=record
              public
+              Name:TPasGLTFUTF8String;
               Type_:TPasGLTFUInt32;
               Node:TPasGLTFInt32;
               Intensity:TPasGLTFFloat;
@@ -1261,6 +1266,7 @@ var HasLights:boolean;
        if assigned(LightItem) and (LightItem is TPasJSONItemObject) then begin
         LightObject:=TPasJSONItemObject(LightItem);
         Light:=@fLights[Index];
+        Light^.Name:='';
         Light^.Node:=-1;
         Light^.Type_:=TLightDataType.None;
         Light^.Intensity:=1.0;
@@ -1272,6 +1278,7 @@ var HasLights:boolean;
         Light^.Color[2]:=1.0;
         if assigned(LightItem) and (LightItem is TPasJSONItemObject) then begin
          LightObject:=TPasJSONItemObject(LightItem);
+         Light^.Name:=TPasJSON.GetString(LightObject.Properties['name'],'');
          TypeString:=TPasJSON.GetString(LightObject.Properties['type'],'');
          if TypeString='directional' then begin
           Light^.Type_:=TLightDataType.Directional;
@@ -2928,6 +2935,8 @@ var AllVertices:TAllVertices;
     glMakeTextureHandleResidentARB(Texture^.BindlessHandle);
    end;
    glBindTexture(GL_TEXTURE_2D,0);
+{$else}
+   Texture^.ExternalHandle:=0;
 {$endif}
   end;
   glBindTexture(GL_TEXTURE_2D,0);
@@ -4407,6 +4416,16 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      InstanceNode:TGLTFOpenGL.TInstance.PNode;
      Node:TGLTFOpenGL.PNode;
   procedure DrawMesh(const aMesh:TGLTFOpenGL.TMesh);
+{$if not defined(PasGLTFBindlessTextures)}
+   function GetTextureHandle(const aTexture:TGLTFOpenGL.TTexture):glUInt;
+   begin
+    if aTexture.ExternalHandle<>0 then begin
+     result:=aTexture.ExternalHandle;
+    end else begin
+     result:=aTexture.Handle;
+    end;
+   end;
+{$ifend}
   var PrimitiveIndex:TPasGLTFSizeInt;
       Primitive:TGLTFOpenGL.TMesh.PPrimitive;
       Material:TGLTFOpenGL.PMaterial;
@@ -4460,27 +4479,27 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
        TGLTFOpenGL.TMaterial.TShadingModel.PBRMetallicRoughness:begin
         if (Material^.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material^.PBRMetallicRoughness.BaseColorTexture.Index<length(fParent.fTextures)) then begin
          glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[0]{$else}GL_TEXTURE3{$endif});
-         glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
+         glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index]));
         end;
         if (Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index>=0) and (Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index<length(fParent.fTextures)) then begin
          glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[1]{$else}GL_TEXTURE4{$endif});
-         glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index].Handle);
+         glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.PBRMetallicRoughness.MetallicRoughnessTexture.Index]));
         end;
        end;
        TGLTFOpenGL.TMaterial.TShadingModel.PBRSpecularGlossiness:begin
         if (Material^.PBRSpecularGlossiness.DiffuseTexture.Index>=0) and (Material^.PBRSpecularGlossiness.DiffuseTexture.Index<length(fParent.fTextures)) then begin
          glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[0]{$else}GL_TEXTURE3{$endif});
-         glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRSpecularGlossiness.DiffuseTexture.Index].Handle);
+         glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.PBRSpecularGlossiness.DiffuseTexture.Index]));
         end;
         if (Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index>=0) and (Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index<length(fParent.fTextures)) then begin
          glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[1]{$else}GL_TEXTURE4{$endif});
-         glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index].Handle);
+         glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.PBRSpecularGlossiness.SpecularGlossinessTexture.Index]));
         end;
        end;
        TGLTFOpenGL.TMaterial.TShadingModel.Unlit:begin
         if (Material^.PBRMetallicRoughness.BaseColorTexture.Index>=0) and (Material^.PBRMetallicRoughness.BaseColorTexture.Index<length(fParent.fTextures)) then begin
          glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[0]{$else}GL_TEXTURE3{$endif});
-         glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index].Handle);
+         glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.PBRMetallicRoughness.BaseColorTexture.Index]));
         end;
        end;
        else begin
@@ -4489,31 +4508,31 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
       end;
       if (Material^.NormalTexture.Index>=0) and (Material^.NormalTexture.Index<length(fParent.fTextures)) then begin
        glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[2]{$else}GL_TEXTURE5{$endif});
-       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.NormalTexture.Index].Handle);
+       glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.NormalTexture.Index]));
       end;
       if (Material^.OcclusionTexture.Index>=0) and (Material^.OcclusionTexture.Index<length(fParent.fTextures)) then begin
        glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[3]{$else}GL_TEXTURE6{$endif});
-       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.OcclusionTexture.Index].Handle);
+       glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.OcclusionTexture.Index]));
       end;
       if (Material^.EmissiveTexture.Index>=0) and (Material^.EmissiveTexture.Index<length(fParent.fTextures)) then begin
        glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[4]{$else}GL_TEXTURE7{$endif});
-       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.EmissiveTexture.Index].Handle);
+       glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.EmissiveTexture.Index]));
       end;
       if (Material^.PBRSheen.ColorIntensityTexture.Index>=0) and (Material^.PBRSheen.ColorIntensityTexture.Index<length(fParent.fTextures)) then begin
        glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[5]{$else}GL_TEXTURE8{$endif});
-       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRSheen.ColorIntensityTexture.Index].Handle);
+       glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.PBRSheen.ColorIntensityTexture.Index]));
       end;
       if (Material^.PBRClearCoat.Texture.Index>=0) and (Material^.PBRClearCoat.Texture.Index<length(fParent.fTextures)) then begin
        glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[6]{$else}GL_TEXTURE9{$endif});
-       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRClearCoat.Texture.Index].Handle);
+       glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.PBRClearCoat.Texture.Index]));
       end;
       if (Material^.PBRClearCoat.RoughnessTexture.Index>=0) and (Material^.PBRClearCoat.RoughnessTexture.Index<length(fParent.fTextures)) then begin
        glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[7]{$else}GL_TEXTURE10{$endif});
-       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRClearCoat.RoughnessTexture.Index].Handle);
+       glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.PBRClearCoat.RoughnessTexture.Index]));
       end;
       if (Material^.PBRClearCoat.NormalTexture.Index>=0) and (Material^.PBRClearCoat.NormalTexture.Index<length(fParent.fTextures)) then begin
        glActiveTexture({$ifdef PasGLTFIndicatedTextures}GL_TEXTURE3+Material^.UniformBufferObjectData.TextureIndices[8]{$else}GL_TEXTURE11{$endif});
-       glBindTexture(GL_TEXTURE_2D,fParent.fTextures[Material^.PBRClearCoat.NormalTexture.Index].Handle);
+       glBindTexture(GL_TEXTURE_2D,GetTextureHandle(fParent.fTextures[Material^.PBRClearCoat.NormalTexture.Index]));
       end;
 {$ifend}
       glBindBufferRange(GL_UNIFORM_BUFFER,
