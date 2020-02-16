@@ -159,7 +159,7 @@ begin
     'void main(){'+#13#10+
     '  oOutput = GaussianBlur(uTexture, vTexCoord, 0.0, (vec2(1.0) / textureSize(uTexture, 0)) * uDirection);'+#13#10+
     '}'+#13#10;
- inherited Create(f,v);
+ inherited Create(v,f);
 end;
 
 destructor TShadowMapBlurShader.Destroy;

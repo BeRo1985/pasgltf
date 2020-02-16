@@ -147,7 +147,7 @@ begin
     'void main(){'+#13#10+
     '  oOutput = texture(uTexture, vTexCoord) * vColor;'+#13#10+
     '}'+#13#10;
- inherited Create(f,v);
+ inherited Create(v,f);
 end;
 
 destructor TExtendedBlitRectShader.Destroy;

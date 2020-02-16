@@ -213,7 +213,7 @@ begin
     '	  oOutput = r / max(w, 1e-4);'+#13#10+
     '  }'+#13#10+
     '}'+#13#10;
- inherited Create(f,v);
+ inherited Create(v,f);
 end;
 
 destructor TEnvMapFilterShader.Destroy;

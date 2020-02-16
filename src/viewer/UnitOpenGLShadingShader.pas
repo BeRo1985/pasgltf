@@ -725,7 +725,7 @@ begin
        '  }'+#13#10;
  end;
  f:=f+'}'+#13#10;
- inherited Create(f,v);
+ inherited Create(v,f);
 end;
 
 destructor TShadingShader.Destroy;

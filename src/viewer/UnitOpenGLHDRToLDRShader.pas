@@ -153,7 +153,7 @@ begin
     '  vec4 c = textureLod(uTexture, vTexCoord, 0.0);'+#13#10+
     '  oOutput = vec4(toneMappingAndToLDR(c.xyz), c.w);'+#13#10+
     '}'+#13#10;
- inherited Create(f,v);
+ inherited Create(v,f);
 end;
 
 destructor THDRToLDRShader.Destroy;

@@ -175,7 +175,7 @@ begin
     '  }'+#13#10+
     '  oOutput = vec4(r / float(numSamples), 0.0, 1.0);'+#13#10+
     '}'+#13#10;
- inherited Create(f,v);
+ inherited Create(v,f);
 end;
 
 destructor TBRDFLUTShader.Destroy;

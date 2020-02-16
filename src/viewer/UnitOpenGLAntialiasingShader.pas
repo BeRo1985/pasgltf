@@ -164,7 +164,7 @@ begin
     '  float lumaB = dot(rgbB.xyz, luma);'+#13#10+
     '  oOutput = ((lumaB < lumaMin) || (lumaB > lumaMax)) ? rgbA : rgbB;'+#13#10+
     '}'+#13#10;
- inherited Create(f,v);
+ inherited Create(v,f);
 end;
 
 destructor TAntialiasingShader.Destroy;

@@ -417,7 +417,7 @@ begin
      '  oOutput = atmosphereGet(vec3(0.0), direction);'+#13#10+
      '}'+#13#10;
  end;
- inherited Create(f,v);
+ inherited Create(v,f);
 end;
 
 destructor TEnvMapGenShader.Destroy;

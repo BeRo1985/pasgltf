@@ -147,7 +147,7 @@ begin
     'void main(){'+#13#10+
     '	 oOutput = texture(uTexture, normalize(vPosition));'+#13#10+
     '}'+#13#10;
- inherited Create(f,v);
+ inherited Create(v,f);
 end;
 
 destructor TEnvMapDrawShader.Destroy;

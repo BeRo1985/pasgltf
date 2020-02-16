@@ -120,17 +120,18 @@ type EShaderException=class(Exception);
        VertexShaderHandle:glInt;
        FragmentShader:RawByteString;
        VertexShader:RawByteString;
-       constructor Create(const AFragmentShader,AVertexShader:RawByteString);
+       constructor Create(const AVertexShader,AFragmentShader:RawByteString);
        destructor Destroy; override;
        procedure BindAttributes; virtual;
        procedure BindVariables; virtual;
+       procedure BindLocations; virtual;
        procedure Bind; virtual;
        procedure Unbind; virtual;
      end;
 
 implementation
 
-constructor TShader.Create(const AFragmentShader,AVertexShader:RawByteString);
+constructor TShader.Create(const AVertexShader,AFragmentShader:RawByteString);
 var Source:pointer;
     CompiledOrLinked,LogLength:glInt;
     LogString:RawByteString;
@@ -211,6 +212,7 @@ begin
 
    glUseProgram(ProgramHandle);
    BindVariables;
+   BindLocations;
    glUseProgram(0);
 
   except
@@ -259,6 +261,10 @@ begin
 end;
 
 procedure TShader.BindVariables;
+begin
+end;
+
+procedure TShader.BindLocations;
 begin
 end;
 
