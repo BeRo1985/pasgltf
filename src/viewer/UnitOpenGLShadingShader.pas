@@ -120,19 +120,13 @@ type TShadingShader=class(TShader)
              ssboNodeMeshPrimitiveMetaData=4;
              ssboLightData=5;
       public
-       uBaseColorTexture:glInt;
-       uMetallicRoughnessTexture:glInt;
-       uNormalTexture:glInt;
-       uOcclusionTexture:glInt;
-       uEmissiveTexture:glInt;
-       uSheenColorIntensityTexture:glInt;
-       uClearcoatTexture:glInt;
-       uClearcoatRoughnessTexture:glInt;
-       uClearcoatNormalTexture:glInt;
        uLightDirection:glInt;
        uBRDFLUTTexture:glInt;
        uShadowMapTexture:glInt;
        uEnvMapTexture:glInt;
+{$ifndef PasGLTFBindlessTextures}
+       uTextures:glInt;
+{$endif}
        uEnvMapMaxLevel:glInt;
        uShadows:glInt;
        constructor Create(const aSkinned,aAlphaTest,aShadowMap:boolean);
@@ -242,7 +236,9 @@ begin
     '  gl_Position = uFrameGlobals.viewProjectionMatrix * worldSpacePosition;'+#13#10+
     '}'+#13#10;
  f:='#version 430'+#13#10+
+{$ifdef PasGLTFBindlessTextures}
     '#extension GL_ARB_bindless_texture : require'+#13#10+
+{$endif}
     'layout(location = 0) out vec4 oOutput;'+#13#10+
     'in vec3 vWorldSpacePosition;'+#13#10;
  if aShadowMap then begin
@@ -256,18 +252,10 @@ begin
     'in vec3 vTangent;'+#13#10+
     'in vec3 vBitangent;'+#13#10+
     'in vec4 vColor;'+#13#10+
-    'uniform sampler2D uBaseColorTexture;'+#13#10+
-    'uniform sampler2D uMetallicRoughnessTexture;'+#13#10+
-    'uniform sampler2D uNormalTexture;'+#13#10+
-    'uniform sampler2D uOcclusionTexture;'+#13#10+
-    'uniform sampler2D uEmissiveTexture;'+#13#10+
-    'uniform sampler2D uSheenColorIntensityTexture;'+#13#10+
-    'uniform sampler2D uClearcoatTexture;'+#13#10+
-    'uniform sampler2D uClearcoatRoughnessTexture;'+#13#10+
-    'uniform sampler2D uClearcoatNormalTexture;'+#13#10+
     'uniform sampler2D uBRDFLUTTexture;'+#13#10+
     'uniform sampler2D uShadowMapTexture;'+#13#10+
     'uniform samplerCube uEnvMapTexture;'+#13#10+
+    'uniform sampler2D uTextures[16];'+#13#10+
     'uniform int uEnvMapMaxLevel;'+#13#10+
     'uniform int uShadows;'+#13#10+
     'uniform vec3 uLightDirection;'+#13#10+
@@ -287,6 +275,11 @@ begin
     '  vec4 clearcoatFactorClearcoatRoughnessFactor;'+#13#10+
     '  uvec4 alphaCutOffFlagsTex0Tex1;'+#13#10+
     '  mat4 textureTransforms[16];'+#13#10+
+{$ifdef PasGLTFBindlessTextures}
+    '  uvec4 textureHandles[8];'+#13#10+
+{$else}
+    '  ivec4 textureIndices[4];'+#13#10+
+{$endif}
     '} uMaterial;'+#13#10+
     'struct Light {'+#13#10+
     '  uvec4 metaData;'+#13#10+
@@ -473,6 +466,35 @@ begin
     '           smUnlit = 2u;'+#13#10+
     'uvec2 texCoordIndices = uMaterial.alphaCutOffFlagsTex0Tex1.zw;'+#13#10+
     'vec2 texCoords[2] = vec2[2](vTexCoord0, vTexCoord1);'+#13#10+
+    'vec4 textureFetch(const in int textureIndex, const in vec4 defaultValue){'+#13#10+
+    '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
+{$ifdef PasGLTFBindlessTextures}
+    '  uvec4 textureHandleContainer = uMaterial.textureHandles[textureIndex >> 1];'+#13#10+
+    '  int textureHandleBaseIndex = (textureIndex & 1) << 1;'+#13#10+
+    '  uvec2 textureHandleUVec2 = uvec2(textureHandleContainer[textureHandleBaseIndex], textureHandleContainer[textureHandleBaseIndex + 1]);'+#13#10+
+    '  return (which < 0x2u) ? texture(sampler2D(textureHandleUVec2), (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy) : defaultValue;'+#13#10+
+{$else}
+    '  return (which < 0x2u) ? texture(uTextures[uMaterial.textureIndices[textureIndex >> 2][textureIndex & 3]], (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy) : defaultValue;'+#13#10+
+{$endif}
+    '}'+#13#10+
+    'vec4 textureFetchSRGB(const in int textureIndex, const in vec4 defaultValue){'+#13#10+
+    '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
+    '  vec4 texel;'+#13#10+
+    '  if(which < 0x2u){'+#13#10+
+{$ifdef PasGLTFBindlessTextures}
+    '    uvec4 textureHandleContainer = uMaterial.textureHandles[textureIndex >> 1];'+#13#10+
+    '    int textureHandleBaseIndex = (textureIndex & 1) << 1;'+#13#10+
+    '    uvec2 textureHandleUVec2 = uvec2(textureHandleContainer[textureHandleBaseIndex], textureHandleContainer[textureHandleBaseIndex + 1]);'+#13#10+
+    '    texel = texture(sampler2D(textureHandleUVec2), (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy);'+#13#10+
+{$else}
+    '    texel = texture(uTextures[uMaterial.textureIndices[textureIndex >> 2][textureIndex & 3]], (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy);'+#13#10+
+{$endif}
+    '    texel.xyz = convertSRGBToLinearRGB(texel.xyz);'+#13#10+
+    '  }else{'+#13#10+
+    '    texel = defaultValue;'+#13#10+
+    '  }'+#13#10+
+    '  return texel;'+#13#10+
+    '}'+#13#10+
     'vec4 textureFetch(const in sampler2D tex, const in int textureIndex, const in vec4 defaultValue){'+#13#10+
     '  uint which = (texCoordIndices[textureIndex >> 3] >> ((uint(textureIndex) & 7u) << 2u)) & 0xfu;'+#13#10+
     '  return (which < 0x2u) ? texture(tex, (uMaterial.textureTransforms[textureIndex] * vec3(texCoords[int(which)], 1.0).xyzz).xy) : defaultValue;'+#13#10+
@@ -499,7 +521,7 @@ begin
        '  float s = d * d;'+#13#10+
        '  vec4 m = vec4(d, s, s * d, s * s);'+#13#10+
        '  oOutput = m;'+#13#10+
-       '  float alpha = textureFetch(uBaseColorTexture, 0, vec4(1.0)).w * uMaterial.baseColorFactor.w * vColor.w;'+#13#10;
+       '  float alpha = textureFetch(0, vec4(1.0)).w * uMaterial.baseColorFactor.w * vColor.w;'+#13#10;
  end else begin
   f:=f+
 //   '  vec2 shadowOffsetData = getShadowOffsets(vWorldSpacePosition, vNormal, uLightDirection).xy;'+#13#10+
@@ -527,9 +549,9 @@ begin
      '      switch(shadingModel){'+#13#10+
      '        case smPBRMetallicRoughness:{'+#13#10+
      '          const vec3 f0 = vec3(0.04);'+#13#10+ // dielectricSpecular
-     '          vec4 baseColor = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) *'+#13#10+
+     '          vec4 baseColor = textureFetchSRGB(0, vec4(1.0)) *'+#13#10+
      '                           uMaterial.baseColorFactor;'+#13#10+
-     '          vec2 metallicRoughness = clamp(textureFetch(uMetallicRoughnessTexture, 1, vec4(1.0)).zy *'+#13#10+
+     '          vec2 metallicRoughness = clamp(textureFetch(1, vec4(1.0)).zy *'+#13#10+
      '                                         uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.xy,'+#13#10+
      '                                         vec2(0.0, 1e-3),'+#13#10+
      '                                         vec2(1.0));'+#13#10+
@@ -540,10 +562,10 @@ begin
      '          break;'+#13#10+
      '        }'+#13#10+
      '        case smPBRSpecularGlossiness:{'+#13#10+
-     '          vec4 specularGlossiness = textureFetchSRGB(uMetallicRoughnessTexture, 1, vec4(1.0)) *'+#13#10+
+     '          vec4 specularGlossiness = textureFetchSRGB(1, vec4(1.0)) *'+#13#10+
      '                                    vec4(uMaterial.specularFactor.xyz,'+#13#10+
      '                                         uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.y);'+#13#10+
-     '          diffuseColorAlpha = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) *'+#13#10+
+     '          diffuseColorAlpha = textureFetchSRGB(0, vec4(1.0)) *'+#13#10+
      '                              uMaterial.baseColorFactor *'+#13#10+
      '                              vec2((1.0 - max(max(specularGlossiness.x,'+#13#10+
      '                                                  specularGlossiness.y),'+#13#10+
@@ -556,14 +578,14 @@ begin
      '      }'+#13#10+
      '      vec3 normal;'+#13#10+
      '      if((texCoordIndices.x & 0x00000f00u) != 0x00000f00u){'+#13#10+
-     '        vec4 normalTexture = textureFetch(uNormalTexture, 2, vec2(0.0, 1.0).xxyx);'+#13#10+
+     '        vec4 normalTexture = textureFetch(2, vec2(0.0, 1.0).xxyx);'+#13#10+
      '        normal = normalize(mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal)) * normalize((normalTexture.xyz - vec3(0.5)) * (vec2(uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.z, 1.0).xxy * 2.0)));'+#13#10+
      '      }else{'+#13#10+
      '        normal = normalize(vNormal);'+#13#10+
      '      }'+#13#10+
      '      normal *= (((flags & (1u << 5u)) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
-     '      vec4 occlusionTexture = textureFetch(uOcclusionTexture, 3, vec4(1.0));'+#13#10+
-     '      vec4 emissiveTexture = textureFetchSRGB(uEmissiveTexture, 4, vec4(1.0)); '+#13#10+
+     '      vec4 occlusionTexture = textureFetch(3, vec4(1.0));'+#13#10+
+     '      vec4 emissiveTexture = textureFetchSRGB(4, vec4(1.0)); '+#13#10+
      '      cavity = clamp(mix(1.0, occlusionTexture.x, uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.w), 0.0, 1.0);'+#13#10+
      '      transparency = 0.0;'+#13#10+
      '      refractiveAngle = 0.0;'+#13#10+
@@ -577,7 +599,7 @@ begin
      '      if((flags & (1u << 6u)) != 0u){'+#13#10+
      '        sheenColorIntensityFactor = uMaterial.sheenColorFactorSheenIntensityFactor;'+#13#10+
      '        if((texCoordIndices.x & 0x00f00000u) != 0x00f00000u){'+#13#10+
-     '          sheenColorIntensityFactor *= textureFetchSRGB(uSheenColorIntensityTexture, 5, vec4(1.0));'+#13#10+
+     '          sheenColorIntensityFactor *= textureFetchSRGB(5, vec4(1.0));'+#13#10+
      '        }'+#13#10+
      '        sheenRoughness = max(specularColorRoughness.w, 1e-7);'+#13#10+
      '      }'+#13#10+
@@ -586,13 +608,13 @@ begin
      '        clearcoatRoughness = uMaterial.clearcoatFactorClearcoatRoughnessFactor.y;'+#13#10+
      '        clearcoatF0 = vec3(0.04);'+#13#10+
      '        if((texCoordIndices.x & 0x0f000000u) != 0x0f000000u){'+#13#10+
-     '          clearcoatFactor *= textureFetch(uClearcoatTexture, 6, vec4(1.0)).x;'+#13#10+
+     '          clearcoatFactor *= textureFetch(6, vec4(1.0)).x;'+#13#10+
      '        }'+#13#10+
      '        if((texCoordIndices.x & 0xf0000000u) != 0xf0000000u){'+#13#10+
-     '          clearcoatRoughness *= textureFetch(uClearcoatRoughnessTexture, 7, vec4(1.0)).y;'+#13#10+
+     '          clearcoatRoughness *= textureFetch(7, vec4(1.0)).y;'+#13#10+
      '        }'+#13#10+
      '        if((texCoordIndices.y & 0x0000000fu) != 0x0000000fu){'+#13#10+
-     '          vec4 normalTexture = textureFetch(uClearcoatNormalTexture, 8, vec2(0.0, 1.0).xxyx);'+#13#10+
+     '          vec4 normalTexture = textureFetch(8, vec2(0.0, 1.0).xxyx);'+#13#10+
      '          clearcoatNormal = normalize(mat3(normalize(vTangent), normalize(vBitangent), normalize(vNormal)) * normalize((normalTexture.xyz - vec3(0.5)) * (vec2(uMaterial.metallicRoughnessNormalScaleOcclusionStrengthFactor.z, 1.0).xxy * 2.0)));'+#13#10+
      '        }else{'+#13#10+
      '          clearcoatNormal = normalize(vNormal);'+#13#10+
@@ -685,7 +707,7 @@ begin
      '      break;'+#13#10+
      '    }'+#13#10+
      '    case smUnlit:{'+#13#10+
-     '      color = textureFetchSRGB(uBaseColorTexture, 0, vec4(1.0)) * uMaterial.baseColorFactor * vec2((litIntensity * 0.25) + 0.75, 1.0).xxxy;'+#13#10+
+     '      color = textureFetchSRGB(0, vec4(1.0)) * uMaterial.baseColorFactor * vec2((litIntensity * 0.25) + 0.75, 1.0).xxxy;'+#13#10+
      '      break;'+#13#10+
      '    }'+#13#10+
      '  }'+#13#10+
@@ -723,36 +745,26 @@ begin
 end;
 
 procedure TShadingShader.BindVariables;
+{$ifndef PasGLTFBindlessTextures}
+const Textures:array[0..15] of glInt=(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18);
+{$endif}
 begin
  inherited BindVariables;
- uBaseColorTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBaseColorTexture')));
- uMetallicRoughnessTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uMetallicRoughnessTexture')));
- uNormalTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uNormalTexture')));
- uOcclusionTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uOcclusionTexture')));
- uEmissiveTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEmissiveTexture')));
- uSheenColorIntensityTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uSheenColorIntensityTexture')));
- uClearcoatTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uClearcoatTexture')));
- uClearcoatRoughnessTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uClearcoatRoughnessTexture')));
- uClearcoatNormalTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uClearcoatNormalTexture')));
  uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
  uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
  uShadowMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uShadowMapTexture')));
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
+{$ifndef PasGLTFBindlessTextures}
+ uTextures:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uTextures')));
+{$endif}
  uEnvMapMaxLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapMaxLevel')));
  uShadows:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uShadows')));
-//uboJointMatrices:=glGetUniformBlockIndex(ProgramHandle,pointer(pansichar('uboJointMatrices')));
- glUniform1i(uBaseColorTexture,0);
- glUniform1i(uMetallicRoughnessTexture,1);
- glUniform1i(uNormalTexture,2);
- glUniform1i(uOcclusionTexture,3);
- glUniform1i(uEmissiveTexture,4);
- glUniform1i(uSheenColorIntensityTexture,5);
- glUniform1i(uClearcoatTexture,6);
- glUniform1i(uClearcoatRoughnessTexture,7);
- glUniform1i(uClearcoatNormalTexture,8);
- glUniform1i(uBRDFLUTTexture,9);
- glUniform1i(uShadowMapTexture,10);
- glUniform1i(uEnvMapTexture,11);
+ glUniform1i(uBRDFLUTTexture,0);
+ glUniform1i(uShadowMapTexture,1);
+ glUniform1i(uEnvMapTexture,2);
+{$ifndef PasGLTFBindlessTextures}
+ glUniform1iv(uTextures,16,@Textures[0]);
+{$endif}
 end;
 
 end.

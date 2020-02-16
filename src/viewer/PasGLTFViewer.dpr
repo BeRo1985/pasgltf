@@ -2,8 +2,9 @@ program PasGLTFViewer;
 {$ifdef fpc}
  {$mode delphi}
 {$endif}
-{$ifdef profiledebug}
 {$apptype console}
+{$ifdef profiledebug}
+ {$apptype console}
 {$endif}
 {$ifdef win32}
  {$define windows}
@@ -856,13 +857,13 @@ begin
    EnvMapDrawShader.Unbind;
   end;
   begin
-   glActiveTexture(GL_TEXTURE9);
+   glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D,BRDFLUTFBO.TextureHandles[0]);
    if Shadows then begin
-    glActiveTexture(GL_TEXTURE10);
+    glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D,ShadowMapFBOs[2].TextureHandles[0]);
    end;
-   glActiveTexture(GL_TEXTURE11);
+   glActiveTexture(GL_TEXTURE2);
    glBindTexture(GL_TEXTURE_CUBE_MAP,EnvMapFBO.TextureHandles[0]);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
