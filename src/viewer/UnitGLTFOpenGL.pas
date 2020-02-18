@@ -78,7 +78,6 @@ type EGLTFOpenGL=class(Exception);
               fNodes:TNodes;
               fSkins:TSkins;
               fLightNodes:TNodeIndices;
-              fCameraNodes:TNodeIndices;
               fDynamicBoundingBox:TBoundingBox;
               fWorstCaseStaticBoundingBox:TBoundingBox;
               procedure SetScene(const aScene:TPasGLTFSizeInt);
@@ -91,7 +90,7 @@ type EGLTFOpenGL=class(Exception);
               procedure UpdateDynamicBoundingBox(const aHighQuality:boolean=false);
               procedure UpdateWorstCaseStaticBoundingBox;
               procedure Upload;
-              function GetCamera(const aCameraIndex:TPasGLTFSizeInt;
+              function GetCamera(const aNodeIndex:TPasGLTFSizeInt;
                                  out aViewMatrix:TPasGLTF.TMatrix4x4;
                                  out aProjectionMatrix:TPasGLTF.TMatrix4x4):boolean;
               procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
@@ -352,7 +351,6 @@ type EGLTFOpenGL=class(Exception);
               YMag:TPasGLTFFloat;
               ZNear:TPasGLTFFloat;
               ZFar:TPasGLTFFloat;
-              Node:TPasGLTFSizeInt;
             end;
             PCamera=^TCamera;
             TCameras=array of TCamera;
@@ -2439,7 +2437,6 @@ var HasLights:boolean;
      DestinationCamera^.ZFar:=SourceCamera.Perspective.ZFar;
     end;
    end;
-   DestinationCamera^.Node:=-1;
   end;
  end;
  procedure LoadNodes;
@@ -2458,9 +2455,6 @@ var HasLights:boolean;
    DestinationNode^.Name:=SourceNode.Name;
    DestinationNode^.Mesh:=SourceNode.Mesh;
    DestinationNode^.Camera:=SourceNode.Camera;
-   if (DestinationNode^.Camera>=0) and (DestinationNode^.Camera<length(fCameras)) then begin
-    fCameras[DestinationNode^.Camera].Node:=Index;
-   end;
    DestinationNode^.Skin:=SourceNode.Skin;
    DestinationNode^.Joint:=-1;
    DestinationNode^.Matrix:=SourceNode.Matrix;
@@ -3652,12 +3646,8 @@ begin
  SetLength(fNodes,length(fParent.fNodes));
  SetLength(fSkins,length(fParent.fSkins));
  SetLength(fLightNodes,length(fParent.fLights));
- SetLength(fCameraNodes,length(fParent.fCameras));
  for Index:=0 to length(fLightNodes)-1 do begin
   fLightNodes[Index]:=-1;
- end;
- for Index:=0 to length(fCameraNodes)-1 do begin
-  fCameraNodes[Index]:=-1;
  end;
  for Index:=0 to length(fParent.fNodes)-1 do begin
   InstanceNode:=@fNodes[Index];
@@ -3964,9 +3954,6 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
   if (Node^.Light>=0) and (Node^.Light<=length(fLightNodes)) then begin
    fLightNodes[Node^.Light]:=aNodeIndex;
   end;
-  if (Node^.Camera>=0) and (Node^.Camera<=length(fCameraNodes)) then begin
-   fCameraNodes[Node^.Camera]:=aNodeIndex;
-  end;
   for Index:=0 to length(Node^.Children)-1 do begin
    ProcessNode(Node^.Children[Index],Matrix);
   end;
@@ -3979,9 +3966,6 @@ begin
   CurrentSkinShaderStorageBufferObjectHandle:=0;
   for Index:=0 to length(fLightNodes)-1 do begin
    fLightNodes[Index]:=-1;
-  end;
-  for Index:=0 to length(fCameraNodes)-1 do begin
-   fCameraNodes[Index]:=-1;
   end;
   for Index:=0 to length(Scene^.Nodes)-1 do begin
    ResetNode(Scene^.Nodes[Index]);
@@ -4486,29 +4470,74 @@ begin
  end;
 end;
 
-function TGLTFOpenGL.TInstance.GetCamera(const aCameraIndex:TPasGLTFSizeInt;
+function TGLTFOpenGL.TInstance.GetCamera(const aNodeIndex:TPasGLTFSizeInt;
                                          out aViewMatrix:TPasGLTF.TMatrix4x4;
                                          out aProjectionMatrix:TPasGLTF.TMatrix4x4):boolean;
-var NodeIndex:TPasGLTFSizeInt;
-    NodeMatrix:TPasGLTF.TMatrix4x4;
+const DEG2RAD=PI/180;
+var NodeMatrix:TPasGLTF.TMatrix4x4;
     Camera:TGLTFOpenGL.PCamera;
+    f:TPasGLTFFloat;
 begin
- result:=(aCameraIndex>=0) and (aCameraIndex<length(fParent.fCameras));
+ result:=((aNodeIndex>=0) and (aNodeIndex<length(fParent.fNodes))) and
+         ((fParent.fNodes[aNodeIndex].Camera>=0) and (fParent.fNodes[aNodeIndex].Camera<length(fParent.fCameras)));
  if result then begin
-  Camera:=@fParent.fCameras[aCameraIndex];
-  NodeIndex:=fCameraNodes[aCameraIndex];
-  if (NodeIndex>=0) and (NodeIndex<length(fNodes)) then begin
-   NodeMatrix:=fNodes[NodeIndex].WorkMatrix;
+  Camera:=@fParent.fCameras[fParent.fNodes[aNodeIndex].Camera];
+  if (aNodeIndex>=0) and (aNodeIndex<length(fNodes)) then begin
+   NodeMatrix:=fNodes[aNodeIndex].WorkMatrix;
   end else begin
    NodeMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
   end;
   aViewMatrix:=NodeMatrix;
   case Camera.Type_ of
    TPasGLTF.TCamera.TType.Orthographic:begin
-    // TODO
+    aProjectionMatrix[0]:=2.0/Camera^.XMag;
+    aProjectionMatrix[1]:=0.0;
+    aProjectionMatrix[2]:=0.0;
+    aProjectionMatrix[3]:=0.0;
+    aProjectionMatrix[4]:=0.0;
+    aProjectionMatrix[5]:=2.0/Camera^.YMag;
+    aProjectionMatrix[6]:=0.0;
+    aProjectionMatrix[7]:=0.0;
+    aProjectionMatrix[8]:=0.0;
+    aProjectionMatrix[9]:=0.0;
+    aProjectionMatrix[10]:=(-2.0)/(Camera^.ZFar-Camera^.ZNear);
+    aProjectionMatrix[11]:=0.0;
+    aProjectionMatrix[12]:=0.0; // simplified from: (-((Camera^.XMag*0.5)+(Camera^.XMag*-0.5)))/Camera^.XMag;
+    aProjectionMatrix[13]:=0.0; // simplified from: (-((Camera^.YMag*0.5)+(Camera^.YMag*-0.5)))/Camera^.YMag;
+    aProjectionMatrix[14]:=(-(Camera^.ZFar+Camera^.ZNear))/(Camera^.ZFar-Camera^.ZNear);
+    aProjectionMatrix[15]:=1.0;
    end;
    TPasGLTF.TCamera.TType.Perspective:begin
-    // TODO
+    f:=1.0/tan(Camera^.YFov*DEG2RAD*0.5);
+    aProjectionMatrix[0]:=f/Camera^.AspectRatio;
+    aProjectionMatrix[1]:=0.0;
+    aProjectionMatrix[2]:=0.0;
+    aProjectionMatrix[3]:=0.0;
+    aProjectionMatrix[4]:=0.0;
+    aProjectionMatrix[5]:=f;
+    aProjectionMatrix[6]:=0.0;
+    aProjectionMatrix[7]:=0.0;
+{$if true}
+    // Reversed Z with infinite far plane (so zfar is ignored here)
+    aProjectionMatrix[8]:=0.0;
+    aProjectionMatrix[9]:=0.0;
+    aProjectionMatrix[10]:=0.0;
+    aProjectionMatrix[11]:=-1.0;
+    aProjectionMatrix[12]:=0.0;
+    aProjectionMatrix[13]:=0.0;
+    aProjectionMatrix[14]:=Camera^.ZNear;
+    aProjectionMatrix[15]:=0.0;
+ {$else}
+    // Traditional
+    aProjectionMatrix[8]:=0.0;
+    aProjectionMatrix[9]:=0.0;
+    aProjectionMatrix[10]:=(-(Camera^.ZFar+Camera^.ZNear))/(Camera^.ZFar-Camera^.ZNear);
+    aProjectionMatrix[11]:=-1.0;
+    aProjectionMatrix[12]:=0.0;
+    aProjectionMatrix[13]:=0.0;
+    aProjectionMatrix[14]:= (-(2.0*Camera^.ZNear*Camera^.ZFar))/(Camera^.ZFar-Camera^.ZNear);
+    aProjectionMatrix[15]:=0.0;
+ {$ifend}
    end;
    else begin
     result:=false;

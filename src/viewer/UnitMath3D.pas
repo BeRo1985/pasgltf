@@ -7029,7 +7029,7 @@ begin
   result[0][0]:=Cotangent/aspect;
   result[1][1]:=Cotangent;
   result[2][2]:=(-(zFar+zNear))/ZDelta;
-  result[2][3]:=-1-0;
+  result[2][3]:=-1.0;
   result[3][2]:=(-(2.0*zNear*zFar))/ZDelta;
   result[3][3]:=0.0;
  end;
