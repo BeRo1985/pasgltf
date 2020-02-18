@@ -1132,6 +1132,7 @@ begin
   x:=ViewPortHeight-(FocusFactor*ViewPortHeight);
   y:=0.9;
   Blit(0,-x,ViewPortWidth,ViewPortHeight-x,ViewPortWidth,ViewPortHeight,sqr(1.0-sqr(1.0-FocusFactor))*y);
+  glBindTexture(GL_TEXTURE_2D,0);
  end;
 end;
 
