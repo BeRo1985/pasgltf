@@ -92,7 +92,8 @@ type EGLTFOpenGL=class(Exception);
               procedure Upload;
               function GetCamera(const aNodeIndex:TPasGLTFSizeInt;
                                  out aViewMatrix:TPasGLTF.TMatrix4x4;
-                                 out aProjectionMatrix:TPasGLTF.TMatrix4x4):boolean;
+                                 out aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                                 const aReversedZWithInfiniteFarPlane:boolean=false):boolean;
               procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                              const aViewMatrix:TPasGLTF.TMatrix4x4;
                              const aProjectionMatrix:TPasGLTF.TMatrix4x4;
@@ -4472,7 +4473,8 @@ end;
 
 function TGLTFOpenGL.TInstance.GetCamera(const aNodeIndex:TPasGLTFSizeInt;
                                          out aViewMatrix:TPasGLTF.TMatrix4x4;
-                                         out aProjectionMatrix:TPasGLTF.TMatrix4x4):boolean;
+                                         out aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                                         const aReversedZWithInfiniteFarPlane:boolean=false):boolean;
 const DEG2RAD=PI/180;
 var NodeMatrix:TPasGLTF.TMatrix4x4;
     Camera:TGLTFOpenGL.PCamera;
@@ -4517,27 +4519,27 @@ begin
     aProjectionMatrix[5]:=f;
     aProjectionMatrix[6]:=0.0;
     aProjectionMatrix[7]:=0.0;
-{$if true}
-    // Reversed Z with infinite far plane (so zfar is ignored here)
-    aProjectionMatrix[8]:=0.0;
-    aProjectionMatrix[9]:=0.0;
-    aProjectionMatrix[10]:=0.0;
-    aProjectionMatrix[11]:=-1.0;
-    aProjectionMatrix[12]:=0.0;
-    aProjectionMatrix[13]:=0.0;
-    aProjectionMatrix[14]:=Camera^.ZNear;
-    aProjectionMatrix[15]:=0.0;
- {$else}
-    // Traditional
-    aProjectionMatrix[8]:=0.0;
-    aProjectionMatrix[9]:=0.0;
-    aProjectionMatrix[10]:=(-(Camera^.ZFar+Camera^.ZNear))/(Camera^.ZFar-Camera^.ZNear);
-    aProjectionMatrix[11]:=-1.0;
-    aProjectionMatrix[12]:=0.0;
-    aProjectionMatrix[13]:=0.0;
-    aProjectionMatrix[14]:= (-(2.0*Camera^.ZNear*Camera^.ZFar))/(Camera^.ZFar-Camera^.ZNear);
-    aProjectionMatrix[15]:=0.0;
- {$ifend}
+    if aReversedZWithInfiniteFarPlane then begin
+     // Reversed Z with infinite far plane (so zfar is ignored here)
+     aProjectionMatrix[8]:=0.0;
+     aProjectionMatrix[9]:=0.0;
+     aProjectionMatrix[10]:=0.0;
+     aProjectionMatrix[11]:=-1.0;
+     aProjectionMatrix[12]:=0.0;
+     aProjectionMatrix[13]:=0.0;
+     aProjectionMatrix[14]:=Camera^.ZNear;
+     aProjectionMatrix[15]:=0.0;
+    end else begin
+     // Traditional
+     aProjectionMatrix[8]:=0.0;
+     aProjectionMatrix[9]:=0.0;
+     aProjectionMatrix[10]:=(-(Camera^.ZFar+Camera^.ZNear))/(Camera^.ZFar-Camera^.ZNear);
+     aProjectionMatrix[11]:=-1.0;
+     aProjectionMatrix[12]:=0.0;
+     aProjectionMatrix[13]:=0.0;
+     aProjectionMatrix[14]:=(-(2.0*Camera^.ZNear*Camera^.ZFar))/(Camera^.ZFar-Camera^.ZNear);
+     aProjectionMatrix[15]:=0.0;
+    end;
    end;
    else begin
     result:=false;
