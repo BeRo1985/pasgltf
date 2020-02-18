@@ -69,6 +69,7 @@ type EGLTFOpenGL=class(Exception);
                    end;
                    PSkin=^TSkin;
                    TSkins=array of TSkin;
+                   TNodeIndices=array of TPasGLTFSizeInt;
              private
               fParent:TGLTFOpenGL;
               fScene:TPasGLTFSizeInt;
@@ -76,6 +77,8 @@ type EGLTFOpenGL=class(Exception);
               fAnimationTime:TPasGLTFFloat;
               fNodes:TNodes;
               fSkins:TSkins;
+              fLightNodes:TNodeIndices;
+              fCameraNodes:TNodeIndices;
               fDynamicBoundingBox:TBoundingBox;
               fWorstCaseStaticBoundingBox:TBoundingBox;
               procedure SetScene(const aScene:TPasGLTFSizeInt);
@@ -88,6 +91,9 @@ type EGLTFOpenGL=class(Exception);
               procedure UpdateDynamicBoundingBox(const aHighQuality:boolean=false);
               procedure UpdateWorstCaseStaticBoundingBox;
               procedure Upload;
+              function GetCamera(const aCameraIndex:TPasGLTFSizeInt;
+                                 out aViewMatrix:TPasGLTF.TMatrix4x4;
+                                 out aProjectionMatrix:TPasGLTF.TMatrix4x4):boolean;
               procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                              const aViewMatrix:TPasGLTF.TMatrix4x4;
                              const aProjectionMatrix:TPasGLTF.TMatrix4x4;
@@ -336,6 +342,20 @@ type EGLTFOpenGL=class(Exception);
             end;
             PSkin=^TSkin;
             TSkins=array of TSkin;
+            TCamera=record
+             public
+              Name:TPasGLTFUTF8String;
+              Type_:TPasGLTF.TCamera.TType;
+              AspectRatio:TPasGLTFFloat;
+              YFov:TPasGLTFFloat;
+              XMag:TPasGLTFFloat;
+              YMag:TPasGLTFFloat;
+              ZNear:TPasGLTFFloat;
+              ZFar:TPasGLTFFloat;
+              Node:TPasGLTFSizeInt;
+            end;
+            PCamera=^TCamera;
+            TCameras=array of TCamera;
             TNode=record
              public
               type TOverwriteFlag=
@@ -535,6 +555,7 @@ type EGLTFOpenGL=class(Exception);
        fMaterials:TMaterials;
        fMeshes:TMeshes;
        fSkins:TSkins;
+       fCameras:TCameras;
        fNodes:TNodes;
        fImages:TImages;
        fSamplers:TSamplers;
@@ -584,6 +605,7 @@ type EGLTFOpenGL=class(Exception);
        property Materials:TMaterials read fMaterials;
        property Meshes:TMeshes read fMeshes;
        property Skins:TSkins read fSkins;
+       property Cameras:TCameras read fCameras;
        property Nodes:TNodes read fNodes;
        property Images:TImages read fImages;
        property Samplers:TSamplers read fSamplers;
@@ -1187,6 +1209,7 @@ begin
  fMaterials:=nil;
  fMeshes:=nil;
  fSkins:=nil;
+ fCameras:=nil;
  fNodes:=nil;
  fImages:=nil;
  fSamplers:=nil;
@@ -1218,6 +1241,7 @@ begin
   fMaterials:=nil;
   fMeshes:=nil;
   fSkins:=nil;
+  fCameras:=nil;
   fNodes:=nil;
   fImages:=nil;
   fSamplers:=nil;
@@ -2386,6 +2410,38 @@ var HasLights:boolean;
   end;
 
  end;
+ procedure LoadCameras;
+ var Index,WeightIndex,ChildrenIndex,Count,LightIndex:TPasGLTFSizeInt;
+     SourceCamera:TPasGLTF.TCamera;
+     DestinationCamera:PCamera;
+     Mesh:PMesh;
+     ExtensionObject:TPasJSONItemObject;
+     KHRLightsPunctualItem:TPasJSONItem;
+     KHRLightsPunctualObject:TPasJSONItemObject;
+ begin
+  SetLength(fCameras,aDocument.Cameras.Count);
+  for Index:=0 to aDocument.Cameras.Count-1 do begin
+   SourceCamera:=aDocument.Cameras[Index];
+   DestinationCamera:=@fCameras[Index];
+   DestinationCamera^.Name:=SourceCamera.Name;
+   DestinationCamera^.Type_:=SourceCamera.Type_;
+   case DestinationCamera^.Type_ of
+    TPasGLTF.TCamera.TType.Orthographic:begin
+     DestinationCamera^.XMag:=SourceCamera.Orthographic.XMag;
+     DestinationCamera^.YMag:=SourceCamera.Orthographic.YMag;
+     DestinationCamera^.ZNear:=SourceCamera.Orthographic.ZNear;
+     DestinationCamera^.ZFar:=SourceCamera.Orthographic.ZFar;
+    end;
+    TPasGLTF.TCamera.TType.Perspective:begin
+     DestinationCamera^.AspectRatio:=SourceCamera.Perspective.AspectRatio;
+     DestinationCamera^.YFov:=SourceCamera.Perspective.YFov;
+     DestinationCamera^.ZNear:=SourceCamera.Perspective.ZNear;
+     DestinationCamera^.ZFar:=SourceCamera.Perspective.ZFar;
+    end;
+   end;
+   DestinationCamera^.Node:=-1;
+  end;
+ end;
  procedure LoadNodes;
  var Index,WeightIndex,ChildrenIndex,Count,LightIndex:TPasGLTFSizeInt;
      SourceNode:TPasGLTF.TNode;
@@ -2402,6 +2458,9 @@ var HasLights:boolean;
    DestinationNode^.Name:=SourceNode.Name;
    DestinationNode^.Mesh:=SourceNode.Mesh;
    DestinationNode^.Camera:=SourceNode.Camera;
+   if (DestinationNode^.Camera>=0) and (DestinationNode^.Camera<length(fCameras)) then begin
+    fCameras[DestinationNode^.Camera].Node:=Index;
+   end;
    DestinationNode^.Skin:=SourceNode.Skin;
    DestinationNode^.Joint:=-1;
    DestinationNode^.Matrix:=SourceNode.Matrix;
@@ -3592,6 +3651,14 @@ begin
  fSkins:=nil;
  SetLength(fNodes,length(fParent.fNodes));
  SetLength(fSkins,length(fParent.fSkins));
+ SetLength(fLightNodes,length(fParent.fLights));
+ SetLength(fCameraNodes,length(fParent.fCameras));
+ for Index:=0 to length(fLightNodes)-1 do begin
+  fLightNodes[Index]:=-1;
+ end;
+ for Index:=0 to length(fCameraNodes)-1 do begin
+  fCameraNodes[Index]:=-1;
+ end;
  for Index:=0 to length(fParent.fNodes)-1 do begin
   InstanceNode:=@fNodes[Index];
   Node:=@fParent.fNodes[Index];
@@ -3894,6 +3961,12 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     fSkins[Node^.Skin].Used:=true;
    end;
   end;
+  if (Node^.Light>=0) and (Node^.Light<=length(fLightNodes)) then begin
+   fLightNodes[Node^.Light]:=aNodeIndex;
+  end;
+  if (Node^.Camera>=0) and (Node^.Camera<=length(fCameraNodes)) then begin
+   fCameraNodes[Node^.Camera]:=aNodeIndex;
+  end;
   for Index:=0 to length(Node^.Children)-1 do begin
    ProcessNode(Node^.Children[Index],Matrix);
   end;
@@ -3904,6 +3977,12 @@ begin
  Scene:=GetScene;
  if assigned(Scene) then begin
   CurrentSkinShaderStorageBufferObjectHandle:=0;
+  for Index:=0 to length(fLightNodes)-1 do begin
+   fLightNodes[Index]:=-1;
+  end;
+  for Index:=0 to length(fCameraNodes)-1 do begin
+   fCameraNodes[Index]:=-1;
+  end;
   for Index:=0 to length(Scene^.Nodes)-1 do begin
    ResetNode(Scene^.Nodes[Index]);
   end;
@@ -4407,6 +4486,37 @@ begin
  end;
 end;
 
+function TGLTFOpenGL.TInstance.GetCamera(const aCameraIndex:TPasGLTFSizeInt;
+                                         out aViewMatrix:TPasGLTF.TMatrix4x4;
+                                         out aProjectionMatrix:TPasGLTF.TMatrix4x4):boolean;
+var NodeIndex:TPasGLTFSizeInt;
+    NodeMatrix:TPasGLTF.TMatrix4x4;
+    Camera:TGLTFOpenGL.PCamera;
+begin
+ result:=(aCameraIndex>=0) and (aCameraIndex<length(fParent.fCameras));
+ if result then begin
+  Camera:=@fParent.fCameras[aCameraIndex];
+  NodeIndex:=fCameraNodes[aCameraIndex];
+  if (NodeIndex>=0) and (NodeIndex<length(fNodes)) then begin
+   NodeMatrix:=fNodes[NodeIndex].WorkMatrix;
+  end else begin
+   NodeMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+  end;
+  aViewMatrix:=NodeMatrix;
+  case Camera.Type_ of
+   TPasGLTF.TCamera.TType.Orthographic:begin
+    // TODO
+   end;
+   TPasGLTF.TCamera.TType.Perspective:begin
+    // TODO
+   end;
+   else begin
+    result:=false;
+   end;
+  end;
+ end;
+end;
+
 procedure TGLTFOpenGL.TInstance.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                                      const aViewMatrix:TPasGLTF.TMatrix4x4;
                                      const aProjectionMatrix:TPasGLTF.TMatrix4x4;
@@ -4669,7 +4779,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
    for Index:=0 to length(fParent.fLights)-1 do begin
     Light:=@fParent.fLights[Index];
     LightShaderStorageBufferObjectDataItem:=@fParent.fLightShaderStorageBufferObject.Data^.Lights[Index];
-    NodeIndex:=Light.Node;
+    NodeIndex:=fLightNodes[Index];
     if (NodeIndex>=0) and (NodeIndex<length(fNodes)) then begin
      InstanceNode:=@fNodes[NodeIndex];
      Matrix:=InstanceNode^.WorkMatrix;
