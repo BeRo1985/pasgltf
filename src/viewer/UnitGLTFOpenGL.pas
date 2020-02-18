@@ -545,6 +545,7 @@ type EGLTFOpenGL=class(Exception);
             end;
             PLight=^TLight;
             TLights=array of TLight;
+            TNodeNameHashMap=TPasGLTFUTF8StringHashMap<TPasGLTFSizeInt>;
        const EmptyBoundingBox:TBoundingBox=(Min:(Infinity,Infinity,Infinity);Max:(NegInfinity,NegInfinity,NegInfinity));
       private
        fReady:boolean;
@@ -563,6 +564,7 @@ type EGLTFOpenGL=class(Exception);
        fScenes:TScenes;
        fScene:TPasGLTFSizeInt;
        fJointVertices:TJointVertices;
+       fNodeNameHashMap:TNodeNameHashMap;
        fSkinShaderStorageBufferObjects:TSkinShaderStorageBufferObjects;
        fMorphTargetVertexShaderStorageBufferObjects:TMorphTargetVertexShaderStorageBufferObjects;
        fNodeMeshPrimitiveShaderStorageBufferObjects:TNodeMeshPrimitiveShaderStorageBufferObjects;
@@ -593,6 +595,7 @@ type EGLTFOpenGL=class(Exception);
        procedure Unload;
        function GetAnimationBeginTime(const aAnimation:TPasGLTFSizeInt):TPasGLTFFloat;
        function GetAnimationEndTime(const aAnimation:TPasGLTFSizeInt):TPasGLTFFloat;
+       function GetNodeIndex(const aNodeName:TPasGLTFUTF8String):TPasGLTFSizeInt;
 {$ifndef PasGLTFBindlessTextures}
        procedure SetExternalTexture(const aTextureName:TPasGLTFUTF8String;const aHandle:glUInt);
 {$endif}
@@ -1217,6 +1220,7 @@ begin
  fScenes:=nil;
  fScene:=-1;
  fJointVertices:=nil;
+ fNodeNameHashMap:=TNodeNameHashMap.Create(-1);
  fSkinShaderStorageBufferObjects:=nil;
  fMorphTargetVertexShaderStorageBufferObjects:=nil;
  fNodeMeshPrimitiveShaderStorageBufferObjects:=nil;
@@ -1228,6 +1232,7 @@ destructor TGLTFOpenGL.Destroy;
 begin
  Unload;
  Clear;
+ FreeAndNil(fNodeNameHashMap);
  inherited Destroy;
 end;
 
@@ -1256,6 +1261,7 @@ begin
    FreeMem(fLightShaderStorageBufferObject.Data);
   end;
   FillChar(fLightShaderStorageBufferObject,SizeOf(TLightShaderStorageBufferObject),#0);
+  fNodeNameHashMap.Clear;
  end;
 end;
 
@@ -2454,6 +2460,9 @@ var HasLights:boolean;
    SourceNode:=aDocument.Nodes[Index];
    DestinationNode:=@fNodes[Index];
    DestinationNode^.Name:=SourceNode.Name;
+   if length(DestinationNode^.Name)>0 then begin
+    fNodeNameHashMap.Add(DestinationNode^.Name,Index);
+   end;
    DestinationNode^.Mesh:=SourceNode.Mesh;
    DestinationNode^.Camera:=SourceNode.Camera;
    DestinationNode^.Skin:=SourceNode.Skin;
@@ -3611,6 +3620,11 @@ begin
  end;
 end;
 
+function TGLTFOpenGL.GetNodeIndex(const aNodeName:TPasGLTFUTF8String):TPasGLTFSizeInt;
+begin
+ result:=fNodeNameHashMap[aNodeName];
+end;
+
 {$ifndef PasGLTFBindlessTextures}
 procedure TGLTFOpenGL.SetExternalTexture(const aTextureName:TPasGLTFUTF8String;const aHandle:glUInt);
 var Index:TPasGLTFSizeInt;
@@ -4484,11 +4498,7 @@ begin
          ((fParent.fNodes[aNodeIndex].Camera>=0) and (fParent.fNodes[aNodeIndex].Camera<length(fParent.fCameras)));
  if result then begin
   Camera:=@fParent.fCameras[fParent.fNodes[aNodeIndex].Camera];
-  if (aNodeIndex>=0) and (aNodeIndex<length(fNodes)) then begin
-   NodeMatrix:=fNodes[aNodeIndex].WorkMatrix;
-  end else begin
-   NodeMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
-  end;
+  NodeMatrix:=fNodes[aNodeIndex].WorkMatrix;
   aViewMatrix:=NodeMatrix;
   case Camera.Type_ of
    TPasGLTF.TCamera.TType.Orthographic:begin
