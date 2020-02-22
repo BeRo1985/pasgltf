@@ -78,6 +78,7 @@ type EGLTFOpenGL=class(Exception);
               fNodes:TNodes;
               fSkins:TSkins;
               fLightNodes:TNodeIndices;
+              fLightShadowMapMatrices:TPasGLTF.TMatrix4x4DynamicArray;
               fDynamicBoundingBox:TBoundingBox;
               fWorstCaseStaticBoundingBox:TBoundingBox;
               procedure SetScene(const aScene:TPasGLTFSizeInt);
@@ -103,6 +104,14 @@ type EGLTFOpenGL=class(Exception);
                              const aSkinnedNormalShadingShader:TShadingShader;
                              const aSkinnedAlphaTestShadingShader:TShadingShader;
                              const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
+              procedure DrawShadows(const aModelMatrix:TPasGLTF.TMatrix4x4;
+                                    const aViewMatrix:TPasGLTF.TMatrix4x4;
+                                    const aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                                    const aNonSkinnedNormalShadingShader:TShadingShader;
+                                    const aNonSkinnedAlphaTestShadingShader:TShadingShader;
+                                    const aSkinnedNormalShadingShader:TShadingShader;
+                                    const aSkinnedAlphaTestShadingShader:TShadingShader;
+                                    const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
               procedure DrawJoints(const aModelMatrix:TPasGLTF.TMatrix4x4;
                                    const aViewMatrix:TPasGLTF.TMatrix4x4;
                                    const aProjectionMatrix:TPasGLTF.TMatrix4x4;
@@ -782,11 +791,38 @@ begin
  result[2]:=aVector[2]*aFactor;
 end;
 
+function Vector3ScalarMul(const aVector:TVector3;const aFactor:TPasGLTFFloat):TVector3;
+begin
+ result[0]:=aVector[0]*aFactor;
+ result[1]:=aVector[1]*aFactor;
+ result[2]:=aVector[2]*aFactor;
+end;
+
 function Vector3MatrixMul(const m:TPasGLTF.TMatrix4x4;const v:TVector3):TVector3;
 begin
  result[0]:=(m[0]*v[0])+(m[4]*v[1])+(m[8]*v[2])+m[12];
  result[1]:=(m[1]*v[0])+(m[5]*v[1])+(m[9]*v[2])+m[13];
  result[2]:=(m[2]*v[0])+(m[6]*v[1])+(m[10]*v[2])+m[14];
+end;
+
+function Vector3MatrixMulHomogen(const m:TPasGLTF.TMatrix4x4;const v:TVector3):TVector3;
+var result_w:single;
+begin
+ result[0]:=(m[0]*v[0])+(m[4]*v[1])+(m[8]*v[2])+m[12];
+ result[1]:=(m[1]*v[0])+(m[5]*v[1])+(m[9]*v[2])+m[13];
+ result[2]:=(m[2]*v[0])+(m[6]*v[1])+(m[10]*v[2])+m[14];
+ result_w:=(m[3]*v[0])+(m[7]*v[1])+(m[11]*v[2])+m[15];
+ result[0]:=result[0]/result_w;
+ result[1]:=result[1]/result_w;
+ result[2]:=result[2]/result_w;
+end;
+
+function Vector4(const aX,aY,aZ,aW:TPasGLTFFloat):TVector4;
+begin
+ result[0]:=aX;
+ result[1]:=aY;
+ result[2]:=aZ;
+ result[3]:=aW;
 end;
 
 function Vector4Dot(const a,b:TVector4):TPasGLTFFloat;
@@ -817,6 +853,14 @@ begin
   result[2]:=0.0;
   result[3]:=0.0;
  end;
+end;
+
+function Vector4MatrixMul(const m:TPasGLTF.TMatrix4x4;const v:TVector4):TVector4;
+begin
+ result[0]:=(m[0]*v[0])+(m[4]*v[1])+(m[8]*v[2])+(m[12]*v[3]);
+ result[1]:=(m[1]*v[0])+(m[5]*v[1])+(m[9]*v[2])+(m[13]*v[3]);
+ result[2]:=(m[2]*v[0])+(m[6]*v[1])+(m[10]*v[2])+(m[14]*v[3]);
+ result[3]:=(m[3]*v[0])+(m[7]*v[1])+(m[11]*v[2])+(m[15]*v[3]);
 end;
 
 function QuaternionMul(const q1,q2:TVector4):TVector4;
@@ -1207,6 +1251,53 @@ begin
  result[13]:=a[13]+b[13];
  result[14]:=a[14]+b[14];
  result[15]:=a[15]+b[15];
+end;
+
+type TAABB=record
+      Min:TPasGLTF.TVector3;
+      Max:TPasGLTF.TVector3;
+     end;
+
+function AABBCombine(const AABB,WithAABB:TAABB):TAABB;
+begin
+ result.Min[0]:=Min(AABB.Min[0],WithAABB.Min[0]);
+ result.Min[1]:=Min(AABB.Min[1],WithAABB.Min[1]);
+ result.Min[2]:=Min(AABB.Min[2],WithAABB.Min[2]);
+ result.Max[0]:=Max(AABB.Max[0],WithAABB.Max[0]);
+ result.Max[1]:=Max(AABB.Max[1],WithAABB.Max[1]);
+ result.Max[2]:=Max(AABB.Max[2],WithAABB.Max[2]);
+end;
+
+function AABBCombineVector3(const AABB:TAABB;v:TVector3):TAABB;
+begin
+ result.Min[0]:=Min(AABB.Min[0],v[0]);
+ result.Min[1]:=Min(AABB.Min[1],v[1]);
+ result.Min[2]:=Min(AABB.Min[2],v[2]);
+ result.Max[0]:=Max(AABB.Max[0],v[0]);
+ result.Max[1]:=Max(AABB.Max[1],v[1]);
+ result.Max[2]:=Max(AABB.Max[2],v[2]);
+end;
+
+function AABBTransform(const DstAABB:TAABB;const Transform:TPasGLTF.TMatrix4x4):TAABB;
+var i,j,k:TPasGLTFSizeInt;
+    a,b:TPasGLTFFloat;
+begin
+ result.Min:=Vector3(Transform[12],Transform[13],Transform[14]);
+ result.Max:=result.Min;
+ for i:=0 to 2 do begin
+  for j:=0 to 2 do begin
+   k:=(j shl 2) or i;
+   a:=Transform[k]*DstAABB.Min[j];
+   b:=Transform[k]*DstAABB.Max[j];
+   if a<b then begin
+    result.Min[i]:=result.Min[i]+a;
+    result.Max[i]:=result.Max[i]+b;
+   end else begin
+    result.Min[i]:=result.Min[i]+b;
+    result.Max[i]:=result.Max[i]+a;
+   end;
+  end;
+ end;
 end;
 
 { TGLTFModel }
@@ -3813,6 +3904,7 @@ begin
  SetLength(fNodes,length(fParent.fNodes));
  SetLength(fSkins,length(fParent.fSkins));
  SetLength(fLightNodes,length(fParent.fLights));
+ SetLength(fLightShadowMapMatrices,length(fParent.fLights));
  for Index:=0 to length(fLightNodes)-1 do begin
   fLightNodes[Index]:=-1;
  end;
@@ -5049,6 +5141,271 @@ begin
   glBindBuffer(GL_ARRAY_BUFFER,0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
   glActiveTexture(GL_TEXTURE0);
+ end;
+end;
+
+procedure TGLTFOpenGL.TInstance.DrawShadows(const aModelMatrix:TPasGLTF.TMatrix4x4;
+                                            const aViewMatrix:TPasGLTF.TMatrix4x4;
+                                            const aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                                            const aNonSkinnedNormalShadingShader:TShadingShader;
+                                            const aNonSkinnedAlphaTestShadingShader:TShadingShader;
+                                            const aSkinnedNormalShadingShader:TShadingShader;
+                                            const aSkinnedAlphaTestShadingShader:TShadingShader;
+                                            const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
+ function GetDirectionalLightShadowMapMatrix(const aLightDirection:TPasGLTF.TVector3;
+                                             const aShadowCastersAABB:TAABB;
+                                             const aShadowReceiversAABB:TAABB):TPasGLTF.TMatrix4x4;
+ var CameraViewProjectionMatrix,
+     CameraInverseViewProjectionMatrix,
+     CameraInverseViewMatrix:TPasGLTF.TMatrix4x4;
+     WorldSpaceCameraViewFrustumCorners:array[0..7] of TPasGLTF.TVector3;
+     InterestedAreaAABB:TAABB;
+  function GetLightModelMatrix:TPasGLTF.TMatrix4x4;
+  var LightForwardVector,LightSideVector,LightUpvector,p:TPasGLTF.TVector3;
+  begin
+{$ifdef fpc}
+   LightForwardVector:=Vector3Neg(Vector3Normalize(aLightDirection));
+{$else}
+   // Workaround for a bug in the 64-bit Delphi 10.3.3 Win64 compiler regarding stack allocation and register allocation
+   LightForwardVector:=Vector3Normalize(aLightDirection);
+   LightForwardVector:=Vector3Neg(LightForwardVector);
+{$endif}
+   p[0]:=abs(LightForwardVector[0]);
+   p[1]:=abs(LightForwardVector[1]);
+   p[2]:=abs(LightForwardVector[2]);
+   if (p[0]<=p[1]) and (p[0]<=p[2]) then begin
+    p[0]:=1.0;
+    p[1]:=0.0;
+    p[2]:=0.0;
+   end else if (p[1]<=p[0]) and (p[1]<=p[2]) then begin
+    p[0]:=0.0;
+    p[1]:=1.0;
+    p[2]:=0.0;
+   end else begin
+    p[0]:=0.0;
+    p[1]:=0.0;
+    p[2]:=1.0;
+   end;
+   LightSideVector:=Vector3Sub(p,Vector3ScalarMul(LightForwardVector,Vector3Dot(LightForwardVector,p)));
+   LightUpVector:=Vector3Normalize(Vector3Cross(LightForwardVector,LightSideVector));
+   LightSideVector:=Vector3Normalize(Vector3Cross(LightUpVector,LightForwardVector));
+   result[0]:=LightSideVector[0];
+   result[1]:=LightUpVector[0];
+   result[2]:=LightForwardVector[0];
+   result[3]:=0.0;
+   result[4]:=LightSideVector[1];
+   result[5]:=LightUpVector[1];
+   result[6]:=LightForwardVector[1];
+   result[7]:=0.0;
+   result[8]:=LightSideVector[2];
+   result[9]:=LightUpVector[2];
+   result[10]:=LightForwardVector[2];
+   result[11]:=0.0;
+   result[12]:=0.0;
+   result[13]:=0.0;
+   result[14]:=0.0;
+   result[15]:=1.0;
+  end;
+  function GetLightViewMatrix:TPasGLTF.TMatrix4x4;
+  var LightModelMatrix:TPasGLTF.TMatrix4x4;
+      WorldSpaceCameraForwardVector,
+      LightSpaceCameraForwardVector:TPasGLTF.TVector3;
+  begin
+   result:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+   LightModelMatrix:=GetLightModelMatrix;
+   WorldSpaceCameraForwardVector:=TPasGLTF.PVector3(@CameraInverseViewMatrix[8])^;
+   LightSpaceCameraForwardVector:=Vector3MatrixMul(LightModelMatrix,WorldSpaceCameraForwardVector);
+   if abs(LightSpaceCameraForwardVector[2])<0.9997 then begin
+    TPasGLTF.PVector3(@result[0])^:=Vector3Normalize(Vector3Cross(LightSpaceCameraForwardVector,Vector3(0.0,0.0,1.0)));
+    TPasGLTF.PVector3(@result[4])^:=Vector3Normalize(Vector3Cross(Vector3(0.0,0.0,1.0),TPasGLTF.PVector3(@result[0])^));
+    TPasGLTF.PVector3(@result[8])^:=Vector3(0.0,0.0,1.0);
+   end;
+   result:=MatrixMul(LightModelMatrix,MatrixTranspose(result));
+  end;
+  function GetLightProjectionMatrix(const aShadowMapViewMatrix:TPasGLTF.TMatrix4x4):TPasGLTF.TMatrix4x4;
+  var AABB:TAABB;
+      Left,Right,Top,Bottom,ZNear,ZFar,RightMinusLeft,TopMinusBottom,FarMinusNear:TPasGLTFFloat;
+  begin
+   AABB:=AABBTransform(InterestedAreaAABB,aShadowMapViewMatrix);
+   Left:=-1.0;
+   Right:=1.0;
+   Bottom:=-1.0;
+   Top:=1.0;
+   ZNear:=-AABB.Max[2];
+   ZFar:=-AABB.Min[2];
+   RightMinusLeft:=Right-Left;
+   TopMinusBottom:=Top-Bottom;
+   FarMinusNear:=ZFar-ZNear;
+   result[0]:=2.0/RightMinusLeft;
+   result[1]:=0.0;
+   result[2]:=0.0;
+   result[3]:=0.0;
+   result[4]:=0.0;
+   result[5]:=2.0/TopMinusBottom;
+   result[6]:=0.0;
+   result[7]:=0.0;
+   result[8]:=0.0;
+   result[9]:=0.0;
+   result[10]:=(-2.0)/FarMinusNear;
+   result[11]:=0.0;
+   result[12]:=(-(Right+Left))/RightMinusLeft;
+   result[13]:=(-(Top+Bottom))/TopMinusBottom;
+   result[14]:=(-(ZFar+ZNear))/FarMinusNear;
+   result[15]:=1.0;
+  end;
+  procedure SnapShadowMapProjectionMatrix(const aShadowMapViewMatrix:TPasGLTF.TMatrix4x4;
+                                          var aShadowMapProjectionMatrix:TPasGLTF.TMatrix4x4;
+                                          const aShadowMapWidth:TPasGLTFInt32;
+                                          const aShadowMapHeight:TPasGLTFInt32);
+  var RoundedOrigin,RoundOffset:TPasGLTF.TVector2;
+      ShadowOrigin:TPasGLTF.TVector4;
+  begin
+   // Create the rounding matrix, by projecting the world-space origin and determining the fractional offset in texel space
+   ShadowOrigin:=Vector4MatrixMul(MatrixMul(aShadowMapViewMatrix,aShadowMapProjectionMatrix),Vector4(0.0,0.0,0.0,1.0));
+   ShadowOrigin[0]:=ShadowOrigin[0]*aShadowMapWidth;
+   ShadowOrigin[1]:=ShadowOrigin[1]*aShadowMapHeight;
+   RoundedOrigin[0]:=round(ShadowOrigin[0]);
+   RoundedOrigin[1]:=round(ShadowOrigin[1]);
+   RoundOffset[0]:=((RoundedOrigin[0]-ShadowOrigin[0])*2.0)/aShadowMapWidth;
+   RoundOffset[1]:=((RoundedOrigin[1]-ShadowOrigin[1])*2.0)/aShadowMapHeight;
+   aShadowMapProjectionMatrix[12]:=aShadowMapProjectionMatrix[12]+RoundOffset[0];
+   aShadowMapProjectionMatrix[13]:=aShadowMapProjectionMatrix[13]+RoundOffset[1];
+  end;
+ const NormalizedClipSpaceCameraViewFrustumCorners:array[0..7] of TPasGLTF.TVector3=((-1,-1,1),
+                                                                                     (1,-1,1),
+                                                                                     (-1,1,1),
+                                                                                     (1,1,1),
+                                                                                     (-1,-1,-1),
+                                                                                     (1,-1,-1),
+                                                                                     (-1,1,-1),
+                                                                                     (1,1,-1));
+ var Index:TPasGLTFSizeInt;
+     LightViewMatrix,
+     LightProjectionMatrix,
+     LightSpaceMatrix,
+     WarpMatrix,WarppedLightSpaceMatrix,
+     FocusTransformMatrix:TPasGLTF.TMatrix4x4;
+     WorldSpaceCameraViewFrustumAABB,
+     LightSpaceAABB:TAABB;
+     Scale,
+     Offset:TPasGLTF.TVector2;
+     ShadowMapDimension:TPasGLTFFloat;
+ begin
+  CameraViewProjectionMatrix:=MatrixMul(aViewMatrix,aProjectionMatrix);
+  CameraInverseViewProjectionMatrix:=MatrixInverse(CameraViewProjectionMatrix);
+  CameraInverseViewMatrix:=MatrixInverse(aViewMatrix);
+  for Index:=Low(WorldSpaceCameraViewFrustumCorners) to High(WorldSpaceCameraViewFrustumCorners) do begin
+   WorldSpaceCameraViewFrustumCorners[Index]:=Vector3MatrixMulHomogen(CameraInverseViewProjectionMatrix,NormalizedClipSpaceCameraViewFrustumCorners[Index]);
+  end;
+  WorldSpaceCameraViewFrustumAABB.Min:=WorldSpaceCameraViewFrustumCorners[Low(WorldSpaceCameraViewFrustumCorners)];
+  WorldSpaceCameraViewFrustumAABB.Max:=WorldSpaceCameraViewFrustumCorners[Low(WorldSpaceCameraViewFrustumCorners)];
+  for Index:=Low(WorldSpaceCameraViewFrustumCorners)+1 to High(WorldSpaceCameraViewFrustumCorners) do begin
+   WorldSpaceCameraViewFrustumAABB:=AABBCombineVector3(WorldSpaceCameraViewFrustumAABB,WorldSpaceCameraViewFrustumCorners[Index]);
+  end;
+  InterestedAreaAABB:=AABBCombine(aShadowCastersAABB,aShadowReceiversAABB);
+  LightViewMatrix:=GetLightViewMatrix;
+  LightProjectionMatrix:=GetLightProjectionMatrix(LightViewMatrix);
+  LightSpaceMatrix:=MatrixMul(LightViewMatrix,LightProjectionMatrix);
+  WarpMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+  WarppedLightSpaceMatrix:=MatrixMul(LightSpaceMatrix,WarpMatrix);
+  LightSpaceAABB:=AABBTransform(InterestedAreaAABB,WarppedLightSpaceMatrix);
+  ShadowMapDimension:=fParent.fShadowMapSize;
+  Scale[0]:=2.0/(LightSpaceAABB.Max[0]-LightSpaceAABB.Min[0]);
+  Scale[1]:=2.0/(LightSpaceAABB.Max[1]-LightSpaceAABB.Min[1]);
+  Offset[0]:=((LightSpaceAABB.Min[0]+LightSpaceAABB.Max[0])*(-0.5))*Scale[0];
+  Offset[1]:=((LightSpaceAABB.Min[1]+LightSpaceAABB.Max[1])*(-0.5))*Scale[1];
+  // TODO: Snap scale also
+  Offset[0]:=ceil(Offset[0]*ShadowMapDimension)/ShadowMapDimension;
+  Offset[1]:=ceil(Offset[1]*ShadowMapDimension)/ShadowMapDimension;
+  FocusTransformMatrix[0]:=Scale[0];
+  FocusTransformMatrix[1]:=0.0;
+  FocusTransformMatrix[2]:=0.0;
+  FocusTransformMatrix[3]:=0.0;
+  FocusTransformMatrix[4]:=0.0;
+  FocusTransformMatrix[5]:=Scale[1];
+  FocusTransformMatrix[6]:=0.0;
+  FocusTransformMatrix[7]:=0.0;
+  FocusTransformMatrix[8]:=0.0;
+  FocusTransformMatrix[9]:=0.0;
+  FocusTransformMatrix[10]:=1.0;
+  FocusTransformMatrix[11]:=0.0;
+  FocusTransformMatrix[12]:=Offset[0];
+  FocusTransformMatrix[13]:=Offset[1];
+  FocusTransformMatrix[14]:=0.0;
+  FocusTransformMatrix[15]:=1.0;
+  result:=MatrixMul(WarppedLightSpaceMatrix,FocusTransformMatrix);
+ end;
+ procedure RenderToMultisampledShadowMap(const aFrameBufferObject:glUInt;const aShadowMapMatrix:TPasGLTF.TMatrix4x4);
+ begin
+  glBindFramebuffer(GL_FRAMEBUFFER,aFrameBufferObject);
+  glDrawBuffer(GL_COLOR_ATTACHMENT0);
+  glEnable(GL_MULTISAMPLE);
+  glViewport(0,0,fParent.fShadowMapSize,fParent.fShadowMapSize);
+  glClearColor(1.0,1.0,1.0,1.0);
+  glClearDepth(1.0);
+  glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
+  glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);
+  glEnable(GL_DEPTH_TEST);
+  glDepthFunc(GL_LEQUAL);
+  Draw(TPasGLTF.TMatrix4x4(Pointer(@aModelMatrix)^),
+       TPasGLTF.TMatrix4x4(Pointer(@TPasGLTF.TDefaults.IdentityMatrix4x4)^),
+       TPasGLTF.TMatrix4x4(Pointer(@aShadowMapMatrix)^),
+       TPasGLTF.TMatrix4x4(Pointer(@aShadowMapMatrix)^),
+       aNonSkinnedNormalShadingShader,
+       aNonSkinnedAlphaTestShadingShader,
+       aSkinnedNormalShadingShader,
+       aSkinnedAlphaTestShadingShader,
+       aAlphaModes);
+  glBindFrameBuffer(GL_FRAMEBUFFER,0);
+  glDisable(GL_MULTISAMPLE);
+ end;
+const Zero:TPasGLTF.TVector3=(0.0,0.0,0.0);
+      DownZ:TPasGLTF.TVector3=(0.0,0.0,-1.0);
+var LightIndex,NodeIndex:TPasGLTFSizeInt;
+    Light:PLight;
+    InstanceNode:TGLTFOpenGL.TInstance.PNode;
+    Matrix,ShadowMapMatrix:TPasGLTF.TMatrix4x4;
+    Position,Direction:TPasGLTF.TVector3;
+    AABB:TAABB;
+begin
+ if length(fParent.fLights)>0 then begin
+  for LightIndex:=0 to length(fParent.fLights)-1 do begin
+   Light:=@fParent.fLights[LightIndex];
+   NodeIndex:=fLightNodes[LightIndex];
+   if (NodeIndex>=0) and (NodeIndex<length(fNodes)) then begin
+    InstanceNode:=@fNodes[NodeIndex];
+    Matrix:=InstanceNode^.WorkMatrix;
+    TPasGLTF.TVector3(pointer(@Matrix[0])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[0])^));
+    TPasGLTF.TVector3(pointer(@Matrix[4])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[4])^));
+    TPasGLTF.TVector3(pointer(@Matrix[8])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[8])^));
+    Position:=Vector3MatrixMul(Matrix,Zero);
+    Direction:=Vector3Normalize(Vector3Sub(Vector3MatrixMul(Matrix,DownZ),Position));
+   end else begin
+    Position[0]:=0.0;
+    Position[1]:=0.0;
+    Position[2]:=0.0;
+    case Light^.Node of
+     -$8000000:begin
+      // For default directional light, when no other lights were defined
+      Direction:=Light^.Direction;
+     end;
+     else begin
+      Direction:=DownZ;
+     end;
+    end;
+   end;
+   case Light^.Type_ of
+    TGLTFOpenGL.TLightDataType.Directional:begin
+     ShadowMapMatrix:=GetDirectionalLightShadowMapMatrix(Direction,AABB,AABB);
+     RenderToMultisampledShadowMap(fParent.fTemporaryMultisampledShadowMapFrameBufferObject,ShadowMapMatrix);
+
+    end;
+    else begin
+     ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+    end;
+   end;
+   fLightShadowMapMatrices[LightIndex]:=ShadowMapMatrix;
+  end;
  end;
 end;
 
