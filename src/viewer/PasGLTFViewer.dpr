@@ -841,7 +841,7 @@ begin
    glDisable(GL_DEPTH_TEST);
    glDisable(GL_CULL_FACE);
    glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_2D,EnvMapTextureHandle);
+   glBindTexture(GL_TEXTURE_CUBE_MAP,EnvMapTextureHandle);
    EnvMapDrawShader.Bind;
    glUniform1i(EnvMapDrawShader.uTexture,0);
    glUniformMatrix4fv(EnvMapDrawShader.uViewProjectionMatrix,1,false,@SkyBoxViewProjectionMatrix);

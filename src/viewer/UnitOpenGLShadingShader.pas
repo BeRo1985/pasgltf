@@ -127,6 +127,7 @@ type TShadingShader=class(TShader)
 {$if not defined(PasGLTFBindlessTextures)}
        uTextures:glInt;
 {$ifend}
+       uShadowMapTextures:glInt;
        uEnvMapMaxLevel:glInt;
        uShadows:glInt;
        constructor Create(const aSkinned,aAlphaTest,aShadowMap:boolean);

@@ -582,6 +582,15 @@ type EGLTFOpenGL=class(Exception);
        fMaximumShaderStorageBufferBlockSize:glInt;
        fUniformBufferOffsetAlignment:glInt;
        fMaximumUniformBufferBlockSize:glInt;
+       fShadowMapSize:glInt;
+       fTemporaryMultisampledShadowMapSamples:glInt;
+       fTemporaryMultisampledShadowMapFrameBufferObject:glUInt;
+       fTemporaryMultisampledShadowMapTexture:glUInt;
+       fTemporaryMultisampledShadowMapDepthTexture:glUInt;
+       fTemporaryCubeMapShadowMapTexture:glUInt;
+       fTemporaryCubeMapShadowMapFrameBufferObject:glUInt;
+       fTemporaryShadowMapTexture:glUInt;
+       fTemporaryShadowMapFrameBufferObject:glUInt;
        fRootPath:String;
        fGetURI:TGetURI;
        function DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
@@ -618,6 +627,7 @@ type EGLTFOpenGL=class(Exception);
        property Scenes:TScenes read fScenes;
        property Scene:TPasGLTFSizeInt read fScene;
       published
+       property ShadowMapSize:glInt read fShadowMapSize write fShadowMapSize;
        property GetURI:TGetURI read fGetURI write fGetURI;
        property RootPath:String read fRootPath write fRootPath;
      end;
@@ -1204,6 +1214,7 @@ end;
 constructor TGLTFOpenGL.Create;
 begin
  inherited Create;
+ fShadowMapSize:=512;
  fGetURI:=DefaultGetURI;
  fRootPath:='';
  fReady:=false;
@@ -3476,6 +3487,79 @@ var AllVertices:TAllVertices;
   glBufferData(GL_SHADER_STORAGE_BUFFER,fLightShaderStorageBufferObject.Size,fLightShaderStorageBufferObject.Data,GL_DYNAMIC_DRAW);
   glBindBuffer(GL_SHADER_STORAGE_BUFFER,0);
  end;
+ procedure CreateTemporaryMultisampledShadowMapFrameBufferObject;
+ var Status:GLenum;
+ begin
+  fTemporaryMultisampledShadowMapSamples:=2;
+  glGetIntegerv(GL_MAX_SAMPLES,@fTemporaryMultisampledShadowMapSamples);
+  if fTemporaryMultisampledShadowMapSamples>8 then begin
+   fTemporaryMultisampledShadowMapSamples:=8;
+  end;
+  glActiveTexture(GL_TEXTURE0);
+  glGenFramebuffers(1,@fTemporaryMultisampledShadowMapFrameBufferObject);
+  glBindFramebuffer(GL_FRAMEBUFFER,fTemporaryMultisampledShadowMapFrameBufferObject);
+  glGenTextures(1,@fTemporaryMultisampledShadowMapTexture);
+  glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapTexture);
+  glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+  glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapSamples,GL_R32F,fShadowMapSize,fShadowMapSize,true);
+  glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapTexture,0);
+  glGenTextures(1,@fTemporaryMultisampledShadowMapDepthTexture);
+  glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapDepthTexture);
+  glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_DEPTH_TEXTURE_MODE,GL_LUMINANCE);
+  glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_COMPARE_MODE,GL_NONE);
+  glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_COMPARE_FUNC,GL_ALWAYS);
+  glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+  glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapSamples,GL_DEPTH_COMPONENT32F,fShadowMapSize,fShadowMapSize,true);
+  glBindTexture(GL_TEXTURE_2D,0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapDepthTexture,0);
+  Status:=glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  Assert(Status=GL_FRAMEBUFFER_COMPLETE);
+  glBindFramebuffer(GL_FRAMEBUFFER,0);
+ end;
+ procedure CreateTemporaryCubeMapShadowMapFrameBufferObject;
+ var SideIndex:TPasGLTFSizeInt;
+     Status:GLenum;
+ begin
+  glActiveTexture(GL_TEXTURE0);
+  glGenFramebuffers(1,@fTemporaryCubeMapShadowMapFrameBufferObject);
+  glBindFramebuffer(GL_FRAMEBUFFER,fTemporaryCubeMapShadowMapFrameBufferObject);
+  glGenTextures(1,@fTemporaryCubeMapShadowMapTexture);
+  glBindTexture(GL_TEXTURE_CUBE_MAP,fTemporaryCubeMapShadowMapTexture);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_WRAP_R,GL_CLAMP_TO_EDGE);
+  for SideIndex:=0 to 5 do begin
+   glTexImage2D(GL_TEXTURE_CUBE_MAP+SideIndex,0,GL_R32F,fShadowMapSize,fShadowMapSize,0,GL_RED,GL_FLOAT,nil);
+  end;
+  glBindTexture(GL_TEXTURE_CUBE_MAP,0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_CUBE_MAP_POSITIVE_X,fTemporaryCubeMapShadowMapTexture,0);
+  Status:=glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  Assert(Status=GL_FRAMEBUFFER_COMPLETE);
+  glBindFramebuffer(GL_FRAMEBUFFER,0);
+ end;
+ procedure CreateTemporaryShadowMapFrameBufferObject;
+ var Status:GLenum;
+ begin
+  glActiveTexture(GL_TEXTURE0);
+  glGenFramebuffers(1,@fTemporaryShadowMapFrameBufferObject);
+  glBindFramebuffer(GL_FRAMEBUFFER,fTemporaryShadowMapFrameBufferObject);
+  glGenTextures(1,@fTemporaryShadowMapTexture);
+  glBindTexture(GL_TEXTURE_2D,fTemporaryShadowMapTexture);
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
+  glTexImage2D(GL_TEXTURE_2D,0,GL_R32F,fShadowMapSize,fShadowMapSize,0,GL_RED,GL_FLOAT,nil);
+  glBindTexture(GL_TEXTURE_2D,0);
+  glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,fTemporaryShadowMapTexture,0);
+  Status:=glCheckFramebufferStatus(GL_FRAMEBUFFER);
+  Assert(Status=GL_FRAMEBUFFER_COMPLETE);
+  glBindFramebuffer(GL_FRAMEBUFFER,0);
+ end;
 begin
  if not fUploaded then begin
   fUploaded:=true;
@@ -3496,6 +3580,9 @@ begin
     CreateNodeMeshPrimitiveShaderStorageBufferObjects;
     CreateMaterialUniformBufferObjects;
     CreateLightShaderStorageBufferObject;
+    CreateTemporaryMultisampledShadowMapFrameBufferObject;
+    CreateTemporaryCubeMapShadowMapFrameBufferObject;
+    CreateTemporaryShadowMapFrameBufferObject;
    finally
     FreeAndNil(AllIndices);
    end;
@@ -3588,6 +3675,44 @@ procedure TGLTFOpenGL.Unload;
   end;
   FillChar(fLightShaderStorageBufferObject,SizeOf(TLightShaderStorageBufferObject),#0);
  end;
+ procedure DestroyTemporaryMultisampledShadowMapFrameBufferObject;
+ var Status:GLenum;
+ begin
+  if fTemporaryMultisampledShadowMapFrameBufferObject>0 then begin
+   glDeleteFramebuffers(1,@fTemporaryMultisampledShadowMapFrameBufferObject);
+   fTemporaryMultisampledShadowMapFrameBufferObject:=0;
+  end;
+  if fTemporaryMultisampledShadowMapTexture>0 then begin
+   glDeleteTextures(1,@fTemporaryMultisampledShadowMapTexture);
+   fTemporaryMultisampledShadowMapTexture:=0;
+  end;
+  if fTemporaryMultisampledShadowMapDepthTexture>0 then begin
+   glDeleteTextures(1,@fTemporaryMultisampledShadowMapDepthTexture);
+   fTemporaryMultisampledShadowMapDepthTexture:=0;
+  end;
+ end;
+ procedure DestroyTemporaryCubeMapShadowMapFrameBufferObject;
+ begin
+  if fTemporaryCubeMapShadowMapFrameBufferObject>0 then begin
+   glDeleteFramebuffers(1,@fTemporaryCubeMapShadowMapFrameBufferObject);
+   fTemporaryCubeMapShadowMapFrameBufferObject:=0;
+  end;
+  if fTemporaryCubeMapShadowMapTexture>0 then begin
+   glDeleteTextures(1,@fTemporaryCubeMapShadowMapTexture);
+   fTemporaryCubeMapShadowMapTexture:=0;
+  end;
+ end;
+ procedure DestroyTemporaryShadowMapFrameBufferObject;
+ begin
+  if fTemporaryShadowMapFrameBufferObject>0 then begin
+   glDeleteFramebuffers(1,@fTemporaryShadowMapFrameBufferObject);
+   fTemporaryShadowMapFrameBufferObject:=0;
+  end;
+  if fTemporaryShadowMapTexture>0 then begin
+   glDeleteTextures(1,@fTemporaryShadowMapTexture);
+   fTemporaryShadowMapTexture:=0;
+  end;
+ end;
 begin
  if fUploaded then begin
   fUploaded:=false;
@@ -3599,6 +3724,9 @@ begin
   DestroyFrameGlobalsUniformBufferObject;
   DestroyMaterialUniformBufferObjects;
   DestroyLightShaderStorageBufferObject;
+  DestroyTemporaryMultisampledShadowMapFrameBufferObject;
+  DestroyTemporaryCubeMapShadowMapFrameBufferObject;
+  DestroyTemporaryShadowMapFrameBufferObject;
  end;
 end;
 

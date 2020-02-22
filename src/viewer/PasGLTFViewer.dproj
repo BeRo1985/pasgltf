@@ -234,7 +234,7 @@
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <DCC_Namespace>System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <Debugger_RunParams>&quot;C:\Users\BeRo\Documents\Projects\GitHubSVN\PASGLTF.githubs\example\models\buster_drone\scene.gltf&quot;</Debugger_RunParams>
+        <Debugger_RunParams>&quot;d:\GitHubSVN\PASGLTF.github\example\models\dancing\Shuffling.glb&quot;</Debugger_RunParams>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>RELEASE;$(DCC_Define)</DCC_Define>
@@ -267,7 +267,6 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
-        <Debugger_RunParams>&quot;d:\GitHubSVN\PASGLTF.github\trunk\ref\ClearCoatTest\glTF-Binary\ClearCoatTest.glb&quot;</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
