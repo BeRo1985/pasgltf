@@ -623,7 +623,7 @@ begin
      '        for(int lightIndex = 0, lightCount = int(lightMetaData.x); lightIndex < lightCount; lightIndex++){'+#13#10+
      '          Light light = lights[lightIndex];'+#13#10+
      '          float lightAttenuation = 1.0;'+#13#10+
-     '          vec3 lightDirection = normalize((uFrameGlobals.normalMatrix * vec4(light.direction.xyz, 1.0)).xyz);'+#13#10+
+     '          vec3 lightDirection = light.direction.xyz;'+#13#10+
      '          vec3 lightVector = light.positionRange.xyz - vWorldSpacePosition.xyz;'+#13#10+
      '          switch(light.metaData.x){'+#13#10+
      '            case 1u:'+#13#10+  // Directional
