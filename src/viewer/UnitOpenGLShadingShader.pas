@@ -121,7 +121,6 @@ type TShadingShader=class(TShader)
              ssboNodeMeshPrimitiveMetaData=4;
              ssboLightData=5;
       public
-       uLightDirection:glInt;
        uBRDFLUTTexture:glInt;
        uShadowMapTexture:glInt;
        uEnvMapTexture:glInt;
@@ -262,7 +261,6 @@ begin
     'uniform sampler2D uTextures[16];'+#13#10+
     'uniform int uEnvMapMaxLevel;'+#13#10+
     'uniform int uShadows;'+#13#10+
-    'uniform vec3 uLightDirection;'+#13#10+
     'layout(std140, binding = '+IntToStr(uboFrameGlobals)+') uniform uboFrameGlobals {'+#13#10+
     '  mat4 inverseViewMatrix;'+#13#10+
     '  mat4 modelMatrix;'+#13#10+
@@ -311,7 +309,7 @@ begin
     'float sheenRoughness, cavity, transparency, refractiveAngle, ambientOcclusion,'+#13#10+
      '     shadow, reflectance, clearcoatFactor, clearcoatRoughness;'+#13#10+
     'vec4 sheenColorIntensityFactor;'+#13#10+
-    'vec3 clearcoatF0, clearcoatNormal;'+#13#10+
+    'vec3 clearcoatF0, clearcoatNormal, imageLightBasedLightDirection;'+#13#10+
     'uint flags, shadingModel;'+#13#10+
     'vec3 diffuseLambert(vec3 diffuseColor){'+#13#10+
     '  return diffuseColor * OneOverPI;'+#13#10+
@@ -395,7 +393,7 @@ begin
     '  vec3 reflectionVector = normalize(reflect(viewDirection, normal.xyz));'+#13#10+
     '  float NdotV = clamp(abs(dot(normal.xyz, viewDirection)) + 1e-5, 0.0, 1.0),'+#13#10+
     '        ao = cavity * ambientOcclusion,'+#13#10+
-    '        lit = mix(1.0, litIntensity, max(0.0, dot(reflectionVector, -uLightDirection) * (1.0 - (roughness * roughness)))),'+#13#10+
+    '        lit = mix(1.0, litIntensity, max(0.0, dot(reflectionVector, -imageLightBasedLightDirection) * (1.0 - (roughness * roughness)))),'+#13#10+
     '        specularOcclusion = clamp((pow(NdotV + (ao * lit), roughness * roughness) - 1.0) + (ao * lit), 0.0, 1.0);'+#13#10+
     '  vec2 brdf = textureLod(uBRDFLUTTexture, vec2(roughness, NdotV), 0.0).xy;'+#13#10+
     '  return (textureLod(uEnvMapTexture, reflectionVector,'+' clamp((float(uEnvMapMaxLevel) - 1.0) - (1.0 - (1.2 * log2(roughness))), 0.0, float(uEnvMapMaxLevel))).xyz * ((specularColor.xyz * brdf.x) +'+' (brdf.yyy * clamp(max(max(specularColor.x, specularColor.y), specularColor.z) * 50.0, 0.0, 1.0))) * specularOcclusion) * OneOverPI;'+#13#10+
@@ -589,6 +587,7 @@ begin
      '      shadow = 1.0;'+#13#10+
      '      reflectance = max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z);'+#13#10+
      '      vec3 viewDirection = normalize(vCameraRelativePosition);'+#13#10+
+     '      imageLightBasedLightDirection = (lightMetaData.x != 0u) ? lights[0].direction.xyz : vec3(0.0, 0.0, -1.0);'+#13#10+
      '      diffuseOutput = specularOutput = sheenOutput = clearcoatOutput = vec3(0.0);'+#13#10+
      '      diffuseOutput += getDiffuseImageBasedLight(normal.xyz, diffuseColorAlpha.xyz);'+#13#10+
      '      specularOutput += getSpecularImageBasedLight(normal.xyz, specularColorRoughness.xyz, specularColorRoughness.w, viewDirection, litIntensity);'+#13#10+
@@ -620,19 +619,7 @@ begin
      '        clearcoatOutput += getSpecularImageBasedLight(clearcoatNormal.xyz, clearcoatF0.xyz, clearcoatRoughness, viewDirection, litIntensity);'+#13#10+
      '        clearcoatBlendFactor = vec3(clearcoatFactor * specularF(clearcoatF0, clamp(dot(clearcoatNormal, -viewDirection), 0.0, 1.0)));'+#13#10+
      '      }'+#13#10+
-     '      if(lightMetaData.x == 0u){'+#13#10+
-     '        doSingleLight(vec3(1.70, 1.15, 0.70),'+#13#10+ // Sun light
-     '                      pow(vec3(litIntensity), vec3(1.05, 1.02, 1.0)),'+#13#10+
-     '                      -uLightDirection,'+#13#10+
-     '                      normal.xyz,'+#13#10+
-     '                      diffuseColorAlpha.xyz,'+#13#10+
-     '                      specularColorRoughness.xyz,'+#13#10+
-     '                      -viewDirection,'+#13#10+
-     '                      refractiveAngle,'+#13#10+
-     '                      transparency,'+#13#10+
-     '                      specularColorRoughness.w,'+#13#10+
-     '                      cavity);'+#13#10+(**)
-     '      }else{'+#13#10+
+     '      if(lightMetaData.x != 0u){'+#13#10+
      '        for(int lightIndex = 0, lightCount = int(lightMetaData.x); lightIndex < lightCount; lightIndex++){'+#13#10+
      '          Light light = lights[lightIndex];'+#13#10+
      '          float lightAttenuation = 1.0;'+#13#10+
@@ -755,7 +742,6 @@ const Textures:array[0..15] of glInt=(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18);
 {$ifend}
 begin
  inherited BindVariables;
- uLightDirection:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uLightDirection')));
  uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
  uShadowMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uShadowMapTexture')));
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));

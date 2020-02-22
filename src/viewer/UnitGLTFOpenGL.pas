@@ -541,6 +541,7 @@ type EGLTFOpenGL=class(Exception);
               Range:TPasGLTFFloat;
               InnerConeAngle:TPasGLTFFloat;
               OuterConeAngle:TPasGLTFFloat;
+              Direction:TPasGLTF.TVector3;
               Color:TPasGLTF.TVector3;
             end;
             PLight=^TLight;
@@ -591,6 +592,7 @@ type EGLTFOpenGL=class(Exception);
        procedure LoadFromDocument(const aDocument:TPasGLTF.TDocument);
        procedure LoadFromStream(const aStream:TStream);
        procedure LoadFromFile(const aFileName:String);
+       procedure AddDefaultDirectionalLight(const aDirectionX,aDirectionY,aDirectionZ,aColorX,aColorY,aColorZ:TPasGLTFFloat);
        procedure Upload;
        procedure Unload;
        function GetAnimationBeginTime(const aAnimation:TPasGLTFSizeInt):TPasGLTFFloat;
@@ -2762,6 +2764,28 @@ begin
  end;
 end;
 
+procedure TGLTFOpenGL.AddDefaultDirectionalLight(const aDirectionX,aDirectionY,aDirectionZ,aColorX,aColorY,aColorZ:TPasGLTFFloat);
+var Light:TGLTFOpenGL.PLight;
+begin
+ if length(fLights)=0 then begin
+  SetLength(fLights,1);
+  Light:=@fLights[0];
+  Light^.Name:='DefaultDirectionalLight';
+  Light^.Type_:=TLightDataType.Directional;
+  Light^.Node:=-$8000000;
+  Light^.Intensity:=1.0;
+  Light^.Range:=Infinity;
+  Light^.InnerConeAngle:=0.0;
+  Light^.OuterConeAngle:=0.0;
+  Light^.Direction[0]:=aDirectionX;
+  Light^.Direction[1]:=aDirectionY;
+  Light^.Direction[2]:=aDirectionZ;
+  Light^.Color[0]:=aColorX;
+  Light^.Color[1]:=aColorY;
+  Light^.Color[2]:=aColorZ;
+ end;
+end;
+
 procedure TGLTFOpenGL.Upload;
 type TAllVertices=TPasGLTFDynamicArray<TVertex>;
      TAllIndices=TPasGLTFDynamicArray<TPasGLTFUInt32>;
@@ -4833,9 +4857,17 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      LightShaderStorageBufferObjectDataItem^.PositionRange[0]:=0.0;
      LightShaderStorageBufferObjectDataItem^.PositionRange[1]:=0.0;
      LightShaderStorageBufferObjectDataItem^.PositionRange[2]:=0.0;
-     LightShaderStorageBufferObjectDataItem^.Direction[0]:=0.0;
-     LightShaderStorageBufferObjectDataItem^.Direction[1]:=0.0;
-     LightShaderStorageBufferObjectDataItem^.Direction[2]:=-1.0;
+     case Light^.Node of
+      -$8000000:begin
+       // For default directional light, when no other lights were defined
+       TPasGLTF.TVector3(pointer(@LightShaderStorageBufferObjectDataItem^.Direction[0])^):=Light^.Direction;
+      end;
+      else begin
+       LightShaderStorageBufferObjectDataItem^.Direction[0]:=0.0;
+       LightShaderStorageBufferObjectDataItem^.Direction[1]:=0.0;
+       LightShaderStorageBufferObjectDataItem^.Direction[2]:=-1.0;
+      end;
+     end;
     end;
    end;
    glBindBuffer(GL_SHADER_STORAGE_BUFFER,fParent.fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle);

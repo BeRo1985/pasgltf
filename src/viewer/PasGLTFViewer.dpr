@@ -745,11 +745,6 @@ begin
   SceneAABB.Max.y:=GLTFInstance.WorstCaseStaticBoundingBox.Max[1];
   SceneAABB.Max.z:=GLTFInstance.WorstCaseStaticBoundingBox.Max[2];}
   ShadowMapMatrix:=GetShadowMapMatrix(ViewMatrix,Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,1e-1,1e+2),SceneAABB,SceneAABB);
-  for ShadingShader in ShadowShaders do begin
-   ShadingShader.Bind;
-   glUniform3fv(ShadingShader.uLightDirection,1,@LightDirection);
-   ShadingShader.Unbind;
-  end;
   begin
  // glBindFramebuffer(GL_DRAW_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
    glBindFramebuffer(GL_FRAMEBUFFER,MultisampledShadowMapFBO);
@@ -872,7 +867,6 @@ begin
    glCullFace(GL_BACK);
    for ShadingShader in ShadingShaders do begin
     ShadingShader.Bind;
-    glUniform3fv(ShadingShader.uLightDirection,1,@LightDirection);
     glUniform1i(ShadingShader.uEnvMapMaxLevel,Min(EnvMapFBO.WorkMaxLevel,16));
     glUniform1i(ShadingShader.uShadows,ord(Shadows) and 1);
     ShadingShader.Unbind;
@@ -1459,6 +1453,7 @@ begin
      GLTFOpenGL:=TGLTFOpenGL.Create;
      GLTFOpenGL.RootPath:=IncludeTrailingPathDelimiter(ExtractFilePath(FileName));
      GLTFOpenGL.LoadFromFile(FileName);
+     GLTFOpenGL.AddDefaultDirectionalLight(LightDirection.x,LightDirection.y,LightDirection.z,1.70,1.15,0.70);
      GLTFOpenGL.Upload;
      GLTFInstance:=GLTFOpenGL.AcquireInstance;
      CurrentFileName:=FileName;
