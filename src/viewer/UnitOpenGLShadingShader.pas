@@ -612,7 +612,8 @@ begin
      '          vec3 lightDirection = light.direction.xyz;'+#13#10+
      '          vec3 lightVector = light.positionRange.xyz - vWorldSpacePosition.xyz;'+#13#10+
      '          switch(light.metaData.x){'+#13#10+
-     '            case 1u:{'+#13#10+  // Directional
+     '            case 1u:'+#13#10+  // Directional
+     '            case 3u:{'+#13#10+ // Spot
      '              vec4 shadowNDC = light.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
      '              shadowNDC /= shadowNDC.w;'+#13#10+
      '              if(all(greaterThanEqual(shadowNDC, vec4(-1.0))) && all(lessThanEqual(shadowNDC, vec4(1.0)))){'+#13#10+
@@ -626,6 +627,12 @@ begin
      '              }'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
+     '            case 2u:{'+#13#10+ // Point
+     '              break;'+#13#10+
+     '            }'+#13#10+
+     '          }'+#13#10+
+     '          switch(light.metaData.x){'+#13#10+
+     '            case 1u:'+#13#10+  // Directional
      '            case 2u:{'+#13#10+ // Point
      '              break;'+#13#10+
      '            }'+#13#10+
