@@ -680,6 +680,20 @@ const Epsilon=1e-8;
       GL_MAX_SHADER_STORAGE_BLOCK_SIZE=$90de;
 
       GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT=$90df;
+
+      GL_NEGATIVE_ONE_TO_ONE=$935e;
+
+      GL_ZERO_TO_ONE=$935f;
+
+      GL_R32F=$822e;
+
+      GL_DEPTH_COMPONENT32F=$8cac;
+
+      GL_TEXTURE_CUBE_MAP_ARRAY=$9009;
+
+type TglClipControl=procedure(origin:GLenum;depth:GLenum); {$if defined(Windows) or defined(Win32) or defined(Win64)}stdcall;{$else}cdecl;{$ifend}
+
+var glClipControl:TglClipControl=nil;
 {$endif}
 
 type TVector2=TPasGLTF.TVector2;
@@ -2594,13 +2608,9 @@ var HasLights:boolean;
 
  end;
  procedure LoadCameras;
- var Index,WeightIndex,ChildrenIndex,Count,LightIndex:TPasGLTFSizeInt;
+ var Index:TPasGLTFSizeInt;
      SourceCamera:TPasGLTF.TCamera;
      DestinationCamera:PCamera;
-     Mesh:PMesh;
-     ExtensionObject:TPasJSONItemObject;
-     KHRLightsPunctualItem:TPasJSONItem;
-     KHRLightsPunctualObject:TPasJSONItemObject;
  begin
   SetLength(fCameras,aDocument.Cameras.Count);
   for Index:=0 to aDocument.Cameras.Count-1 do begin
@@ -3678,7 +3688,7 @@ var AllVertices:TAllVertices;
   glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapTexture);
   glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-  glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapSamples,GL_R32F,fShadowMapSize,fShadowMapSize,true);
+  glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapSamples,GL_R32F,fShadowMapSize,fShadowMapSize,{$ifdef fpcgl}GL_TRUE{$else}true{$endif});
   glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapTexture,0);
   glGenTextures(1,@fTemporaryMultisampledShadowMapDepthTexture);
   glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapDepthTexture);
@@ -3687,7 +3697,7 @@ var AllVertices:TAllVertices;
   glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_COMPARE_FUNC,GL_ALWAYS);
   glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
-  glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapSamples,GL_DEPTH_COMPONENT32F,fShadowMapSize,fShadowMapSize,true);
+  glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapSamples,GL_DEPTH_COMPONENT32F,fShadowMapSize,fShadowMapSize,{$ifdef fpcgl}GL_TRUE{$else}true{$endif});
   glBindTexture(GL_TEXTURE_2D,0);
   glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D_MULTISAMPLE,fTemporaryMultisampledShadowMapDepthTexture,0);
   Status:=glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -3788,6 +3798,11 @@ begin
   try
    AllIndices:=TAllIndices.Create;
    try
+{$ifdef fpcgl}
+    if not assigned(glClipControl) then begin
+     glClipControl:=wglGetProcAddress(PAnsiChar('glClipControl'));
+    end;
+{$endif}
     glGetIntegerv(GL_SHADER_STORAGE_BUFFER_OFFSET_ALIGNMENT,@fShaderStorageBufferOffsetAlignment);
     glGetIntegerv(GL_MAX_SHADER_STORAGE_BLOCK_SIZE,@fMaximumShaderStorageBufferBlockSize);
     glGetIntegerv(GL_UNIFORM_BUFFER_OFFSET_ALIGNMENT,@fUniformBufferOffsetAlignment);
