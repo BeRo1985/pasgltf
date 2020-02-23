@@ -575,8 +575,6 @@ begin
      '      vec3 viewDirection = normalize(vCameraRelativePosition);'+#13#10+
      '      imageLightBasedLightDirection = (lightMetaData.x != 0u) ? lights[0].direction.xyz : vec3(0.0, 0.0, -1.0);'+#13#10+
      '      diffuseOutput = specularOutput = sheenOutput = clearcoatOutput = vec3(0.0);'+#13#10+
-     '      diffuseOutput += getDiffuseImageBasedLight(normal.xyz, diffuseColorAlpha.xyz);'+#13#10+
-     '      specularOutput += getSpecularImageBasedLight(normal.xyz, specularColorRoughness.xyz, specularColorRoughness.w, viewDirection, litIntensity);'+#13#10+
      '      if((flags & (1u << 6u)) != 0u){'+#13#10+
      '        sheenColorIntensityFactor = uMaterial.sheenColorFactorSheenIntensityFactor;'+#13#10+
      '        if((texCoordIndices.x & 0x00f00000u) != 0x00f00000u){'+#13#10+
@@ -602,8 +600,6 @@ begin
      '        }'+#13#10+
      '        clearcoatNormal *= (((flags & (1u << 5u)) != 0u) && !gl_FrontFacing) ? -1.0 : 1.0;'+#13#10+
      '        clearcoatRoughness = clamp(clearcoatRoughness, 0.0, 1.0);'+#13#10+
-     '        clearcoatOutput += getSpecularImageBasedLight(clearcoatNormal.xyz, clearcoatF0.xyz, clearcoatRoughness, viewDirection, litIntensity);'+#13#10+
-     '        clearcoatBlendFactor = vec3(clearcoatFactor * specularF(clearcoatF0, clamp(dot(clearcoatNormal, -viewDirection), 0.0, 1.0)));'+#13#10+
      '      }'+#13#10+
      '      if(lightMetaData.x != 0u){'+#13#10+
      '        for(int lightIndex = 0, lightCount = int(lightMetaData.x); lightIndex < lightCount; lightIndex++){'+#13#10+
@@ -631,6 +627,9 @@ begin
      '              case 2u:{'+#13#10+ // Point
      '                break;'+#13#10+
      '              }'+#13#10+
+     '            }'+#13#10+
+     '            if(lightIndex == 0){'+#13#10+
+     '              litIntensity = lightAttenuation;'+#13#10+
      '            }'+#13#10+
      '          }'+#13#10+
      '          switch(light.metaData.x){'+#13#10+
@@ -685,6 +684,12 @@ begin
      '                          cavity);'+#13#10+
      '          }'+#13#10+
      '        }'+#13#10+
+     '      }'+#13#10+
+     '      diffuseOutput += getDiffuseImageBasedLight(normal.xyz, diffuseColorAlpha.xyz);'+#13#10+
+     '      specularOutput += getSpecularImageBasedLight(normal.xyz, specularColorRoughness.xyz, specularColorRoughness.w, viewDirection, litIntensity);'+#13#10+
+     '      if((flags & (1u << 7u)) != 0u){'+#13#10+
+     '        clearcoatOutput += getSpecularImageBasedLight(clearcoatNormal.xyz, clearcoatF0.xyz, clearcoatRoughness, viewDirection, litIntensity);'+#13#10+
+     '        clearcoatBlendFactor = vec3(clearcoatFactor * specularF(clearcoatF0, clamp(dot(clearcoatNormal, -viewDirection), 0.0, 1.0)));'+#13#10+
      '      }'+#13#10+
      '      color = vec4(vec3(((diffuseOutput +'+#13#10+
 {$ifndef PasGLTFExtraEmissionOutput}
