@@ -1171,6 +1171,7 @@ begin
     FileName:=ExpandFileName(InputFileName);
     try
      GLTFOpenGL:=TGLTFOpenGL.Create;
+     GLTFOpenGL.ShadowMapSize:=2048;
      GLTFOpenGL.RootPath:=IncludeTrailingPathDelimiter(ExtractFilePath(FileName));
      GLTFOpenGL.LoadFromFile(FileName);
      GLTFOpenGL.AddDefaultDirectionalLight(LightDirection.x,LightDirection.y,LightDirection.z,1.70,1.15,0.70);
