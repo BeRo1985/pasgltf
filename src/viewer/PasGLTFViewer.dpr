@@ -28,7 +28,6 @@ uses
   UnitOpenGLImage in 'UnitOpenGLImage.pas',
   UnitOpenGLImageJPEG in 'UnitOpenGLImageJPEG.pas',
   UnitOpenGLImagePNG in 'UnitOpenGLImagePNG.pas',
-  UnitMath3D in 'UnitMath3D.pas',
   UnitOpenGLShader in 'UnitOpenGLShader.pas',
   UnitOpenGLShadingShader in 'UnitOpenGLShadingShader.pas',
   UnitOpenGLFrameBufferObject in 'UnitOpenGLFrameBufferObject.pas',
@@ -196,26 +195,27 @@ begin
  CameraRotationY:=0.0;
 end;
 
-function Matrix4x4ProjectionReversedZ(const aFOV,aAspectRatio,aZNear:single):TMatrix4x4;
+function Matrix4x4ProjectionReversedZ(const aFOV,aAspectRatio,aZNear:single):TPasGLTF.TMatrix4x4;
+const DEG2RAD=PI/180.0;
 var f:single;
 begin
  f:=1.0/tan(aFOV*DEG2RAD*0.5);
- result[0,0]:=f/aAspectRatio;
- result[0,1]:=0.0;
- result[0,2]:=0.0;
- result[0,3]:=0.0;
- result[1,0]:=0.0;
- result[1,1]:=f;
- result[1,2]:=0.0;
- result[1,3]:=0.0;
- result[2,0]:=0.0;
- result[2,1]:=0.0;
- result[2,2]:=0.0;
- result[2,3]:=-1.0;
- result[3,0]:=0.0;
- result[3,1]:=0.0;
- result[3,2]:=aZNear;
- result[3,3]:=0.0;
+ result[0]:=f/aAspectRatio;
+ result[1]:=0.0;
+ result[2]:=0.0;
+ result[3]:=0.0;
+ result[4]:=0.0;
+ result[5]:=f;
+ result[6]:=0.0;
+ result[7]:=0.0;
+ result[8]:=0.0;
+ result[9]:=0.0;
+ result[10]:=0.0;
+ result[11]:=-1.0;
+ result[12]:=0.0;
+ result[13]:=0.0;
+ result[14]:=aZNear;
+ result[15]:=0.0;
 end;
 
 var Event:TSDL_Event;
@@ -233,15 +233,144 @@ var Event:TSDL_Event;
     AnimationBeginTime:double=0.0;
     AnimationEndTime:double=1.0;
 
-    LightDirection:UnitMath3D.TVector3;
+    LightDirection:TPasGLTF.TVector3;
+
+function Modulo(const x,y:Double):Double;
+begin
+ result:=x-(floor(x/y)*y);
+end;
+
+function Vector3(const aX,aY,aZ:TPasGLTFFloat):TPasGLTF.TVector3;
+begin
+ result[0]:=aX;
+ result[1]:=aY;
+ result[2]:=aZ;
+end;
+
+function Vector3Add(const a,b:TPasGLTF.TVector3):TPasGLTF.TVector3;
+begin
+ result[0]:=a[0]+b[0];
+ result[1]:=a[1]+b[1];
+ result[2]:=a[2]+b[2];
+end;
+
+function Vector3Sub(const a,b:TPasGLTF.TVector3):TPasGLTF.TVector3;
+begin
+ result[0]:=a[0]-b[0];
+ result[1]:=a[1]-b[1];
+ result[2]:=a[2]-b[2];
+end;
+
+function Vector3Cross(const a,b:TPasGLTF.TVector3):TPasGLTF.TVector3;
+begin
+ result[0]:=(a[1]*b[2])-(a[2]*b[1]);
+ result[1]:=(a[2]*b[0])-(a[0]*b[2]);
+ result[2]:=(a[0]*b[1])-(a[1]*b[0]);
+end;
+
+function Vector3Dot(const a,b:TPasGLTF.TVector3):TPasGLTFFloat;
+begin
+ result:=(a[0]*b[0])+(a[1]*b[1])+(a[2]*b[2]);
+end;
+
+function Vector3Normalize(const aVector:TPasGLTF.TVector3):TPasGLTF.TVector3;
+var l:TPasGLTFFloat;
+begin
+ l:=sqrt(sqr(aVector[0])+sqr(aVector[1])+sqr(aVector[2]));
+ if abs(l)>1e-8 then begin
+  result[0]:=aVector[0]/l;
+  result[1]:=aVector[1]/l;
+  result[2]:=aVector[2]/l;
+ end else begin
+  result[0]:=0.0;
+  result[1]:=0.0;
+  result[2]:=0.0;
+ end;
+end;
+
+function Vector3ScalarMul(const aVector:TPasGLTF.TVector3;const aFactor:TPasGLTFFloat):TPasGLTF.TVector3;
+begin
+ result[0]:=aVector[0]*aFactor;
+ result[1]:=aVector[1]*aFactor;
+ result[2]:=aVector[2]*aFactor;
+end;
+
+function MatrixMul(const a,b:TPasGLTF.TMatrix4x4):TPasGLTF.TMatrix4x4;
+begin
+ result[0]:=(a[0]*b[0])+(a[1]*b[4])+(a[2]*b[8])+(a[3]*b[12]);
+ result[1]:=(a[0]*b[1])+(a[1]*b[5])+(a[2]*b[9])+(a[3]*b[13]);
+ result[2]:=(a[0]*b[2])+(a[1]*b[6])+(a[2]*b[10])+(a[3]*b[14]);
+ result[3]:=(a[0]*b[3])+(a[1]*b[7])+(a[2]*b[11])+(a[3]*b[15]);
+ result[4]:=(a[4]*b[0])+(a[5]*b[4])+(a[6]*b[8])+(a[7]*b[12]);
+ result[5]:=(a[4]*b[1])+(a[5]*b[5])+(a[6]*b[9])+(a[7]*b[13]);
+ result[6]:=(a[4]*b[2])+(a[5]*b[6])+(a[6]*b[10])+(a[7]*b[14]);
+ result[7]:=(a[4]*b[3])+(a[5]*b[7])+(a[6]*b[11])+(a[7]*b[15]);
+ result[8]:=(a[8]*b[0])+(a[9]*b[4])+(a[10]*b[8])+(a[11]*b[12]);
+ result[9]:=(a[8]*b[1])+(a[9]*b[5])+(a[10]*b[9])+(a[11]*b[13]);
+ result[10]:=(a[8]*b[2])+(a[9]*b[6])+(a[10]*b[10])+(a[11]*b[14]);
+ result[11]:=(a[8]*b[3])+(a[9]*b[7])+(a[10]*b[11])+(a[11]*b[15]);
+ result[12]:=(a[12]*b[0])+(a[13]*b[4])+(a[14]*b[8])+(a[15]*b[12]);
+ result[13]:=(a[12]*b[1])+(a[13]*b[5])+(a[14]*b[9])+(a[15]*b[13]);
+ result[14]:=(a[12]*b[2])+(a[13]*b[6])+(a[14]*b[10])+(a[15]*b[14]);
+ result[15]:=(a[12]*b[3])+(a[13]*b[7])+(a[14]*b[11])+(a[15]*b[15]);
+end;
+
+function MatrixLookAt(const Eye,Center,Up:TPasGLTF.TVector3):TPasGLTF.TMatrix4x4;
+var RightVector,UpVector,ForwardVector:TPasGLTF.TVector3;
+begin
+ ForwardVector:=Vector3Normalize(Vector3Sub(Eye,Center));
+ RightVector:=Vector3Normalize(Vector3Cross(Up,ForwardVector));
+ UpVector:=Vector3Normalize(Vector3Cross(ForwardVector,RightVector));
+ result[0]:=RightVector[0];
+ result[4]:=RightVector[1];
+ result[8]:=RightVector[2];
+ result[12]:=-((RightVector[0]*Eye[0])+(RightVector[1]*Eye[1])+(RightVector[2]*Eye[2]));
+ result[1]:=UpVector[0];
+ result[5]:=UpVector[1];
+ result[9]:=UpVector[2];
+ result[13]:=-((UpVector[0]*Eye[0])+(UpVector[1]*Eye[1])+(UpVector[2]*Eye[2]));
+ result[2]:=ForwardVector[0];
+ result[6]:=ForwardVector[1];
+ result[10]:=ForwardVector[2];
+ result[14]:=-((ForwardVector[0]*Eye[0])+(ForwardVector[1]*Eye[1])+(ForwardVector[2]*Eye[2]));
+ result[3]:=0.0;
+ result[7]:=0.0;
+ result[11]:=0.0;
+ result[15]:=1.0;
+end;
+
+type TAABB=record
+      Min:TPasGLTF.TVector3;
+      Max:TPasGLTF.TVector3;
+     end;
+
+function AABBCombine(const AABB,WithAABB:TAABB):TAABB;
+begin
+ result.Min[0]:=Min(AABB.Min[0],WithAABB.Min[0]);
+ result.Min[1]:=Min(AABB.Min[1],WithAABB.Min[1]);
+ result.Min[2]:=Min(AABB.Min[2],WithAABB.Min[2]);
+ result.Max[0]:=Max(AABB.Max[0],WithAABB.Max[0]);
+ result.Max[1]:=Max(AABB.Max[1],WithAABB.Max[1]);
+ result.Max[2]:=Max(AABB.Max[2],WithAABB.Max[2]);
+end;
+
+function AABBCombineVector3(const AABB:TAABB;v:TPasGLTF.TVector3):TAABB;
+begin
+ result.Min[0]:=Min(AABB.Min[0],v[0]);
+ result.Min[1]:=Min(AABB.Min[1],v[1]);
+ result.Min[2]:=Min(AABB.Min[2],v[2]);
+ result.Max[0]:=Max(AABB.Max[0],v[0]);
+ result.Max[1]:=Max(AABB.Max[1],v[1]);
+ result.Max[2]:=Max(AABB.Max[2],v[2]);
+end;
 
 procedure DumpAnimationJoints;
 const FramesPerSecond=8;
       Scale=128;
- function cmul(const a,b:UnitMath3D.TVector2):UnitMath3D.TVector2;
+ function cmul(const a,b:TPasGLTF.TVector2):TPasGLTF.TVector2;
  begin
-  result.x:=(a.x*b.x)-(a.y*b.y);
-  result.y:=(a.x*b.y)+(a.y*b.x);
+  result[0]:=(a[0]*b[0])-(a[1]*b[1]);
+  result[1]:=(a[0]*b[1])+(a[1]*b[0]);
  end;
 var CountFrames,FrameIndex,JointIndex,AxisIndex,
     CoefficientIndex,CountWantedJoints,
@@ -249,8 +378,8 @@ var CountFrames,FrameIndex,JointIndex,AxisIndex,
     Frames:array of TPasGLTF.TVector3DynamicArray;
     MatrixFrames:array of TPasGLTF.TMatrix4x4DynamicArray;
     WantedJoints:array of TPasGLTFSizeInt;
-    FourierCoefficients,tv4:UnitMath3D.TVector4;
-    AngleVector:UnitMath3D.TVector2;
+    FourierCoefficients,tv4:TPasGLTF.TVector4;
+    AngleVector:TPasGLTF.TVector2;
     MemoryStream:TMemoryStream;
     UI32:TPasGLTFUInt32;
     UI16:TPasGLTFUInt16;
@@ -346,21 +475,21 @@ begin
        end;
       end;
      end;
-     AABB.Min.x:=INFINITY;
-     AABB.Min.y:=INFINITY;
-     AABB.Min.z:=INFINITY;
-     AABB.Max.x:=-INFINITY;
-     AABB.Max.y:=-INFINITY;
-     AABB.Max.z:=-INFINITY;
+     AABB.Min[0]:=INFINITY;
+     AABB.Min[1]:=INFINITY;
+     AABB.Min[2]:=INFINITY;
+     AABB.Max[0]:=-INFINITY;
+     AABB.Max[1]:=-INFINITY;
+     AABB.Max[2]:=-INFINITY;
      for JointIndex:=0 to length(Frames[0])-1 do begin
       for FrameIndex:=0 to CountFrames-1 do begin
-       AABB:=AABBCombineVector3(AABB,UnitMath3D.PVector3(@Frames[FrameIndex][JointIndex])^);
+       AABB:=AABBCombineVector3(AABB,TPasGLTF.PVector3(@Frames[FrameIndex][JointIndex])^);
       end;
      end;
      for JointIndex:=0 to length(Frames[0])-1 do begin
       for FrameIndex:=0 to CountFrames-1 do begin
        for AxisIndex:=0 to 2 do begin
-        Frames[FrameIndex][JointIndex][AxisIndex]:=(Frames[FrameIndex][JointIndex][AxisIndex]-AABB.Min.xyz[AxisIndex])/(AABB.Max.xyz[AxisIndex]-AABB.Min.xyz[AxisIndex]);
+        Frames[FrameIndex][JointIndex][AxisIndex]:=(Frames[FrameIndex][JointIndex][AxisIndex]-AABB.Min[AxisIndex])/(AABB.Max[AxisIndex]-AABB.Min[AxisIndex]);
        end;
       end;
      end;
@@ -376,7 +505,7 @@ begin
       MemoryStream.WriteBuffer(UI32,SizeOf(TPasGLTFUInt32));
       begin
        for AxisIndex:=0 to 2 do begin
-        F32:=AABB.Min.xyz[AxisIndex];
+        F32:=AABB.Min[AxisIndex];
         MemoryStream.WriteBuffer(F32,SizeOf(TPasGLTFFloat));
        end;
        F32:=0.0;
@@ -384,7 +513,7 @@ begin
       end;
       begin
        for AxisIndex:=0 to 2 do begin
-        F32:=AABB.Max.xyz[AxisIndex];
+        F32:=AABB.Max[AxisIndex];
         MemoryStream.WriteBuffer(F32,SizeOf(TPasGLTFFloat));
        end;
        F32:=0.0;
@@ -457,8 +586,8 @@ procedure Draw;
 var ModelMatrix,
     ViewMatrix,
     ProjectionMatrix,
-    SkyBoxViewProjectionMatrix:UnitMath3D.TMatrix4x4;
-    Bounds,Center:UnitMath3D.TVector3;
+    SkyBoxViewProjectionMatrix:TPasGLTF.TMatrix4x4;
+    Bounds,Center:TPasGLTF.TVector3;
     t:double;
     v,Zoom,n,f:TPasGLTFFloat;
     ShadingShader:TShadingShader;
@@ -480,30 +609,30 @@ begin
   GPUTimeState:=2;
  end;
  begin
-  ModelMatrix:=Matrix4x4Identity;
+  ModelMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
   if assigned(GLTFOpenGL) then begin
-   Center.x:=(GLTFOpenGL.StaticBoundingBox.Min[0]+GLTFOpenGL.StaticBoundingBox.Max[0])*0.5;
-   Center.y:=(GLTFOpenGL.StaticBoundingBox.Min[1]+GLTFOpenGL.StaticBoundingBox.Max[1])*0.5;
-   Center.z:=(GLTFOpenGL.StaticBoundingBox.Min[2]+GLTFOpenGL.StaticBoundingBox.Max[2])*0.5;
-   Bounds.x:=(GLTFOpenGL.StaticBoundingBox.Max[0]-GLTFOpenGL.StaticBoundingBox.Min[0])*0.5;
-   Bounds.y:=(GLTFOpenGL.StaticBoundingBox.Max[1]-GLTFOpenGL.StaticBoundingBox.Min[1])*0.5;
-   Bounds.z:=(GLTFOpenGL.StaticBoundingBox.Max[2]-GLTFOpenGL.StaticBoundingBox.Min[2])*0.5;
+   Center[0]:=(GLTFOpenGL.StaticBoundingBox.Min[0]+GLTFOpenGL.StaticBoundingBox.Max[0])*0.5;
+   Center[1]:=(GLTFOpenGL.StaticBoundingBox.Min[1]+GLTFOpenGL.StaticBoundingBox.Max[1])*0.5;
+   Center[2]:=(GLTFOpenGL.StaticBoundingBox.Min[2]+GLTFOpenGL.StaticBoundingBox.Max[2])*0.5;
+   Bounds[0]:=(GLTFOpenGL.StaticBoundingBox.Max[0]-GLTFOpenGL.StaticBoundingBox.Min[0])*0.5;
+   Bounds[1]:=(GLTFOpenGL.StaticBoundingBox.Max[1]-GLTFOpenGL.StaticBoundingBox.Min[1])*0.5;
+   Bounds[2]:=(GLTFOpenGL.StaticBoundingBox.Max[2]-GLTFOpenGL.StaticBoundingBox.Min[2])*0.5;
   end else begin
-   Center.x:=0.0;
-   Center.y:=0.0;
-   Center.z:=0.0;
-   Bounds.x:=1.0;
-   Bounds.y:=1.0;
-   Bounds.z:=1.0;
+   Center[0]:=0.0;
+   Center[1]:=0.0;
+   Center[2]:=0.0;
+   Bounds[0]:=1.0;
+   Bounds[1]:=1.0;
+   Bounds[2]:=1.0;
   end;
   Zoom:=ZoomLevel;
-  ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
-                                         Vector3ScalarMul(Vector3Norm(Vector3(sin(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0),
-                                                                              sin(-CameraRotationY*PI*2.0),
-                                                                              cos(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0))),
-                                                          Max(Max(Bounds.x,Bounds.y),Bounds.z)*3.0*Zoom)),
-                               Center,
-                               Vector3YAxis);
+  ViewMatrix:=MatrixLookAt(Vector3Add(Center,
+                                      Vector3ScalarMul(Vector3Normalize(Vector3(sin(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0),
+                                                                                sin(-CameraRotationY*PI*2.0),
+                                                                                cos(CameraRotationX*PI*2.0)*cos(-CameraRotationY*PI*2.0))),
+                                                        Max(Max(Bounds[0],Bounds[1]),Bounds[2])*3.0*Zoom)),
+                           Center,
+                           Vector3(0.0,1.0,0.0));
 {  ViewMatrix:=Matrix4x4LookAt(Vector3Add(Center,
                                          Vector3TermMatrixMul(Vector3(0.0,
                                                                       0.0,
@@ -557,7 +686,14 @@ begin
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
   glClipControl(GL_LOWER_LEFT,GL_ZERO_TO_ONE);
   glDepthFunc(GL_GEQUAL);
-  SkyBoxViewProjectionMatrix:=Matrix4x4TermMul(Matrix4x4Rotation(ViewMatrix),ProjectionMatrix);
+  SkyBoxViewProjectionMatrix:=ViewMatrix;
+  SkyBoxViewProjectionMatrix[3]:=0.0;
+  SkyBoxViewProjectionMatrix[7]:=0.0;
+  SkyBoxViewProjectionMatrix[11]:=0.0;
+  SkyBoxViewProjectionMatrix[12]:=0.0;
+  SkyBoxViewProjectionMatrix[13]:=0.0;
+  SkyBoxViewProjectionMatrix[14]:=0.0;
+  SkyBoxViewProjectionMatrix:=MatrixMul(SkyBoxViewProjectionMatrix,ProjectionMatrix);
   begin
    glDisable(GL_DEPTH_TEST);
    glDisable(GL_CULL_FACE);
@@ -1174,7 +1310,7 @@ begin
      GLTFOpenGL.ShadowMapSize:=2048;
      GLTFOpenGL.RootPath:=IncludeTrailingPathDelimiter(ExtractFilePath(FileName));
      GLTFOpenGL.LoadFromFile(FileName);
-     GLTFOpenGL.AddDefaultDirectionalLight(LightDirection.x,LightDirection.y,LightDirection.z,1.70,1.15,0.70);
+     GLTFOpenGL.AddDefaultDirectionalLight(LightDirection[0],LightDirection[1],LightDirection[2],1.70,1.15,0.70);
      GLTFOpenGL.Upload;
      GLTFInstance:=GLTFOpenGL.AcquireInstance;
      CurrentFileName:=FileName;
@@ -1359,10 +1495,10 @@ begin
    MultisampledShadowMapSamples:=8;
   end;
 
-//LightDirection:=Vector3Norm(Vector3(0.0,-1.0,0.0));
-//LightDirection:=Vector3Norm(Vector3(0.5,-0.25,-1.0));
+//LightDirection:=Vector3Normalize(Vector3(0.0,-1.0,0.0));
+//LightDirection:=Vector3Normalize(Vector3(0.5,-0.25,-1.0));
 //
-  LightDirection:=Vector3Norm(Vector3(0.5,-1.0,-1.0));
+  LightDirection:=Vector3Normalize(Vector3(0.5,-1.0,-1.0));
 
   glGenVertexArrays(1,@EmptyVertexArrayObjectHandle);
   try
