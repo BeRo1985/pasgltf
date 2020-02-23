@@ -289,7 +289,7 @@ begin
     '  uvec4 metaData;'+#13#10+
     '  vec4 colorIntensity;'+#13#10+
     '  vec4 positionRange;'+#13#10+
-    '  vec4 direction;'+#13#10+
+    '  vec4 directionZFar;'+#13#10+
     '  mat4 shadowMapMatrix;'+#13#10+
     '};'+#13#10+
     'layout(std430, binding = '+IntToStr(ssboLightData)+') buffer ssboLightData {'+#13#10+
@@ -573,7 +573,7 @@ begin
      '      shadow = 1.0;'+#13#10+
      '      reflectance = max(max(specularColorRoughness.x, specularColorRoughness.y), specularColorRoughness.z);'+#13#10+
      '      vec3 viewDirection = normalize(vCameraRelativePosition);'+#13#10+
-     '      imageLightBasedLightDirection = (lightMetaData.x != 0u) ? lights[0].direction.xyz : vec3(0.0, 0.0, -1.0);'+#13#10+
+     '      imageLightBasedLightDirection = (lightMetaData.x != 0u) ? lights[0].directionZFar.xyz : vec3(0.0, 0.0, -1.0);'+#13#10+
      '      diffuseOutput = specularOutput = sheenOutput = clearcoatOutput = vec3(0.0);'+#13#10+
      '      if((flags & (1u << 6u)) != 0u){'+#13#10+
      '        sheenColorIntensityFactor = uMaterial.sheenColorFactorSheenIntensityFactor;'+#13#10+
@@ -605,7 +605,7 @@ begin
      '        for(int lightIndex = 0, lightCount = int(lightMetaData.x); lightIndex < lightCount; lightIndex++){'+#13#10+
      '          Light light = lights[lightIndex];'+#13#10+
      '          float lightAttenuation = 1.0;'+#13#10+
-     '          vec3 lightDirection = light.direction.xyz;'+#13#10+
+     '          vec3 lightDirection = light.directionZFar.xyz;'+#13#10+
      '          vec3 lightVector = light.positionRange.xyz - vWorldSpacePosition.xyz;'+#13#10+
      '          if(uShadows != 0){'+#13#10+
      '            switch(light.metaData.x){'+#13#10+
@@ -619,18 +619,20 @@ begin
      '                                 mat4(0.2227744146, 0.0771972861, 0.7926986636, 0.0319417555,'+#13#10+
      '                                      0.1549679261, 0.1394629426, 0.7963415838, -0.172282317,'+#13#10+
      '                                      0.1451988946, 0.2120202157, 0.7258694464, -0.2758014811,'+#13#10+
-     '                                      0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+{}
+     '                                      0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+
      '                  lightAttenuation *= 1.0 - reduceLightBleeding(getMSMShadowIntensity(moments, shadowNDC.z, 5e-3, 1e-2), 0.0);'+#13#10+
      '                }'+#13#10+
      '                break;'+#13#10+
      '              }'+#13#10+
      '              case 2u:{'+#13#10+ // Point
-(*   '                vec4 moments = (textureLod(uCubeMapShadowMapArrayTexture, vec4(vec3(normalize(light.positionRange.xyz - vWorldSpacePosition)), float(int(light.metaData.y))), 0.0) + vec2(-0.035955884801, 0.0).xyyy) *'+#13#10+
+     '                float znear = 1e-2, zfar = max(1.0, light.directionZFar.w);'+#13#10+
+     '                vec3 vector = light.positionRange.xyz - vWorldSpacePosition;'+#13#10+
+     '                vec4 moments = (textureLod(uCubeMapShadowMapArrayTexture, vec4(vec3(normalize(vector)), float(int(light.metaData.y))), 0.0) + vec2(-0.035955884801, 0.0).xyyy) *'+#13#10+
      '                               mat4(0.2227744146, 0.0771972861, 0.7926986636, 0.0319417555,'+#13#10+
      '                                    0.1549679261, 0.1394629426, 0.7963415838, -0.172282317,'+#13#10+
      '                                    0.1451988946, 0.2120202157, 0.7258694464, -0.2758014811,'+#13#10+
-     '                                    0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+{}
-     '                lightAttenuation *= 1.0 - reduceLightBleeding(getMSMShadowIntensity(moments, shadowNDC.z, 5e-3, 1e-2), 0.0);'+#13#10+*)
+     '                                    0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+
+     '                lightAttenuation *= 1.0 - reduceLightBleeding(getMSMShadowIntensity(moments, clamp((length(vector) - znear) / (zfar - znear), 0.0, 1.0), 5e-3, 1e-2), 0.0);'+#13#10+
      '                break;'+#13#10+
      '              }'+#13#10+
      '            }'+#13#10+
@@ -645,12 +647,12 @@ begin
      '            }'+#13#10+
      '            case 3u:{'+#13#10+ // Spot
 {$if true}
-     '              float angularAttenuation = clamp(fma(dot(normalize(light.direction.xyz), normalize(-lightVector)), uintBitsToFloat(light.metaData.z), uintBitsToFloat(light.metaData.w)), 0.0, 1.0);'+#13#10+
+     '              float angularAttenuation = clamp(fma(dot(normalize(light.directionZFar.xyz), normalize(-lightVector)), uintBitsToFloat(light.metaData.z), uintBitsToFloat(light.metaData.w)), 0.0, 1.0);'+#13#10+
 {$else}
      // Just for as reference
      '              float innerConeCosinus = uintBitsToFloat(light.metaData.z);'+#13#10+
      '              float outerConeCosinus = uintBitsToFloat(light.metaData.w);'+#13#10+
-     '              float actualCosinus = dot(normalize(light.direction.xyz), normalize(-lightVector));'+#13#10+
+     '              float actualCosinus = dot(normalize(light.directionZFar.xyz), normalize(-lightVector));'+#13#10+
      '              float angularAttenuation = mix(0.0, mix(smoothstep(outerConeCosinus, innerConeCosinus, actualCosinus), 1.0, step(innerConeCosinus, actualCosinus)), step(outerConeCosinus, actualCosinus));'+#13#10+
 {$ifend}
      '              lightAttenuation *= angularAttenuation * angularAttenuation;'+#13#10+

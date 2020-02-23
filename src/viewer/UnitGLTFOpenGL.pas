@@ -85,6 +85,7 @@ type EGLTFOpenGL=class(Exception);
               fSkins:TSkins;
               fLightNodes:TNodeIndices;
               fLightShadowMapMatrices:TPasGLTF.TMatrix4x4DynamicArray;
+              fLightShadowMapZFarValues:TPasGLTFFloatDynamicArray;
               fDynamicBoundingBox:TBoundingBox;
               fWorstCaseStaticBoundingBox:TBoundingBox;
               procedure SetScene(const aScene:TPasGLTFSizeInt);
@@ -541,7 +542,7 @@ type EGLTFOpenGL=class(Exception);
              // uvec4 MetaData; end
              ColorIntensity:TPasGLTF.TVector4; // XYZ = Color RGB, W = Intensity
              PositionRange:TPasGLTF.TVector4; // XYZ = Position, W = Range
-             Direction:TPasGLTF.TVector4; // XYZ = Direction, W = Unused
+             DirectionZFar:TPasGLTF.TVector4; // XYZ = Direction, W = Unused
              ShadowMapMatrix:TPasGLTF.TMatrix4x4;
             end;
             PLightShaderStorageBufferObjectDataItem=^TLightShaderStorageBufferObjectDataItem;
@@ -3633,10 +3634,10 @@ var AllVertices:TAllVertices;
    LightShaderStorageBufferObjectDataItem^.PositionRange[1]:=0.0;
    LightShaderStorageBufferObjectDataItem^.PositionRange[2]:=0.0;
    LightShaderStorageBufferObjectDataItem^.PositionRange[3]:=Light^.Range;
-   LightShaderStorageBufferObjectDataItem^.Direction[0]:=0.0;
-   LightShaderStorageBufferObjectDataItem^.Direction[1]:=0.0;
-   LightShaderStorageBufferObjectDataItem^.Direction[2]:=-1.0;
-   LightShaderStorageBufferObjectDataItem^.Direction[3]:=0.0;
+   LightShaderStorageBufferObjectDataItem^.DirectionZFar[0]:=0.0;
+   LightShaderStorageBufferObjectDataItem^.DirectionZFar[1]:=0.0;
+   LightShaderStorageBufferObjectDataItem^.DirectionZFar[2]:=-1.0;
+   LightShaderStorageBufferObjectDataItem^.DirectionZFar[3]:=0.0;
   end;
   glGenBuffers(1,@fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle);
   glBindBuffer(GL_SHADER_STORAGE_BUFFER,fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle);
@@ -4045,6 +4046,7 @@ begin
  SetLength(fSkins,length(fParent.fSkins));
  SetLength(fLightNodes,length(fParent.fLights));
  SetLength(fLightShadowMapMatrices,length(fParent.fLights));
+ SetLength(fLightShadowMapZFarValues,length(fParent.fLights));
  for Index:=0 to length(fLightNodes)-1 do begin
   fLightNodes[Index]:=-1;
  end;
@@ -5212,7 +5214,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      TPasGLTF.TVector3(pointer(@Matrix[4])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[4])^));
      TPasGLTF.TVector3(pointer(@Matrix[8])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[8])^));
      TPasGLTF.TVector3(pointer(@LightShaderStorageBufferObjectDataItem^.PositionRange)^):=Vector3MatrixMul(Matrix,Zero);
-     TPasGLTF.TVector3(pointer(@LightShaderStorageBufferObjectDataItem^.Direction)^):=Vector3Normalize(Vector3Sub(Vector3MatrixMul(Matrix,DownZ),TPasGLTF.TVector3(pointer(@LightShaderStorageBufferObjectDataItem^.PositionRange)^)));
+     TPasGLTF.TVector3(pointer(@LightShaderStorageBufferObjectDataItem^.DirectionZFar)^):=Vector3Normalize(Vector3Sub(Vector3MatrixMul(Matrix,DownZ),TPasGLTF.TVector3(pointer(@LightShaderStorageBufferObjectDataItem^.PositionRange)^)));
     end else begin
      LightShaderStorageBufferObjectDataItem^.PositionRange[0]:=0.0;
      LightShaderStorageBufferObjectDataItem^.PositionRange[1]:=0.0;
@@ -5220,15 +5222,16 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      case Light^.Node of
       -$8000000:begin
        // For default directional light, when no other lights were defined
-       TPasGLTF.TVector3(pointer(@LightShaderStorageBufferObjectDataItem^.Direction[0])^):=Light^.Direction;
+       TPasGLTF.TVector3(pointer(@LightShaderStorageBufferObjectDataItem^.DirectionZFar[0])^):=Light^.Direction;
       end;
       else begin
-       LightShaderStorageBufferObjectDataItem^.Direction[0]:=0.0;
-       LightShaderStorageBufferObjectDataItem^.Direction[1]:=0.0;
-       LightShaderStorageBufferObjectDataItem^.Direction[2]:=-1.0;
+       LightShaderStorageBufferObjectDataItem^.DirectionZFar[0]:=0.0;
+       LightShaderStorageBufferObjectDataItem^.DirectionZFar[1]:=0.0;
+       LightShaderStorageBufferObjectDataItem^.DirectionZFar[2]:=-1.0;
       end;
      end;
     end;
+    LightShaderStorageBufferObjectDataItem^.DirectionZFar[3]:=fLightShadowMapZFarValues[Index];
     LightShaderStorageBufferObjectDataItem^.ShadowMapMatrix:=fLightShadowMapMatrices[Index];
    end;
    glBindBuffer(GL_SHADER_STORAGE_BUFFER,fParent.fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle);
@@ -5295,6 +5298,7 @@ procedure TGLTFOpenGL.TInstance.DrawShadows(const aModelMatrix:TPasGLTF.TMatrix4
                                             const aSkinnedNormalShadingShader:TShadingShader;
                                             const aSkinnedAlphaTestShadingShader:TShadingShader;
                                             const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
+var LightZFar:TPasGLTFFloat;
  function GetDirectionalLightShadowMapMatrix(const aLightDirection:TPasGLTF.TVector3;
                                              const aShadowCastersAABB:TAABB;
                                              const aShadowReceiversAABB:TAABB):TPasGLTF.TMatrix4x4;
@@ -5376,6 +5380,7 @@ procedure TGLTFOpenGL.TInstance.DrawShadows(const aModelMatrix:TPasGLTF.TMatrix4
    Top:=1.0;
    ZNear:=-AABB.Max[2];
    ZFar:=-AABB.Min[2];
+   LightZFar:=ZFar;
    RightMinusLeft:=Right-Left;
    TopMinusBottom:=Top-Bottom;
    FarMinusNear:=ZFar-ZNear;
@@ -5581,8 +5586,9 @@ procedure TGLTFOpenGL.TInstance.DrawShadows(const aModelMatrix:TPasGLTF.TMatrix4
   if aRange>1e-4 then begin
    ZFar:=Max(1.0,aRange);
   end else begin
-   ZFar:=sqrt(sqr(aAABB.Max[0]-aAABB.Min[0])+sqr(aAABB.Max[1]-aAABB.Min[1])+sqr(aAABB.Max[2]-aAABB.Min[2]));
+   ZFar:=Max(1.0,sqrt(sqr(aAABB.Max[0]-aAABB.Min[0])+sqr(aAABB.Max[1]-aAABB.Min[1])+sqr(aAABB.Max[2]-aAABB.Min[2])));
   end;
+  LightZFar:=ZFar;
   ViewMatrix:=MatrixLookAt(aLightPosition,Vector3Add(aLightPosition,aLightDirection),Vector3(0.0,1.0,0.0));
   f:=1.0/tan(45.0*DEG2RAD*0.5);
   ProjectionMatrix[0]:=f*InverseAspectRatio;
@@ -5623,8 +5629,9 @@ procedure TGLTFOpenGL.TInstance.DrawShadows(const aModelMatrix:TPasGLTF.TMatrix4
   if aRange>1e-4 then begin
    ZFar:=Max(1.0,aRange);
   end else begin
-   ZFar:=sqrt(sqr(aAABB.Max[0]-aAABB.Min[0])+sqr(aAABB.Max[1]-aAABB.Min[1])+sqr(aAABB.Max[2]-aAABB.Min[2]));
+   ZFar:=Max(1.0,sqrt(sqr(aAABB.Max[0]-aAABB.Min[0])+sqr(aAABB.Max[1]-aAABB.Min[1])+sqr(aAABB.Max[2]-aAABB.Min[2])));
   end;
+  LightZFar:=ZFar;
   ViewMatrix:=MatrixMul(CubeMapMatrices[aSideIndex],MatrixFromTranslation(Vector3Neg(aLightPosition)));
   f:=1.0/tan(90.0*DEG2RAD*0.5);
   ProjectionMatrix[0]:=f*InverseAspectRatio;
@@ -5682,6 +5689,7 @@ begin
      end;
     end;
    end;
+   LightZFar:=1.0;
    case Light^.Type_ of
     TGLTFOpenGL.TLightDataType.Directional,
     TGLTFOpenGL.TLightDataType.Spot:begin
@@ -5713,6 +5721,7 @@ begin
      ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
     end;
    end;
+   fLightShadowMapZFarValues[LightIndex]:=LightZFar;
    fLightShadowMapMatrices[LightIndex]:=ShadowMapMatrix;
   end;
  end;
