@@ -5509,8 +5509,6 @@ var LightZFar:TPasGLTFFloat;
  end;
  procedure ResolveMultisampledShadowMap(const aFrameBufferObject:glUInt);
  begin
-{$if true}
-  // The OpenGL debugger friendly way with help with a shader
   glBindFrameBuffer(GL_FRAMEBUFFER,aFrameBufferObject);
   glDrawBuffer(GL_COLOR_ATTACHMENT0);
   glViewport(0,0,fParent.fShadowMapSize,fParent.fShadowMapSize);
@@ -5530,18 +5528,6 @@ var LightZFar:TPasGLTFFloat;
   aShadowMapMultisampleResolveShader.Unbind;
   glBindFrameBuffer(GL_FRAMEBUFFER,0);
   glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,0);
-{$else}
-  // OpenGL debuggers like renderdoc and CodeXL seems not to like this (garbage output after that)
-  glBindFramebuffer(GL_DRAW_FRAMEBUFFER,aFrameBufferObject);
-  glBindFramebuffer(GL_READ_FRAMEBUFFER,fParent.fTemporaryMultisampledShadowMapFrameBufferObject);
-  glDrawBuffer(GL_COLOR_ATTACHMENT0);
-  glBlitFramebuffer(0,0,fParent.fShadowMapSize,fParent.fShadowMapSize,
-                    0,0,fParent.fShadowMapSize,fParent.fShadowMapSize,
-                    GL_COLOR_BUFFER_BIT,
-                    GL_NEAREST);
-  glBindFramebuffer(GL_DRAW_FRAMEBUFFER,0);
-  glBindFramebuffer(GL_READ_FRAMEBUFFER,0);
-{$ifend}
  end;
  procedure BlurShadowMap(const aFrameBufferObject:glUInt=0);
  var Index:TPasGLTFSizeInt;
