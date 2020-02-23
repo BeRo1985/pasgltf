@@ -1486,7 +1486,7 @@ var HasLights:boolean;
          if pos('_noshadows',String(Light^.Name))>0 then begin
           Light^.CastShadows:=false;
          end else begin
-          Light^.CastShadows:=TPasJSON.GetBoolean(SpotObject.Properties['castShadows'],true);
+          Light^.CastShadows:=TPasJSON.GetBoolean(LightObject.Properties['castShadows'],true);
          end;
          if TypeString='directional' then begin
           Light^.Type_:=TLightDataType.Directional;
