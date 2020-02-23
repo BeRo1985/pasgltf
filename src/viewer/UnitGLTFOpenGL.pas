@@ -606,6 +606,7 @@ type EGLTFOpenGL=class(Exception);
        fTemporaryShadowMapFrameBufferObjects:array[0..1] of glUInt;
        fTemporaryShadowMapArrayTexture:glUInt;
        fTemporaryShadowMapArrayFrameBufferObject:glUInt;
+       fTemporaryShadowMapArraySingleFrameBufferObjects:array of glUInt;
        fRootPath:String;
        fGetURI:TGetURI;
        function DefaultGetURI(const aURI:TPasGLTFUTF8String):TStream;
@@ -1257,6 +1258,30 @@ begin
  result[13]:=a[13]+b[13];
  result[14]:=a[14]+b[14];
  result[15]:=a[15]+b[15];
+end;
+
+function MatrixLookAt(const Eye,Center,Up:TVector3):TPasGLTF.TMatrix4x4;
+var RightVector,UpVector,ForwardVector:TVector3;
+begin
+ ForwardVector:=Vector3Normalize(Vector3Sub(Eye,Center));
+ RightVector:=Vector3Normalize(Vector3Cross(Up,ForwardVector));
+ UpVector:=Vector3Normalize(Vector3Cross(ForwardVector,RightVector));
+ result[0]:=RightVector[0];
+ result[4]:=RightVector[1];
+ result[8]:=RightVector[2];
+ result[12]:=-((RightVector[0]*Eye[0])+(RightVector[1]*Eye[1])+(RightVector[2]*Eye[2]));
+ result[1]:=UpVector[0];
+ result[5]:=UpVector[1];
+ result[9]:=UpVector[2];
+ result[13]:=-((UpVector[0]*Eye[0])+(UpVector[1]*Eye[1])+(UpVector[2]*Eye[2]));
+ result[2]:=ForwardVector[0];
+ result[6]:=ForwardVector[1];
+ result[10]:=ForwardVector[2];
+ result[14]:=-((ForwardVector[0]*Eye[0])+(ForwardVector[1]*Eye[1])+(ForwardVector[2]*Eye[2]));
+ result[3]:=0.0;
+ result[7]:=0.0;
+ result[11]:=0.0;
+ result[15]:=1.0;
 end;
 
 type TAABB=record
@@ -3682,6 +3707,17 @@ var AllVertices:TAllVertices;
   Status:=glCheckFramebufferStatus(GL_FRAMEBUFFER);
   Assert(Status=GL_FRAMEBUFFER_COMPLETE);
   glBindFramebuffer(GL_FRAMEBUFFER,0);
+  SetLength(fTemporaryShadowMapArraySingleFrameBufferObjects,Count);
+  glGenFramebuffers(Count,@fTemporaryShadowMapArraySingleFrameBufferObjects[0]);
+  for Index:=0 to Count-1 do begin
+   glBindFramebuffer(GL_FRAMEBUFFER,fTemporaryShadowMapArraySingleFrameBufferObjects[Index]);
+   glBindTexture(GL_TEXTURE_2D_ARRAY,fTemporaryShadowMapArrayTexture);
+   glFramebufferTextureLayer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,fTemporaryShadowMapArrayTexture,0,Index);
+   Status:=glCheckFramebufferStatus(GL_FRAMEBUFFER);
+   Assert(Status=GL_FRAMEBUFFER_COMPLETE);
+   glBindFramebuffer(GL_FRAMEBUFFER,0);
+   glBindTexture(GL_TEXTURE_2D_ARRAY,0);
+  end;
  end;
 begin
  if not fUploaded then begin
@@ -3842,7 +3878,14 @@ procedure TGLTFOpenGL.Unload;
   end;
  end;
  procedure DestroyTemporaryShadowMapArrayFrameBufferObject;
+ var Index:TPasGLTFSizeInt;
  begin
+  for Index:=0 to length(fTemporaryShadowMapArraySingleFrameBufferObjects)-1 do begin
+   if fTemporaryShadowMapArraySingleFrameBufferObjects[Index]>0 then begin
+    glDeleteFramebuffers(1,@fTemporaryShadowMapArraySingleFrameBufferObjects[Index]);
+   end;
+  end;
+  fTemporaryShadowMapArraySingleFrameBufferObjects:=nil;
   if fTemporaryShadowMapArrayFrameBufferObject>0 then begin
    glDeleteFramebuffers(1,@fTemporaryShadowMapArrayFrameBufferObject);
    fTemporaryShadowMapArrayFrameBufferObject:=0;
@@ -5478,6 +5521,39 @@ procedure TGLTFOpenGL.TInstance.DrawShadows(const aModelMatrix:TPasGLTF.TMatrix4
    glBindFrameBuffer(GL_FRAMEBUFFER,0);
   end;
  end;
+ function GetSpotLightShadowMapMatrix(const aLightPosition,aLightDirection:TPasGLTF.TVector3;const aRange:TPasGLTFFloat;const aAABB:TAABB):TPasGLTF.TMatrix4x4;
+ const DEG2RAD=PI/180;
+       AspectRatio=1.0;
+       InverseAspectRatio=1.0/AspectRatio;
+ var ViewMatrix,ProjectionMatrix:TPasGLTF.TMatrix4x4;
+     ZNear,ZFar,f:TPasGLTFFloat;
+ begin
+  ZNear:=1e-2;
+  if aRange>1e-4 then begin
+   ZFar:=Max(1.0,aRange);
+  end else begin
+   ZFar:=sqrt(sqr(aAABB.Max[0]-aAABB.Min[0])+sqr(aAABB.Max[1]-aAABB.Min[1])+sqr(aAABB.Max[2]-aAABB.Min[2]));
+  end;
+  ViewMatrix:=MatrixLookAt(aLightPosition,Vector3Add(aLightPosition,aLightDirection),Vector3(0.0,1.0,0.0));
+  f:=1.0/tan(45.0*DEG2RAD*0.5);
+  ProjectionMatrix[0]:=f*InverseAspectRatio;
+  ProjectionMatrix[1]:=0.0;
+  ProjectionMatrix[2]:=0.0;
+  ProjectionMatrix[3]:=0.0;
+  ProjectionMatrix[4]:=0.0;
+  ProjectionMatrix[5]:=f;
+  ProjectionMatrix[6]:=0.0;
+  ProjectionMatrix[7]:=0.0;
+  ProjectionMatrix[8]:=0.0;
+  ProjectionMatrix[9]:=0.0;
+  ProjectionMatrix[10]:=(-(ZFar+ZNear))/(ZFar-ZNear);
+  ProjectionMatrix[11]:=-1.0;
+  ProjectionMatrix[12]:=0.0;
+  ProjectionMatrix[13]:=0.0;
+  ProjectionMatrix[14]:=(-(2.0*ZNear*ZFar))/(ZFar-ZNear);
+  ProjectionMatrix[15]:=0.0;
+  result:=MatrixMul(ViewMatrix,ProjectionMatrix);
+ end;
 const Zero:TPasGLTF.TVector3=(0.0,0.0,0.0);
       DownZ:TPasGLTF.TVector3=(0.0,0.0,-1.0);
 var LightIndex,NodeIndex:TPasGLTFSizeInt;
@@ -5488,6 +5564,8 @@ var LightIndex,NodeIndex:TPasGLTFSizeInt;
     AABB:TAABB;
 begin
  if length(fParent.fLights)>0 then begin
+  AABB.Min:=fParent.fStaticBoundingBox.Min;
+  AABB.Max:=fParent.fStaticBoundingBox.Max;
   for LightIndex:=0 to length(fParent.fLights)-1 do begin
    Light:=@fParent.fLights[LightIndex];
    NodeIndex:=fLightNodes[LightIndex];
@@ -5514,11 +5592,26 @@ begin
     end;
    end;
    case Light^.Type_ of
-    TGLTFOpenGL.TLightDataType.Directional:begin
-     ShadowMapMatrix:=GetDirectionalLightShadowMapMatrix(Direction,AABB,AABB);
+    TGLTFOpenGL.TLightDataType.Directional,
+    TGLTFOpenGL.TLightDataType.Spot:begin
+     case Light^.Type_ of
+      TGLTFOpenGL.TLightDataType.Directional:begin
+       ShadowMapMatrix:=GetDirectionalLightShadowMapMatrix(Direction,AABB,AABB);
+      end;
+      TGLTFOpenGL.TLightDataType.Spot:begin
+       ShadowMapMatrix:=GetSpotLightShadowMapMatrix(Position,Direction,Light^.Range,AABB);
+      end;
+      else begin
+       ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+      end;
+     end;
      RenderToMultisampledShadowMap(ShadowMapMatrix);
      ResolveMultisampledShadowMap(fParent.fTemporaryShadowMapFrameBufferObjects[1]);
-     BlurShadowMap;
+     BlurShadowMap(fParent.fTemporaryShadowMapArraySingleFrameBufferObjects[LightIndex]);
+    end;
+    TGLTFOpenGL.TLightDataType.Point:begin
+     // TODO
+     ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
     end;
     else begin
      ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
