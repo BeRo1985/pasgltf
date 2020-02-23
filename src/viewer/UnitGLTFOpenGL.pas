@@ -602,6 +602,7 @@ type EGLTFOpenGL=class(Exception);
        fTemporaryMultisampledShadowMapDepthTexture:glUInt;
        fTemporaryCubeMapShadowMapTexture:glUInt;
        fTemporaryCubeMapShadowMapFrameBufferObject:glUInt;
+       fTemporaryCubeMapShadowMapSingleFrameBufferObjects:array[0..5] of glUInt;
        fTemporaryShadowMapTextures:array[0..1] of glUInt;
        fTemporaryShadowMapFrameBufferObjects:array[0..1] of glUInt;
        fTemporaryShadowMapArrayTexture:glUInt;
@@ -3657,13 +3658,24 @@ var AllVertices:TAllVertices;
   glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_TEXTURE_WRAP_R,GL_CLAMP_TO_EDGE);
   for SideIndex:=0 to 5 do begin
-   glTexImage2D(GL_TEXTURE_CUBE_MAP+SideIndex,0,GL_RGBA16,fShadowMapSize,fShadowMapSize,0,GL_RGBA,GL_UNSIGNED_SHORT,nil);
+   glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X+SideIndex,0,GL_RGBA16,fShadowMapSize,fShadowMapSize,0,GL_RGBA,GL_UNSIGNED_SHORT,nil);
   end;
   glBindTexture(GL_TEXTURE_CUBE_MAP,0);
   glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_CUBE_MAP_POSITIVE_X,fTemporaryCubeMapShadowMapTexture,0);
   Status:=glCheckFramebufferStatus(GL_FRAMEBUFFER);
   Assert(Status=GL_FRAMEBUFFER_COMPLETE);
   glBindFramebuffer(GL_FRAMEBUFFER,0);
+  glGenFramebuffers(6,@fTemporaryCubeMapShadowMapSingleFrameBufferObjects[0]);
+  for SideIndex:=0 to 5 do begin
+   glBindFramebuffer(GL_FRAMEBUFFER,fTemporaryCubeMapShadowMapSingleFrameBufferObjects[SideIndex]);
+   glBindTexture(GL_TEXTURE_CUBE_MAP,fTemporaryCubeMapShadowMapTexture);
+// glFramebufferTextureLayer(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,fTemporaryCubeMapShadowMapTexture,SideIndex);
+   glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_CUBE_MAP_POSITIVE_X+SideIndex,fTemporaryCubeMapShadowMapTexture,0);
+   Status:=glCheckFramebufferStatus(GL_FRAMEBUFFER);
+   Assert(Status=GL_FRAMEBUFFER_COMPLETE);
+   glBindFramebuffer(GL_FRAMEBUFFER,0);
+   glBindTexture(GL_TEXTURE_CUBE_MAP,0);
+  end;
  end;
  procedure CreateTemporaryShadowMapFrameBufferObjects;
  var Index:TPasGLTFSizeInt;
@@ -3853,7 +3865,13 @@ procedure TGLTFOpenGL.Unload;
   end;
  end;
  procedure DestroyTemporaryCubeMapShadowMapFrameBufferObject;
+ var Index:TPasGLTFSizeInt;
  begin
+  for Index:=0 to length(fTemporaryCubeMapShadowMapSingleFrameBufferObjects)-1 do begin
+   if fTemporaryCubeMapShadowMapSingleFrameBufferObjects[Index]>0 then begin
+    glDeleteFramebuffers(1,@fTemporaryCubeMapShadowMapSingleFrameBufferObjects[Index]);
+   end;
+  end;
   if fTemporaryCubeMapShadowMapFrameBufferObject>0 then begin
    glDeleteFramebuffers(1,@fTemporaryCubeMapShadowMapFrameBufferObject);
    fTemporaryCubeMapShadowMapFrameBufferObject:=0;
@@ -5554,9 +5572,51 @@ procedure TGLTFOpenGL.TInstance.DrawShadows(const aModelMatrix:TPasGLTF.TMatrix4
   ProjectionMatrix[15]:=0.0;
   result:=MatrixMul(ViewMatrix,ProjectionMatrix);
  end;
+ function GetPointLightShadowMapMatrix(const aLightPosition:TPasGLTF.TVector3;const aRange:TPasGLTFFloat;const aAABB:TAABB;const aSideIndex:TPasGLTFSizeInt):TPasGLTF.TMatrix4x4;
+ const CubeMapMatrices:array[0..5] of TPasGLTF.TMatrix4x4=
+        (
+         (0.0,0.0,-1.0,0.0,0.0,-1.0,0.0,0.0,-1.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0),  // pos x
+         (0.0,0.0,1.0,0.0,0.0,-1.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0),    // neg x
+         (1.0,0.0,0.0,0.0,0.0,0.0,-1.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,1.0),    // pos y
+         (1.0,0.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,-1.0,0.0,0.0,0.0,0.0,0.0,1.0),    // neg y
+         (1.0,0.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,0.0,1.0),   // pos z
+         (-1.0,0.0,0.0,0.0,0.0,-1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0)    // neg z
+        );
+ const DEG2RAD=PI/180;
+       AspectRatio=1.0;
+       InverseAspectRatio=1.0/AspectRatio;
+ var ViewMatrix,ProjectionMatrix:TPasGLTF.TMatrix4x4;
+     ZNear,ZFar,f:TPasGLTFFloat;
+ begin
+  ZNear:=1e-2;
+  if aRange>1e-4 then begin
+   ZFar:=Max(1.0,aRange);
+  end else begin
+   ZFar:=sqrt(sqr(aAABB.Max[0]-aAABB.Min[0])+sqr(aAABB.Max[1]-aAABB.Min[1])+sqr(aAABB.Max[2]-aAABB.Min[2]));
+  end;
+  ViewMatrix:=MatrixMul(CubeMapMatrices[aSideIndex],MatrixFromTranslation(Vector3Neg(aLightPosition)));
+  f:=1.0/tan(90.0*DEG2RAD*0.5);
+  ProjectionMatrix[0]:=f*InverseAspectRatio;
+  ProjectionMatrix[1]:=0.0;
+  ProjectionMatrix[2]:=0.0;
+  ProjectionMatrix[3]:=0.0;
+  ProjectionMatrix[4]:=0.0;
+  ProjectionMatrix[5]:=f;
+  ProjectionMatrix[6]:=0.0;
+  ProjectionMatrix[7]:=0.0;
+  ProjectionMatrix[8]:=0.0;
+  ProjectionMatrix[9]:=0.0;
+  ProjectionMatrix[10]:=(-(ZFar+ZNear))/(ZFar-ZNear);
+  ProjectionMatrix[11]:=-1.0;
+  ProjectionMatrix[12]:=0.0;
+  ProjectionMatrix[13]:=0.0;
+  ProjectionMatrix[14]:=(-(2.0*ZNear*ZFar))/(ZFar-ZNear);
+  ProjectionMatrix[15]:=0.0;
+  result:=MatrixMul(ViewMatrix,ProjectionMatrix);
+ end;
 const Zero:TPasGLTF.TVector3=(0.0,0.0,0.0);
       DownZ:TPasGLTF.TVector3=(0.0,0.0,-1.0);
-var LightIndex,NodeIndex:TPasGLTFSizeInt;
+var LightIndex,NodeIndex,SideIndex:TPasGLTFSizeInt;
     Light:PLight;
     InstanceNode:TGLTFOpenGL.TInstance.PNode;
     Matrix,ShadowMapMatrix:TPasGLTF.TMatrix4x4;
@@ -5610,7 +5670,13 @@ begin
      BlurShadowMap(fParent.fTemporaryShadowMapArraySingleFrameBufferObjects[LightIndex]);
     end;
     TGLTFOpenGL.TLightDataType.Point:begin
-     // TODO
+     for SideIndex:=0 to 5 do begin
+      ShadowMapMatrix:=GetPointLightShadowMapMatrix(Position,Light^.Range,AABB,SideIndex);
+      RenderToMultisampledShadowMap(ShadowMapMatrix);
+      ResolveMultisampledShadowMap(fParent.fTemporaryShadowMapFrameBufferObjects[1]);
+      BlurShadowMap(fParent.fTemporaryCubeMapShadowMapSingleFrameBufferObjects[SideIndex]);
+     end;
+
      ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
     end;
     else begin
