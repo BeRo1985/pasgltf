@@ -615,12 +615,12 @@ type EGLTFOpenGL=class(Exception);
        fTemporaryMultisampledShadowMapTexture:glUInt;
        fTemporaryMultisampledShadowMapDepthTexture:glUInt;
        fTemporaryCubeMapShadowMapArrayTexture:glUInt;
-       fTemporaryCubeMapShadowMapArrayFrameBufferObject:glUInt;
+//     fTemporaryCubeMapShadowMapArrayFrameBufferObject:glUInt;
        fTemporaryCubeMapShadowMapArraySingleFrameBufferObjects:array of glUInt;
        fTemporaryShadowMapTextures:array[0..1] of glUInt;
        fTemporaryShadowMapFrameBufferObjects:array[0..1] of glUInt;
        fTemporaryShadowMapArrayTexture:glUInt;
-       fTemporaryShadowMapArrayFrameBufferObject:glUInt;
+//     fTemporaryShadowMapArrayFrameBufferObject:glUInt;
        fTemporaryShadowMapArraySingleFrameBufferObjects:array of glUInt;
        fCountNormalShadowMaps:TPasGLTFInt32;
        fCountCubeMapShadowMaps:TPasGLTFInt32;
@@ -3679,8 +3679,8 @@ var AllVertices:TAllVertices;
  begin
   Count:=Max(1,fCountCubeMapShadowMaps);
   glActiveTexture(GL_TEXTURE0);
-  glGenFramebuffers(1,@fTemporaryCubeMapShadowMapArrayFrameBufferObject);
-  glBindFramebuffer(GL_FRAMEBUFFER,fTemporaryCubeMapShadowMapArrayFrameBufferObject);
+{ glGenFramebuffers(1,@fTemporaryCubeMapShadowMapArrayFrameBufferObject);
+  glBindFramebuffer(GL_FRAMEBUFFER,fTemporaryCubeMapShadowMapArrayFrameBufferObject);}
   glGenTextures(1,@fTemporaryCubeMapShadowMapArrayTexture);
   glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY,fTemporaryCubeMapShadowMapArrayTexture);
   glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
@@ -3690,10 +3690,10 @@ var AllVertices:TAllVertices;
   glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY,GL_TEXTURE_WRAP_R,GL_CLAMP_TO_EDGE);
   glTexImage3D(GL_TEXTURE_CUBE_MAP_ARRAY,0,GL_RGBA16,fShadowMapSize,fShadowMapSize,6*Count,0,GL_RGBA,GL_UNSIGNED_SHORT,nil);
   glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY,0);
-  glFramebufferTexture3D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_CUBE_MAP_ARRAY,fTemporaryCubeMapShadowMapArrayTexture,0,0);
+{ glFramebufferTexture3D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_CUBE_MAP_ARRAY,fTemporaryCubeMapShadowMapArrayTexture,0,0);
   Status:=glCheckFramebufferStatus(GL_FRAMEBUFFER);
   Assert(Status=GL_FRAMEBUFFER_COMPLETE);
-  glBindFramebuffer(GL_FRAMEBUFFER,0);
+  glBindFramebuffer(GL_FRAMEBUFFER,0);}
   SetLength(fTemporaryCubeMapShadowMapArraySingleFrameBufferObjects,Count*6);
   glGenFramebuffers(Count*6,@fTemporaryCubeMapShadowMapArraySingleFrameBufferObjects[0]);
   for Index:=0 to (Count*6)-1 do begin
@@ -3734,8 +3734,8 @@ var AllVertices:TAllVertices;
  begin
   Count:=Max(1,fCountNormalShadowMaps);
   glActiveTexture(GL_TEXTURE0);
-  glGenFramebuffers(1,@fTemporaryShadowMapArrayFrameBufferObject);
-  glBindFramebuffer(GL_FRAMEBUFFER,fTemporaryShadowMapArrayFrameBufferObject);
+{ glGenFramebuffers(1,@fTemporaryShadowMapArrayFrameBufferObject);
+  glBindFramebuffer(GL_FRAMEBUFFER,fTemporaryShadowMapArrayFrameBufferObject);}
   glGenTextures(1,@fTemporaryShadowMapArrayTexture);
   glBindTexture(GL_TEXTURE_2D_ARRAY,fTemporaryShadowMapArrayTexture);
   glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
@@ -3744,10 +3744,10 @@ var AllVertices:TAllVertices;
   glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_WRAP_T,GL_CLAMP_TO_EDGE);
   glTexImage3D(GL_TEXTURE_2D_ARRAY,0,GL_RGBA16,fShadowMapSize,fShadowMapSize,Count,0,GL_RGBA,GL_UNSIGNED_SHORT,nil);
   glBindTexture(GL_TEXTURE_2D_ARRAY,0);
-  glFramebufferTexture3D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D_ARRAY,fTemporaryShadowMapArrayTexture,0,0);
+{ glFramebufferTexture3D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D_ARRAY,fTemporaryShadowMapArrayTexture,0,0);
   Status:=glCheckFramebufferStatus(GL_FRAMEBUFFER);
   Assert(Status=GL_FRAMEBUFFER_COMPLETE);
-  glBindFramebuffer(GL_FRAMEBUFFER,0);
+  glBindFramebuffer(GL_FRAMEBUFFER,0);}
   SetLength(fTemporaryShadowMapArraySingleFrameBufferObjects,Count);
   glGenFramebuffers(Count,@fTemporaryShadowMapArraySingleFrameBufferObjects[0]);
   for Index:=0 to Count-1 do begin
@@ -3901,10 +3901,10 @@ procedure TGLTFOpenGL.Unload;
     glDeleteFramebuffers(1,@fTemporaryCubeMapShadowMapArraySingleFrameBufferObjects[Index]);
    end;
   end;
-  if fTemporaryCubeMapShadowMapArrayFrameBufferObject>0 then begin
+{ if fTemporaryCubeMapShadowMapArrayFrameBufferObject>0 then begin
    glDeleteFramebuffers(1,@fTemporaryCubeMapShadowMapArrayFrameBufferObject);
    fTemporaryCubeMapShadowMapArrayFrameBufferObject:=0;
-  end;
+  end;}
   if fTemporaryCubeMapShadowMapArrayTexture>0 then begin
    glDeleteTextures(1,@fTemporaryCubeMapShadowMapArrayTexture);
    fTemporaryCubeMapShadowMapArrayTexture:=0;
@@ -3933,10 +3933,10 @@ procedure TGLTFOpenGL.Unload;
    end;
   end;
   fTemporaryShadowMapArraySingleFrameBufferObjects:=nil;
-  if fTemporaryShadowMapArrayFrameBufferObject>0 then begin
+{ if fTemporaryShadowMapArrayFrameBufferObject>0 then begin
    glDeleteFramebuffers(1,@fTemporaryShadowMapArrayFrameBufferObject);
    fTemporaryShadowMapArrayFrameBufferObject:=0;
-  end;
+  end;}
   if fTemporaryShadowMapArrayTexture>0 then begin
    glDeleteTextures(1,@fTemporaryShadowMapArrayTexture);
    fTemporaryShadowMapArrayTexture:=0;
