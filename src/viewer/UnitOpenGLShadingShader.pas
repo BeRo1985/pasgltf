@@ -718,10 +718,10 @@ begin
      '      break;'+#13#10+
      '    }'+#13#10+
      '  }'+#13#10+
-     '  float alpha = mix(1.0, color.w * vColor.w, float(int(uint((flags >> 4u) & 1u))));'+#13#10+
-     '  oOutput = vec4(color.xyz * vColor.xyz, alpha);'+#13#10+
+     '  float alpha = color.w * vColor.w, outputAlpha = mix(1.0, color.w * vColor.w, float(int(uint((flags >> 4u) & 1u))));'+#13#10+
+     '  oOutput = vec4(color.xyz * vColor.xyz, outputAlpha);'+#13#10+
 {$ifdef PasGLTFExtraEmissionOutput}
-     '  oEmission = vec4(emissionColor.xyz * vColor.xyz, alpha);'+#13#10+
+     '  oEmission = vec4(emissionColor.xyz * vColor.xyz, outputAlpha);'+#13#10+
 {$endif}
      '';
  end;
