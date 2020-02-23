@@ -1371,6 +1371,8 @@ var Index,MultiSampleCounter,DepthBufferSizeCounter,Temp:int32;
     Status:glEnum;
 begin
 
+ SetExceptionMask([exInvalidOp,exDenormalized,exZeroDivide,exOverflow,exUnderflow,exPrecision]);
+
  if ParamCount>0 then begin
   InputFileName:=TPasGLTFUTF8String(ParamStr(1));
  end;
