@@ -605,7 +605,7 @@ begin
      '          float lightAttenuation = 1.0;'+#13#10+
      '          vec3 lightDirection = light.directionZFar.xyz;'+#13#10+
      '          vec3 lightVector = light.positionRange.xyz - vWorldSpacePosition.xyz;'+#13#10+
-     '          if(uShadows != 0){'+#13#10+
+     '          if((uShadows != 0) && ((light.metaData.y & 0x80000000u) == 0u)){'+#13#10+
      '            switch(light.metaData.x){'+#13#10+
      '              case 1u:'+#13#10+  // Directional
      '              case 3u:{'+#13#10+ // Spot

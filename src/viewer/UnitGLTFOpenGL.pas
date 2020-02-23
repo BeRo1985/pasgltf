@@ -569,6 +569,7 @@ type EGLTFOpenGL=class(Exception);
               OuterConeAngle:TPasGLTFFloat;
               Direction:TPasGLTF.TVector3;
               Color:TPasGLTF.TVector3;
+              CastShadows:boolean;
             end;
             PLight=^TLight;
             TLights=array of TLight;
@@ -1455,6 +1456,7 @@ var HasLights:boolean;
         Light^.Name:='';
         Light^.Node:=-1;
         Light^.Type_:=TLightDataType.None;
+        Light^.ShadowMapIndex:=-1;
         Light^.Intensity:=1.0;
         Light^.Range:=0.0;
         Light^.InnerConeAngle:=0.0;
@@ -1462,26 +1464,40 @@ var HasLights:boolean;
         Light^.Color[0]:=1.0;
         Light^.Color[1]:=1.0;
         Light^.Color[2]:=1.0;
+        Light^.CastShadows:=false;
         if assigned(LightItem) and (LightItem is TPasJSONItemObject) then begin
          LightObject:=TPasJSONItemObject(LightItem);
          Light^.Name:=TPasJSON.GetString(LightObject.Properties['name'],'');
          TypeString:=TPasJSON.GetString(LightObject.Properties['type'],'');
+         if pos('_noshadows',String(Light^.Name))>0 then begin
+          Light^.CastShadows:=false;
+         end else begin
+          Light^.CastShadows:=TPasJSON.GetBoolean(SpotObject.Properties['castShadows'],true);
+         end;
          if TypeString='directional' then begin
           Light^.Type_:=TLightDataType.Directional;
-          Light^.ShadowMapIndex:=fCountNormalShadowMaps;
-          inc(fCountNormalShadowMaps);
+          if Light^.CastShadows then begin
+           Light^.ShadowMapIndex:=fCountNormalShadowMaps;
+           inc(fCountNormalShadowMaps);
+          end;
          end else if TypeString='point' then begin
           Light^.Type_:=TLightDataType.Point;
-          Light^.ShadowMapIndex:=fCountCubeMapShadowMaps;
-          inc(fCountCubeMapShadowMaps);
+          if Light^.CastShadows then begin
+           Light^.ShadowMapIndex:=fCountCubeMapShadowMaps;
+           inc(fCountCubeMapShadowMaps);
+          end;
          end else if TypeString='spot' then begin
           Light^.Type_:=TLightDataType.Spot;
-          Light^.ShadowMapIndex:=fCountNormalShadowMaps;
-          inc(fCountNormalShadowMaps);
+          if Light^.CastShadows then begin
+           Light^.ShadowMapIndex:=fCountNormalShadowMaps;
+           inc(fCountNormalShadowMaps);
+          end;
          end else begin
           Light^.Type_:=TLightDataType.None;
-          Light^.ShadowMapIndex:=fCountNormalShadowMaps;
-          inc(fCountNormalShadowMaps);
+          if Light^.CastShadows then begin
+           Light^.ShadowMapIndex:=fCountNormalShadowMaps;
+           inc(fCountNormalShadowMaps);
+          end;
          end;
          Light^.Intensity:=TPasJSON.GetNumber(LightObject.Properties['intensity'],Light^.Intensity);
          Light^.Range:=TPasJSON.GetNumber(LightObject.Properties['range'],Light^.Range);
@@ -2946,6 +2962,7 @@ begin
   Light^.Color[0]:=aColorX;
   Light^.Color[1]:=aColorY;
   Light^.Color[2]:=aColorZ;
+  Light^.CastShadows:=true;
  end;
 end;
 
@@ -3621,7 +3638,11 @@ var AllVertices:TAllVertices;
    LightShaderStorageBufferObjectDataItem^.Type_:=Light^.Type_;
    InnerConeAngleCosinus:=cos(Light^.InnerConeAngle);
    OuterConeAngleCosinus:=cos(Light^.OuterConeAngle);
-   LightShaderStorageBufferObjectDataItem^.ShadowMapIndex:=Light^.ShadowMapIndex;
+   if (Light^.ShadowMapIndex>=0) and Light^.CastShadows then begin
+    LightShaderStorageBufferObjectDataItem^.ShadowMapIndex:=Light^.ShadowMapIndex;
+   end else begin
+    LightShaderStorageBufferObjectDataItem^.ShadowMapIndex:=TPasGLTFUInt32($ffffffff);
+   end;
    LightShaderStorageBufferObjectDataItem^.LightAngleScale:=1.0/Max(1e-5,InnerConeAngleCosinus-OuterConeAngleCosinus);
    LightShaderStorageBufferObjectDataItem^.LightAngleOffset:=-(OuterConeAngleCosinus*LightShaderStorageBufferObjectDataItem^.LightAngleScale);
    LightShaderStorageBufferObjectDataItem^.ColorIntensity[0]:=Light^.Color[0];
@@ -5647,60 +5668,65 @@ begin
   AABB.Max:=fParent.fStaticBoundingBox.Max;
   for LightIndex:=0 to length(fParent.fLights)-1 do begin
    Light:=@fParent.fLights[LightIndex];
-   NodeIndex:=fLightNodes[LightIndex];
-   if (NodeIndex>=0) and (NodeIndex<length(fNodes)) then begin
-    InstanceNode:=@fNodes[NodeIndex];
-    Matrix:=InstanceNode^.WorkMatrix;
-    TPasGLTF.TVector3(pointer(@Matrix[0])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[0])^));
-    TPasGLTF.TVector3(pointer(@Matrix[4])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[4])^));
-    TPasGLTF.TVector3(pointer(@Matrix[8])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[8])^));
-    Position:=Vector3MatrixMul(Matrix,Zero);
-    Direction:=Vector3Normalize(Vector3Sub(Vector3MatrixMul(Matrix,DownZ),Position));
-   end else begin
-    Position[0]:=0.0;
-    Position[1]:=0.0;
-    Position[2]:=0.0;
-    case Light^.Node of
-     -$8000000:begin
-      // For default directional light, when no other lights were defined
-      Direction:=Light^.Direction;
-     end;
-     else begin
-      Direction:=DownZ;
-     end;
-    end;
-   end;
-   LightZFar:=1.0;
-   case Light^.Type_ of
-    TGLTFOpenGL.TLightDataType.Directional,
-    TGLTFOpenGL.TLightDataType.Spot:begin
-     case Light^.Type_ of
-      TGLTFOpenGL.TLightDataType.Directional:begin
-       ShadowMapMatrix:=GetDirectionalLightShadowMapMatrix(Direction,AABB,AABB);
-      end;
-      TGLTFOpenGL.TLightDataType.Spot:begin
-       ShadowMapMatrix:=GetSpotLightShadowMapMatrix(Position,Direction,Light^.Range,AABB);
+   if (Light^.ShadowMapIndex>=0) and Light^.CastShadows then begin
+    NodeIndex:=fLightNodes[LightIndex];
+    if (NodeIndex>=0) and (NodeIndex<length(fNodes)) then begin
+     InstanceNode:=@fNodes[NodeIndex];
+     Matrix:=InstanceNode^.WorkMatrix;
+     TPasGLTF.TVector3(pointer(@Matrix[0])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[0])^));
+     TPasGLTF.TVector3(pointer(@Matrix[4])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[4])^));
+     TPasGLTF.TVector3(pointer(@Matrix[8])^):=Vector3Normalize(TPasGLTF.TVector3(pointer(@Matrix[8])^));
+     Position:=Vector3MatrixMul(Matrix,Zero);
+     Direction:=Vector3Normalize(Vector3Sub(Vector3MatrixMul(Matrix,DownZ),Position));
+    end else begin
+     Position[0]:=0.0;
+     Position[1]:=0.0;
+     Position[2]:=0.0;
+     case Light^.Node of
+      -$8000000:begin
+       // For default directional light, when no other lights were defined
+       Direction:=Light^.Direction;
       end;
       else begin
-       ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+       Direction:=DownZ;
       end;
      end;
-     RenderToMultisampledShadowMap(ShadowMapMatrix);
-     ResolveMultisampledShadowMap(fParent.fTemporaryShadowMapFrameBufferObjects[1]);
-     BlurShadowMap(fParent.fTemporaryShadowMapArraySingleFrameBufferObjects[Light^.ShadowMapIndex]);
     end;
-    TGLTFOpenGL.TLightDataType.Point:begin
-     for SideIndex:=0 to 5 do begin
-      ShadowMapMatrix:=GetPointLightShadowMapMatrix(Position,Light^.Range,AABB,SideIndex);
+    LightZFar:=1.0;
+    case Light^.Type_ of
+     TGLTFOpenGL.TLightDataType.Directional,
+     TGLTFOpenGL.TLightDataType.Spot:begin
+      case Light^.Type_ of
+       TGLTFOpenGL.TLightDataType.Directional:begin
+        ShadowMapMatrix:=GetDirectionalLightShadowMapMatrix(Direction,AABB,AABB);
+       end;
+       TGLTFOpenGL.TLightDataType.Spot:begin
+        ShadowMapMatrix:=GetSpotLightShadowMapMatrix(Position,Direction,Light^.Range,AABB);
+       end;
+       else begin
+        ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+       end;
+      end;
       RenderToMultisampledShadowMap(ShadowMapMatrix);
       ResolveMultisampledShadowMap(fParent.fTemporaryShadowMapFrameBufferObjects[1]);
-      BlurShadowMap(fParent.fTemporaryCubeMapShadowMapArraySingleFrameBufferObjects[(Light^.ShadowMapIndex*6)+SideIndex]);
+      BlurShadowMap(fParent.fTemporaryShadowMapArraySingleFrameBufferObjects[Light^.ShadowMapIndex]);
      end;
-     ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+     TGLTFOpenGL.TLightDataType.Point:begin
+      for SideIndex:=0 to 5 do begin
+       ShadowMapMatrix:=GetPointLightShadowMapMatrix(Position,Light^.Range,AABB,SideIndex);
+       RenderToMultisampledShadowMap(ShadowMapMatrix);
+       ResolveMultisampledShadowMap(fParent.fTemporaryShadowMapFrameBufferObjects[1]);
+       BlurShadowMap(fParent.fTemporaryCubeMapShadowMapArraySingleFrameBufferObjects[(Light^.ShadowMapIndex*6)+SideIndex]);
+      end;
+      ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+     end;
+     else begin
+      ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
+     end;
     end;
-    else begin
-     ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
-    end;
+   end else begin
+    LightZFar:=1.0;
+    ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
    end;
    fLightShadowMapZFarValues[LightIndex]:=LightZFar;
    fLightShadowMapMatrices[LightIndex]:=ShadowMapMatrix;
