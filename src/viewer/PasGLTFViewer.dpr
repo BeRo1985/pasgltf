@@ -235,196 +235,6 @@ var Event:TSDL_Event;
 
     LightDirection:UnitMath3D.TVector3;
 
-    ShadowMapMatrix:UnitMath3D.TMatrix4x4;
-
-    SceneAABB:TAABB;
-
-function GetShadowMapMatrix(const aCameraViewMatrix:UnitMath3D.TMatrix4x4;
-                            const aCameraProjectionMatrix:UnitMath3D.TMatrix4x4;
-                            const aShadowCastersAABB:TAABB;
-                            const aShadowReceiversAABB:TAABB):UnitMath3D.TMatrix4x4;
-var CameraViewProjectionMatrix,
-    CameraInverseViewProjectionMatrix,
-    CameraInverseViewMatrix:UnitMath3D.TMatrix4x4;
-    WorldSpaceCameraViewFrustumCorners:array[0..7] of UnitMath3D.TVector3;
-    InterestedAreaAABB:TAABB;
- function GetLightModelMatrix:UnitMath3D.TMatrix4x4;
- var LightForwardVector,LightSideVector,LightUpvector,p:UnitMath3D.TVector3;
- begin
-{$ifdef fpc}
-  LightForwardVector:=Vector3Neg(Vector3Norm(LightDirection));
-{$else}
-  // Workaround for a bug in the 64-bit Delphi 10.3.3 Win64 compiler regarding stack allocation and register allocation
-  LightForwardVector:=Vector3Norm(LightDirection);
-  LightForwardVector:=Vector3Neg(LightForwardVector);
-{$endif}
-  p.x:=abs(LightForwardVector.x);
-  p.y:=abs(LightForwardVector.y);
-  p.z:=abs(LightForwardVector.z);
-  if (p.x<=p.y) and (p.x<=p.z) then begin
-   p.x:=1.0;
-   p.y:=0.0;
-   p.z:=0.0;
-  end else if (p.y<=p.x) and (p.y<=p.z) then begin
-   p.x:=0.0;
-   p.y:=1.0;
-   p.z:=0.0;
-  end else begin
-   p.x:=0.0;
-   p.y:=0.0;
-   p.z:=1.0;
-  end;
-  LightSideVector:=Vector3Sub(p,Vector3ScalarMul(LightForwardVector,Vector3Dot(LightForwardVector,p)));
-  LightUpVector:=Vector3Norm(Vector3Cross(LightForwardVector,LightSideVector));
-  LightSideVector:=Vector3Norm(Vector3Cross(LightUpVector,LightForwardVector));
-  result[0,0]:=LightSideVector.x;
-  result[0,1]:=LightUpVector.x;
-  result[0,2]:=LightForwardVector.x;
-  result[0,3]:=0.0;
-  result[1,0]:=LightSideVector.y;
-  result[1,1]:=LightUpVector.y;
-  result[1,2]:=LightForwardVector.y;
-  result[1,3]:=0.0;
-  result[2,0]:=LightSideVector.z;
-  result[2,1]:=LightUpVector.z;
-  result[2,2]:=LightForwardVector.z;
-  result[2,3]:=0.0;
-  result[3,0]:=0.0;
-  result[3,1]:=0.0;
-  result[3,2]:=0.0;
-  result[3,3]:=1.0;
- end;
- function GetLightViewMatrix:UnitMath3D.TMatrix4x4;
- var LightModelMatrix:UnitMath3D.TMatrix4x4;
-     WorldSpaceCameraForwardVector,
-     LightSpaceCameraForwardVector:UnitMath3D.TVector3;
- begin
-  result:=Matrix4x4Identity;
-  LightModelMatrix:=GetLightModelMatrix;
-  WorldSpaceCameraForwardVector:=UnitMath3D.PVector3(@CameraInverseViewMatrix[2,0])^;
-  LightSpaceCameraForwardVector:=Vector3TermMatrixMul(WorldSpaceCameraForwardVector,LightModelMatrix);
-  if abs(LightSpaceCameraForwardVector.z)<0.9997 then begin
-   UnitMath3D.PVector3(@result[0,0])^:=Vector3Norm(Vector3Cross(LightSpaceCameraForwardVector,Vector3(0.0,0.0,1.0)));
-   UnitMath3D.PVector3(@result[1,0])^:=Vector3Norm(Vector3Cross(Vector3(0.0,0.0,1.0),UnitMath3D.PVector3(@result[0,0])^));
-   UnitMath3D.PVector3(@result[2,0])^:=Vector3(0.0,0.0,1.0);
-  end;
-  result:=Matrix4x4TermMul(LightModelMatrix,Matrix4x4TermTranspose(result));
- end;
- function GetLightProjectionMatrix(const aShadowMapViewMatrix:UnitMath3D.TMatrix4x4):UnitMath3D.TMatrix4x4;
- var AABB:TAABB;
-     Left,Right,Top,Bottom,ZNear,ZFar,RightMinusLeft,TopMinusBottom,FarMinusNear:single;
- begin
-  AABB:=AABBTransform(InterestedAreaAABB,aShadowMapViewMatrix);
-  Left:=-1.0;
-  Right:=1.0;
-  Bottom:=-1.0;
-  Top:=1.0;
-  ZNear:=-AABB.Max.z;
-  ZFar:=-AABB.Min.z;
-  RightMinusLeft:=Right-Left;
-  TopMinusBottom:=Top-Bottom;
-  FarMinusNear:=ZFar-ZNear;
-  result[0,0]:=2.0/RightMinusLeft;
-  result[0,1]:=0.0;
-  result[0,2]:=0.0;
-  result[0,3]:=0.0;
-  result[1,0]:=0.0;
-  result[1,1]:=2.0/TopMinusBottom;
-  result[1,2]:=0.0;
-  result[1,3]:=0.0;
-  result[2,0]:=0.0;
-  result[2,1]:=0.0;
-  result[2,2]:=(-2.0)/FarMinusNear;
-  result[2,3]:=0.0;
-  result[3,0]:=(-(Right+Left))/RightMinusLeft;
-  result[3,1]:=(-(Top+Bottom))/TopMinusBottom;
-  result[3,2]:=(-(ZFar+ZNear))/FarMinusNear;
-  result[3,3]:=1.0;
- end;
- procedure SnapShadowMapProjectionMatrix(const aShadowMapViewMatrix:UnitMath3D.TMatrix4x4;
-                                         var aShadowMapProjectionMatrix:UnitMath3D.TMatrix4x4;
-                                         const aShadowMapWidth:TPasGLTFInt32=ShadowMapSize;
-                                         const aShadowMapHeight:TPasGLTFInt32=ShadowMapSize);
- var RoundedOrigin,RoundOffset:UnitMath3D.TVector2;
-     ShadowOrigin:UnitMath3D.TVector4;
- begin
-  // Create the rounding matrix, by projecting the world-space origin and determining the fractional offset in texel space
-  ShadowOrigin:=Vector4TermMatrixMul(Vector4(0.0,0.0,0.0,1.0),Matrix4x4TermMul(aShadowMapViewMatrix,aShadowMapProjectionMatrix));
-  ShadowOrigin.x:=ShadowOrigin.x*aShadowMapWidth;
-  ShadowOrigin.y:=ShadowOrigin.y*aShadowMapHeight;
-  RoundedOrigin.x:=round(ShadowOrigin.x);
-  RoundedOrigin.y:=round(ShadowOrigin.y);
-  RoundOffset.x:=((RoundedOrigin.x-ShadowOrigin.x)*2.0)/aShadowMapWidth;
-  RoundOffset.y:=((RoundedOrigin.y-ShadowOrigin.y)*2.0)/aShadowMapHeight;
-  aShadowMapProjectionMatrix[3,0]:=aShadowMapProjectionMatrix[3,0]+RoundOffset.x;
-  aShadowMapProjectionMatrix[3,1]:=aShadowMapProjectionMatrix[3,1]+RoundOffset.y;
- end;
-const NormalizedClipSpaceCameraViewFrustumCorners:array[0..7] of UnitMath3D.TVector3=((x:-1;y:-1;z:1),
-                                                                                      (x:1;y:-1;z:1),
-                                                                                      (x:-1;y:1;z:1),
-                                                                                      (x:1;y:1;z:1),
-                                                                                      (x:-1;y:-1;z:-1),
-                                                                                      (x:1;y:-1;z:-1),
-                                                                                      (x:-1;y:1;z:-1),
-                                                                                      (x:1;y:1;z:-1));
-var Index:TPasGLTFSizeInt;
-    LightViewMatrix,
-    LightProjectionMatrix,
-    LightSpaceMatrix,
-    WarpMatrix,WarppedLightSpaceMatrix,
-    FocusTransformMatrix:UnitMath3D.TMatrix4x4;
-    WorldSpaceCameraViewFrustumAABB,
-    LightSpaceAABB:UnitMath3D.TAABB;
-    Scale,
-    Offset:UnitMath3D.TVector2;
-    ShadowMapDimension:TPasGLTFFloat;
-begin
- CameraViewProjectionMatrix:=Matrix4x4TermMul(aCameraViewMatrix,aCameraProjectionMatrix);
- CameraInverseViewProjectionMatrix:=Matrix4x4TermInverse(CameraViewProjectionMatrix);
- CameraInverseViewMatrix:=Matrix4x4TermInverse(aCameraViewMatrix);
- for Index:=Low(WorldSpaceCameraViewFrustumCorners) to High(WorldSpaceCameraViewFrustumCorners) do begin
-  WorldSpaceCameraViewFrustumCorners[Index]:=Vector3TermMatrixMulHomogen(NormalizedClipSpaceCameraViewFrustumCorners[Index],
-                                                                         CameraInverseViewProjectionMatrix);
- end;
- WorldSpaceCameraViewFrustumAABB.Min:=WorldSpaceCameraViewFrustumCorners[Low(WorldSpaceCameraViewFrustumCorners)];
- WorldSpaceCameraViewFrustumAABB.Max:=WorldSpaceCameraViewFrustumCorners[Low(WorldSpaceCameraViewFrustumCorners)];
- for Index:=Low(WorldSpaceCameraViewFrustumCorners)+1 to High(WorldSpaceCameraViewFrustumCorners) do begin
-  WorldSpaceCameraViewFrustumAABB:=AABBCombineVector3(WorldSpaceCameraViewFrustumAABB,WorldSpaceCameraViewFrustumCorners[Index]);
- end;
- InterestedAreaAABB:=AABBCombine(aShadowCastersAABB,aShadowReceiversAABB);
- LightViewMatrix:=GetLightViewMatrix;
- LightProjectionMatrix:=GetLightProjectionMatrix(LightViewMatrix);
- LightSpaceMatrix:=Matrix4x4TermMul(LightViewMatrix,LightProjectionMatrix);
- WarpMatrix:=Matrix4x4Identity;
- WarppedLightSpaceMatrix:=Matrix4x4TermMul(LightSpaceMatrix,WarpMatrix);
- LightSpaceAABB:=AABBTransform(InterestedAreaAABB,WarppedLightSpaceMatrix);
- ShadowMapDimension:=ShadowMapSize;
- Scale.x:=2.0/(LightSpaceAABB.Max.x-LightSpaceAABB.Min.x);
- Scale.y:=2.0/(LightSpaceAABB.Max.y-LightSpaceAABB.Min.y);
- Offset.x:=((LightSpaceAABB.Min.x+LightSpaceAABB.Max.x)*(-0.5))*Scale.x;
- Offset.y:=((LightSpaceAABB.Min.y+LightSpaceAABB.Max.y)*(-0.5))*Scale.y;
- // TODO: Snap scale also
- Offset.x:=ceil(Offset.x*ShadowMapDimension)/ShadowMapDimension;
- Offset.y:=ceil(Offset.y*ShadowMapDimension)/ShadowMapDimension;
- FocusTransformMatrix[0,0]:=Scale.x;
- FocusTransformMatrix[0,1]:=0.0;
- FocusTransformMatrix[0,2]:=0.0;
- FocusTransformMatrix[0,3]:=0.0;
- FocusTransformMatrix[1,0]:=0.0;
- FocusTransformMatrix[1,1]:=Scale.y;
- FocusTransformMatrix[1,2]:=0.0;
- FocusTransformMatrix[1,3]:=0.0;
- FocusTransformMatrix[2,0]:=0.0;
- FocusTransformMatrix[2,1]:=0.0;
- FocusTransformMatrix[2,2]:=1.0;
- FocusTransformMatrix[2,3]:=0.0;
- FocusTransformMatrix[3,0]:=Offset.x;
- FocusTransformMatrix[3,1]:=Offset.y;
- FocusTransformMatrix[3,2]:=0.0;
- FocusTransformMatrix[3,3]:=1.0;
- result:=Matrix4x4TermMul(WarppedLightSpaceMatrix,FocusTransformMatrix);
-end;
-
 procedure DumpAnimationJoints;
 const FramesPerSecond=8;
       Scale=128;
@@ -724,108 +534,19 @@ begin
   GLTFInstance.Update;
   GLTFInstance.Upload;
  end;
- if assigned(GLTFInstance) and Shadows then begin
-{ GLTFInstance.UpdateDynamicBoundingBox(false);
-  SceneAABB.Min.x:=GLTFInstance.DynamicBoundingBox.Min[0];
-  SceneAABB.Min.y:=GLTFInstance.DynamicBoundingBox.Min[1];
-  SceneAABB.Min.z:=GLTFInstance.DynamicBoundingBox.Min[2];
-  SceneAABB.Max.x:=GLTFInstance.DynamicBoundingBox.Max[0];
-  SceneAABB.Max.y:=GLTFInstance.DynamicBoundingBox.Max[1];
-  SceneAABB.Max.z:=GLTFInstance.DynamicBoundingBox.Max[2];}
-  SceneAABB.Min.x:=GLTFOpenGL.StaticBoundingBox.Min[0];
-  SceneAABB.Min.y:=GLTFOpenGL.StaticBoundingBox.Min[1];
-  SceneAABB.Min.z:=GLTFOpenGL.StaticBoundingBox.Min[2];
-  SceneAABB.Max.x:=GLTFOpenGL.StaticBoundingBox.Max[0];
-  SceneAABB.Max.y:=GLTFOpenGL.StaticBoundingBox.Max[1];
-  SceneAABB.Max.z:=GLTFOpenGL.StaticBoundingBox.Max[2];
-{ SceneAABB.Min.x:=GLTFInstance.WorstCaseStaticBoundingBox.Min[0];
-  SceneAABB.Min.y:=GLTFInstance.WorstCaseStaticBoundingBox.Min[1];
-  SceneAABB.Min.z:=GLTFInstance.WorstCaseStaticBoundingBox.Min[2];
-  SceneAABB.Max.x:=GLTFInstance.WorstCaseStaticBoundingBox.Max[0];
-  SceneAABB.Max.y:=GLTFInstance.WorstCaseStaticBoundingBox.Max[1];
-  SceneAABB.Max.z:=GLTFInstance.WorstCaseStaticBoundingBox.Max[2];}
-  ShadowMapMatrix:=GetShadowMapMatrix(ViewMatrix,Matrix4x4Perspective(45.0,ViewPortWidth/ViewPortHeight,1e-1,1e+2),SceneAABB,SceneAABB);
-  begin
- // glBindFramebuffer(GL_DRAW_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
-   glBindFramebuffer(GL_FRAMEBUFFER,MultisampledShadowMapFBO);
-   glDrawBuffer(GL_COLOR_ATTACHMENT0);
-   glEnable(GL_MULTISAMPLE);
-   glViewport(0,0,ShadowMapSize,ShadowMapSize);
-   glClearColor(1.0,1.0,1.0,1.0);
-   glClearDepth(1.0);
-   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
-   glClipControl(GL_LOWER_LEFT,GL_NEGATIVE_ONE_TO_ONE);
-   glEnable(GL_DEPTH_TEST);
-   glDepthFunc(GL_LEQUAL);
-   ModelMatrix:=Matrix4x4Identity;
-   GLTFInstance.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
-                     TPasGLTF.TMatrix4x4(Pointer(@Matrix4x4Identity)^),
-                     TPasGLTF.TMatrix4x4(Pointer(@ShadowMapMatrix)^),
-                     TPasGLTF.TMatrix4x4(Pointer(@ShadowMapMatrix)^),
-                     ShadowShaders[false,false],
-                     ShadowShaders[false,true],
-                     ShadowShaders[true,false],
-                     ShadowShaders[true,true],
-                     [TPasGLTF.TMaterial.TAlphaMode.Opaque,TPasGLTF.TMaterial.TAlphaMode.Mask]);
-   glBindFrameBuffer(GL_FRAMEBUFFER,0);
-   glDisable(GL_MULTISAMPLE);
+ begin
+  if assigned(GLTFInstance) then begin
+   GLTFInstance.DrawShadows(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
+                            TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
+                            TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
+                            ShadowMapMultisampleResolveShader,
+                            ShadowMapBlurShader,
+                            ShadowShaders[false,false],
+                            ShadowShaders[false,true],
+                            ShadowShaders[true,false],
+                            ShadowShaders[true,true],
+                            [TPasGLTF.TMaterial.TAlphaMode.Opaque,TPasGLTF.TMaterial.TAlphaMode.Mask]);
   end;
-  begin
-   glBindFrameBuffer(GL_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
-   glDrawBuffer(GL_COLOR_ATTACHMENT0);
-   glViewport(0,0,ShadowMapFBOs[0].Width,ShadowMapFBOs[0].Height);
-   glClear(GL_COLOR_BUFFER_BIT);
-   glDisable(GL_BLEND);
-   glDisable(GL_DEPTH_TEST);
-   glDisable(GL_CULL_FACE);
-   glDepthFunc(GL_ALWAYS);
-   glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,MultisampledShadowMapTexture);
-   ShadowMapMultisampleResolveShader.Bind;
-   glUniform1i(ShadowMapMultisampleResolveShader.uTexture,0);
-   glUniform1i(ShadowMapMultisampleResolveShader.uSamples,MultisampledShadowMapSamples);
-   glBindVertexArray(EmptyVertexArrayObjectHandle);
-   glDrawArrays(GL_TRIANGLES,0,3);
-   glBindVertexArray(0);
-   ShadowMapMultisampleResolveShader.Unbind;
-   glBindFrameBuffer(GL_FRAMEBUFFER,0);
-   glBindTexture(GL_TEXTURE_2D_MULTISAMPLE,0);
-  end;
-{ begin // renderdoc don't like this (garbage trace output then as result)
-   glBindFramebuffer(GL_DRAW_FRAMEBUFFER,ShadowMapFBOs[0].FBOs[0]);
-   glBindFramebuffer(GL_READ_FRAMEBUFFER,MultisampledShadowMapFBO);
-   glDrawBuffer(GL_COLOR_ATTACHMENT0);
-   glBlitFramebuffer(0,0,ShadowMapSize,ShadowMapSize,
-                     0,0,ShadowMapFBOs[0].Width,ShadowMapFBOs[0].Height,
-                     GL_COLOR_BUFFER_BIT,
-                     GL_NEAREST);
-   glBindFramebuffer(GL_DRAW_FRAMEBUFFER,0);
-   glBindFramebuffer(GL_READ_FRAMEBUFFER,0);
-  end;{}
-  for Index:=1 to 2 do begin
-   glBindFrameBuffer(GL_FRAMEBUFFER,ShadowMapFBOs[Index].FBOs[0]);
-   glDrawBuffer(GL_COLOR_ATTACHMENT0);
-   glViewport(0,0,ShadowMapFBOs[Index].Width,ShadowMapFBOs[Index].Height);
-   glClear(GL_COLOR_BUFFER_BIT);
-   glDisable(GL_BLEND);
-   glDisable(GL_DEPTH_TEST);
-   glDisable(GL_CULL_FACE);
-   glDepthFunc(GL_ALWAYS);
-   glActiveTexture(GL_TEXTURE0);
-   glBindTexture(GL_TEXTURE_2D,ShadowMapFBOs[Index-1].TextureHandles[0]);
-   ShadowMapBlurShader.Bind;
-   glUniform1i(ShadowMapBlurShader.uTexture,0);
-   if Index=1 then begin
-    glUniform2f(ShadowMapBlurShader.uDirection,1.0,0.0);
-   end else begin
-    glUniform2f(ShadowMapBlurShader.uDirection,0.0,1.0);
-   end;
-   glBindVertexArray(EmptyVertexArrayObjectHandle);
-   glDrawArrays(GL_TRIANGLES,0,3);
-   glBindVertexArray(0);
-   ShadowMapBlurShader.Unbind;
-   glBindFrameBuffer(GL_FRAMEBUFFER,0);
-  end;     (**)
  end;
  begin
   glBindFrameBuffer(GL_FRAMEBUFFER,HDRSceneFBO.FBOs[0]);
@@ -853,14 +574,14 @@ begin
   begin
    glActiveTexture(GL_TEXTURE0);
    glBindTexture(GL_TEXTURE_2D,BRDFLUTFBO.TextureHandles[0]);
-   if Shadows then begin
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D,ShadowMapFBOs[2].TextureHandles[0]);
-   end;
-   glActiveTexture(GL_TEXTURE2);
+   glActiveTexture(GL_TEXTURE1);
    glBindTexture(GL_TEXTURE_CUBE_MAP,EnvMapFBO.TextureHandles[0]);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR_MIPMAP_LINEAR);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
+   if Shadows then begin
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D,ShadowMapFBOs[2].TextureHandles[0]);
+   end;
    glActiveTexture(GL_TEXTURE0);
    glEnable(GL_DEPTH_TEST);
    glEnable(GL_CULL_FACE);
@@ -872,14 +593,13 @@ begin
     ShadingShader.Unbind;
    end;
    if assigned(GLTFInstance) then begin
-    GLTFInstance.Draw(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
-                      TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
-                      TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
-                      TPasGLTF.TMatrix4x4(Pointer(@ShadowMapMatrix)^),
-                      ShadingShaders[false,false],
-                      ShadingShaders[false,true],
-                      ShadingShaders[true,false],
-                      ShadingShaders[true,true]);
+    GLTFInstance.DrawFinal(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
+                           TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
+                           TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),
+                           ShadingShaders[false,false],
+                           ShadingShaders[false,true],
+                           ShadingShaders[true,false],
+                           ShadingShaders[true,true]);
     if ShowJoints then begin
      GLTFInstance.DrawJoints(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
                              TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),

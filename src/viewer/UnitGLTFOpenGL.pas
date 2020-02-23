@@ -24,7 +24,11 @@ type EGLTFOpenGL=class(Exception);
 
      TGLTFOpenGL=class
       public
-       const BaseTextureUnit=GL_TEXTURE3;
+       const BRDFLUTTextureUnit=GL_TEXTURE0;
+             NormalShadowMapArrayTextureUnit=GL_TEXTURE1;
+             CubeMapShadowMapArrayTextureUnit=GL_TEXTURE2;
+             EnvironmentMapTextureUnit=GL_TEXTURE3;
+             BaseTextureUnit=GL_TEXTURE4;
        type TGetURI=function(const aURI:TPasGLTFUTF8String):TStream of object;
             TBoundingBox=record
              case boolean of
@@ -116,6 +120,14 @@ type EGLTFOpenGL=class(Exception);
                                     const aSkinnedNormalShadingShader:TShadingShader;
                                     const aSkinnedAlphaTestShadingShader:TShadingShader;
                                     const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
+              procedure DrawFinal(const aModelMatrix:TPasGLTF.TMatrix4x4;
+                                  const aViewMatrix:TPasGLTF.TMatrix4x4;
+                                  const aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                                  const aNonSkinnedNormalShadingShader:TShadingShader;
+                                  const aNonSkinnedAlphaTestShadingShader:TShadingShader;
+                                  const aSkinnedNormalShadingShader:TShadingShader;
+                                  const aSkinnedAlphaTestShadingShader:TShadingShader;
+                                  const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
               procedure DrawJoints(const aModelMatrix:TPasGLTF.TMatrix4x4;
                                    const aViewMatrix:TPasGLTF.TMatrix4x4;
                                    const aProjectionMatrix:TPasGLTF.TMatrix4x4;
@@ -523,13 +535,14 @@ type EGLTFOpenGL=class(Exception);
             TLightShaderStorageBufferObjectDataItem=packed record
              // uvec4 MetaData; begin
               Type_:TPasGLTFUInt32;
-              Reserved:TPasGLTFUInt32;
+              ShadowMapIndex:TPasGLTFUInt32;
               LightAngleScale:TPasGLTFFloat;
               LightAngleOffset:TPasGLTFFloat;
              // uvec4 MetaData; end
              ColorIntensity:TPasGLTF.TVector4; // XYZ = Color RGB, W = Intensity
              PositionRange:TPasGLTF.TVector4; // XYZ = Position, W = Range
              Direction:TPasGLTF.TVector4; // XYZ = Direction, W = Unused
+             ShadowMapMatrix:TPasGLTF.TMatrix4x4;
             end;
             PLightShaderStorageBufferObjectDataItem=^TLightShaderStorageBufferObjectDataItem;
             TLightShaderStorageBufferObjectData=packed record
@@ -3609,6 +3622,7 @@ var AllVertices:TAllVertices;
    LightShaderStorageBufferObjectDataItem^.Type_:=Light^.Type_;
    InnerConeAngleCosinus:=cos(Light^.InnerConeAngle);
    OuterConeAngleCosinus:=cos(Light^.OuterConeAngle);
+   LightShaderStorageBufferObjectDataItem^.ShadowMapIndex:=Light^.ShadowMapIndex;
    LightShaderStorageBufferObjectDataItem^.LightAngleScale:=1.0/Max(1e-5,InnerConeAngleCosinus-OuterConeAngleCosinus);
    LightShaderStorageBufferObjectDataItem^.LightAngleOffset:=-(OuterConeAngleCosinus*LightShaderStorageBufferObjectDataItem^.LightAngleScale);
    LightShaderStorageBufferObjectDataItem^.ColorIntensity[0]:=Light^.Color[0];
@@ -5215,6 +5229,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
       end;
      end;
     end;
+    LightShaderStorageBufferObjectDataItem^.ShadowMapMatrix:=fLightShadowMapMatrices[Index];
    end;
    glBindBuffer(GL_SHADER_STORAGE_BUFFER,fParent.fLightShaderStorageBufferObject.ShaderStorageBufferObjectHandle);
    glBufferData(GL_SHADER_STORAGE_BUFFER,fParent.fLightShaderStorageBufferObject.Size,fParent.fLightShaderStorageBufferObject.Data,GL_DYNAMIC_DRAW);
@@ -5701,6 +5716,36 @@ begin
    fLightShadowMapMatrices[LightIndex]:=ShadowMapMatrix;
   end;
  end;
+end;
+
+procedure TGLTFOpenGL.TInstance.DrawFinal(const aModelMatrix:TPasGLTF.TMatrix4x4;
+                                          const aViewMatrix:TPasGLTF.TMatrix4x4;
+                                          const aProjectionMatrix:TPasGLTF.TMatrix4x4;
+                                          const aNonSkinnedNormalShadingShader:TShadingShader;
+                                          const aNonSkinnedAlphaTestShadingShader:TShadingShader;
+                                          const aSkinnedNormalShadingShader:TShadingShader;
+                                          const aSkinnedAlphaTestShadingShader:TShadingShader;
+                                          const aAlphaModes:TPasGLTF.TMaterial.TAlphaModes=[]);
+begin
+ glActiveTexture(GL_TEXTURE2);
+ glBindTexture(GL_TEXTURE_2D_ARRAY,fParent.fTemporaryShadowMapArrayTexture);
+ glActiveTexture(GL_TEXTURE3);
+ glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY,fParent.fTemporaryCubeMapShadowMapArrayTexture);
+ glActiveTexture(GL_TEXTURE0);
+ Draw(aModelMatrix,
+      aViewMatrix,
+      aProjectionMatrix,
+      TPasGLTF.TDefaults.IdentityMatrix4x4,
+      aNonSkinnedNormalShadingShader,
+      aNonSkinnedAlphaTestShadingShader,
+      aSkinnedNormalShadingShader,
+      aSkinnedAlphaTestShadingShader,
+      aAlphaModes);
+ glActiveTexture(GL_TEXTURE2);
+ glBindTexture(GL_TEXTURE_2D_ARRAY,0);
+ glActiveTexture(GL_TEXTURE3);
+ glBindTexture(GL_TEXTURE_CUBE_MAP_ARRAY,0);
+ glActiveTexture(GL_TEXTURE0);
 end;
 
 procedure TGLTFOpenGL.TInstance.DrawJoints(const aModelMatrix:TPasGLTF.TMatrix4x4;

@@ -122,12 +122,12 @@ type TShadingShader=class(TShader)
              ssboLightData=5;
       public
        uBRDFLUTTexture:glInt;
-       uShadowMapTexture:glInt;
+       uNormalShadowMapArrayTexture:glInt;
+       uCubeMapShadowMapArrayTexture:glInt;
        uEnvMapTexture:glInt;
 {$if not defined(PasGLTFBindlessTextures)}
        uTextures:glInt;
 {$ifend}
-       uShadowMapTextures:glInt;
        uEnvMapMaxLevel:glInt;
        uShadows:glInt;
        constructor Create(const aSkinned,aAlphaTest,aShadowMap:boolean);
@@ -257,8 +257,9 @@ begin
     'in vec3 vBitangent;'+#13#10+
     'in vec4 vColor;'+#13#10+
     'uniform sampler2D uBRDFLUTTexture;'+#13#10+
-    'uniform sampler2D uShadowMapTexture;'+#13#10+
     'uniform samplerCube uEnvMapTexture;'+#13#10+
+    'uniform sampler2DArray uNormalShadowMapArrayTexture;'+#13#10+
+    'uniform samplerCubeArray uCubeMapShadowMapArrayTexture;'+#13#10+
     'uniform sampler2D uTextures[16];'+#13#10+
     'uniform int uEnvMapMaxLevel;'+#13#10+
     'uniform int uShadows;'+#13#10+
@@ -289,6 +290,7 @@ begin
     '  vec4 colorIntensity;'+#13#10+
     '  vec4 positionRange;'+#13#10+
     '  vec4 direction;'+#13#10+
+    '  mat4 shadowMapMatrix;'+#13#10+
     '};'+#13#10+
     'layout(std430, binding = '+IntToStr(ssboLightData)+') buffer ssboLightData {'+#13#10+
     '  uvec4 lightMetaData;'+#13#10+
@@ -519,24 +521,7 @@ begin
   f:=f+'  vec4 emissionColor = vec4(0.0);'+#13#10;
 {$endif}
   f:=f+
-//   '  vec2 shadowOffsetData = getShadowOffsets(vWorldSpacePosition, vNormal, uLightDirection).xy;'+#13#10+
-//   '  vec3 shadowOffset = ((shadowOffsetData.x * vNormal) + (shadowOffsetData.y * uLightDirection));'+#13#10+
      '  float litIntensity = 1.0;'+#13#10+
-     '  if(uShadows != 0){'+#13#10+
-     '    vec4 shadowNDC = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition'+{ + shadowOffset}', 1.0);'+#13#10+
-     '    shadowNDC /= shadowNDC.w;'+#13#10+
-     '    if(all(greaterThanEqual(shadowNDC, vec4(-1.0))) && all(lessThanEqual(shadowNDC, vec4(1.0)))){'+#13#10+
-     '      shadowNDC.xyz = fma(shadowNDC.xyz, vec3(0.5), vec3(0.5));'+#13#10+
-//   '      vec4 moments = textureLod(uShadowMapTexture, shadowNDC.xy, 0.0);'+#13#10+
-     '      vec4 moments = (textureLod(uShadowMapTexture, shadowNDC.xy, 0.0) + vec2(-0.035955884801, 0.0).xyyy) *'+#13#10+
-     '                     mat4(0.2227744146, 0.0771972861, 0.7926986636, 0.0319417555,'+#13#10+
-     '                          0.1549679261, 0.1394629426, 0.7963415838, -0.172282317,'+#13#10+
-     '                          0.1451988946, 0.2120202157, 0.7258694464, -0.2758014811,'+#13#10+
-     '                          0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+{}
-     '      litIntensity = 1.0 - reduceLightBleeding(getMSMShadowIntensity(moments, shadowNDC.z, 5e-3, 1e-2), 0.0);'+#13#10+
-//   '      litIntensity = reduceLightBleeding(getMSMShadowIntensity(moments, shadowNDC.z, 5e-3, 1e-2), 0.0);'+#13#10+
-     '    }'+#13#10+
-     '  }'+#13#10+
      '  switch(shadingModel){'+#13#10+
      '    case smPBRMetallicRoughness:'+#13#10+
      '    case smPBRSpecularGlossiness:{'+#13#10+
@@ -627,7 +612,20 @@ begin
      '          vec3 lightDirection = light.direction.xyz;'+#13#10+
      '          vec3 lightVector = light.positionRange.xyz - vWorldSpacePosition.xyz;'+#13#10+
      '          switch(light.metaData.x){'+#13#10+
-     '            case 1u:'+#13#10+  // Directional
+     '            case 1u:{'+#13#10+  // Directional
+     '              vec4 shadowNDC = light.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
+     '              shadowNDC /= shadowNDC.w;'+#13#10+
+     '              if(all(greaterThanEqual(shadowNDC, vec4(-1.0))) && all(lessThanEqual(shadowNDC, vec4(1.0)))){'+#13#10+
+     '                shadowNDC.xyz = fma(shadowNDC.xyz, vec3(0.5), vec3(0.5));'+#13#10+
+     '                vec4 moments = (textureLod(uNormalShadowMapArrayTexture, vec3(shadowNDC.xy, float(int(light.metaData.y))), 0.0) + vec2(-0.035955884801, 0.0).xyyy) *'+#13#10+
+     '                               mat4(0.2227744146, 0.0771972861, 0.7926986636, 0.0319417555,'+#13#10+
+     '                                    0.1549679261, 0.1394629426, 0.7963415838, -0.172282317,'+#13#10+
+     '                                    0.1451988946, 0.2120202157, 0.7258694464, -0.2758014811,'+#13#10+
+     '                                    0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+{}
+     '                lightAttenuation *= 1.0 - reduceLightBleeding(getMSMShadowIntensity(moments, shadowNDC.z, 5e-3, 1e-2), 0.0);'+#13#10+
+     '              }'+#13#10+
+     '              break;'+#13#10+
+     '            }'+#13#10+
      '            case 2u:{'+#13#10+ // Point
      '              break;'+#13#10+
      '            }'+#13#10+
@@ -739,12 +737,13 @@ end;
 
 procedure TShadingShader.BindVariables;
 {$if not defined(PasGLTFBindlessTextures)}
-const Textures:array[0..15] of glInt=(3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18);
+const Textures:array[0..15] of glInt=(4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19);
 {$ifend}
 begin
  inherited BindVariables;
  uBRDFLUTTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uBRDFLUTTexture')));
- uShadowMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uShadowMapTexture')));
+ uNormalShadowMapArrayTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uNormalShadowMapArrayTexture')));
+ uCubeMapShadowMapArrayTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uCubeMapShadowMapArrayTexture')));
  uEnvMapTexture:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapTexture')));
 {$if not defined(PasGLTFBindlessTextures)}
  uTextures:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uTextures')));
@@ -752,8 +751,9 @@ begin
  uEnvMapMaxLevel:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uEnvMapMaxLevel')));
  uShadows:=glGetUniformLocation(ProgramHandle,pointer(pansichar('uShadows')));
  glUniform1i(uBRDFLUTTexture,0);
- glUniform1i(uShadowMapTexture,1);
- glUniform1i(uEnvMapTexture,2);
+ glUniform1i(uEnvMapTexture,1);
+ glUniform1i(uNormalShadowMapArrayTexture,2);
+ glUniform1i(uCubeMapShadowMapArrayTexture,3);
 {$if not defined(PasGLTFBindlessTextures)}
  glUniform1iv(uTextures,16,@Textures[0]);
 {$ifend}
