@@ -535,7 +535,7 @@ begin
   GLTFInstance.Upload;
  end;
  begin
-  if assigned(GLTFInstance) then begin
+  if assigned(GLTFInstance) and Shadows then begin
    GLTFInstance.DrawShadows(TPasGLTF.TMatrix4x4(Pointer(@ModelMatrix)^),
                             TPasGLTF.TMatrix4x4(Pointer(@ViewMatrix)^),
                             TPasGLTF.TMatrix4x4(Pointer(@ProjectionMatrix)^),

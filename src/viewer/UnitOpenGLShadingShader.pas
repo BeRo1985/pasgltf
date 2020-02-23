@@ -611,24 +611,26 @@ begin
      '          float lightAttenuation = 1.0;'+#13#10+
      '          vec3 lightDirection = light.direction.xyz;'+#13#10+
      '          vec3 lightVector = light.positionRange.xyz - vWorldSpacePosition.xyz;'+#13#10+
-     '          switch(light.metaData.x){'+#13#10+
-     '            case 1u:'+#13#10+  // Directional
-     '            case 3u:{'+#13#10+ // Spot
-     '              vec4 shadowNDC = light.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
-     '              shadowNDC /= shadowNDC.w;'+#13#10+
-     '              if(all(greaterThanEqual(shadowNDC, vec4(-1.0))) && all(lessThanEqual(shadowNDC, vec4(1.0)))){'+#13#10+
-     '                shadowNDC.xyz = fma(shadowNDC.xyz, vec3(0.5), vec3(0.5));'+#13#10+
-     '                vec4 moments = (textureLod(uNormalShadowMapArrayTexture, vec3(shadowNDC.xy, float(int(light.metaData.y))), 0.0) + vec2(-0.035955884801, 0.0).xyyy) *'+#13#10+
-     '                               mat4(0.2227744146, 0.0771972861, 0.7926986636, 0.0319417555,'+#13#10+
-     '                                    0.1549679261, 0.1394629426, 0.7963415838, -0.172282317,'+#13#10+
-     '                                    0.1451988946, 0.2120202157, 0.7258694464, -0.2758014811,'+#13#10+
-     '                                    0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+{}
-     '                lightAttenuation *= 1.0 - reduceLightBleeding(getMSMShadowIntensity(moments, shadowNDC.z, 5e-3, 1e-2), 0.0);'+#13#10+
+     '          if(uShadows != 0){'+#13#10+
+     '            switch(light.metaData.x){'+#13#10+
+     '              case 1u:'+#13#10+  // Directional
+     '              case 3u:{'+#13#10+ // Spot
+     '                vec4 shadowNDC = light.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
+     '                shadowNDC /= shadowNDC.w;'+#13#10+
+     '                if(all(greaterThanEqual(shadowNDC, vec4(-1.0))) && all(lessThanEqual(shadowNDC, vec4(1.0)))){'+#13#10+
+     '                  shadowNDC.xyz = fma(shadowNDC.xyz, vec3(0.5), vec3(0.5));'+#13#10+
+     '                  vec4 moments = (textureLod(uNormalShadowMapArrayTexture, vec3(shadowNDC.xy, float(int(light.metaData.y))), 0.0) + vec2(-0.035955884801, 0.0).xyyy) *'+#13#10+
+     '                                 mat4(0.2227744146, 0.0771972861, 0.7926986636, 0.0319417555,'+#13#10+
+     '                                      0.1549679261, 0.1394629426, 0.7963415838, -0.172282317,'+#13#10+
+     '                                      0.1451988946, 0.2120202157, 0.7258694464, -0.2758014811,'+#13#10+
+     '                                      0.163127443, 0.2591432266, 0.6539092497, -0.3376131734);'+#13#10+{}
+     '                  lightAttenuation *= 1.0 - reduceLightBleeding(getMSMShadowIntensity(moments, shadowNDC.z, 5e-3, 1e-2), 0.0);'+#13#10+
+     '                }'+#13#10+
+     '                break;'+#13#10+
      '              }'+#13#10+
-     '              break;'+#13#10+
-     '            }'+#13#10+
-     '            case 2u:{'+#13#10+ // Point
-     '              break;'+#13#10+
+     '              case 2u:{'+#13#10+ // Point
+     '                break;'+#13#10+
+     '              }'+#13#10+
      '            }'+#13#10+
      '          }'+#13#10+
      '          switch(light.metaData.x){'+#13#10+
