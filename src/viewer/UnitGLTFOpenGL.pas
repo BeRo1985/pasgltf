@@ -105,7 +105,6 @@ type EGLTFOpenGL=class(Exception);
               procedure Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                              const aViewMatrix:TPasGLTF.TMatrix4x4;
                              const aProjectionMatrix:TPasGLTF.TMatrix4x4;
-                             const aShadowMapMatrix:TPasGLTF.TMatrix4x4;
                              const aNonSkinnedNormalShadingShader:TShadingShader;
                              const aNonSkinnedAlphaTestShadingShader:TShadingShader;
                              const aSkinnedNormalShadingShader:TShadingShader;
@@ -487,7 +486,6 @@ type EGLTFOpenGL=class(Exception);
              InverseViewMatrix:TPasGLTF.TMatrix4x4;
              ModelMatrix:TPasGLTF.TMatrix4x4;
              ViewProjectionMatrix:TPasGLTF.TMatrix4x4;
-             ShadowMapMatrix:TPasGLTF.TMatrix4x4;
              NormalMatrix:TPasGLTF.TMatrix4x4;
             end;
             PFrameGlobalsUniformBufferObjectData=^TFrameGlobalsUniformBufferObjectData;
@@ -4947,7 +4945,6 @@ end;
 procedure TGLTFOpenGL.TInstance.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
                                      const aViewMatrix:TPasGLTF.TMatrix4x4;
                                      const aProjectionMatrix:TPasGLTF.TMatrix4x4;
-                                     const aShadowMapMatrix:TPasGLTF.TMatrix4x4;
                                      const aNonSkinnedNormalShadingShader:TShadingShader;
                                      const aNonSkinnedAlphaTestShadingShader:TShadingShader;
                                      const aSkinnedNormalShadingShader:TShadingShader;
@@ -5180,7 +5177,6 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
    p^.InverseViewMatrix:=MatrixInverse(aViewMatrix);
    p^.ModelMatrix:=aModelMatrix;
    p^.ViewProjectionMatrix:=MatrixMul(aViewMatrix,aProjectionMatrix);
-   p^.ShadowMapMatrix:=aShadowMapMatrix;
    p^.NormalMatrix:=aModelMatrix;
    p^.NormalMatrix[3]:=0.0;
    p^.NormalMatrix[7]:=0.0;
@@ -5498,7 +5494,6 @@ var LightZFar:TPasGLTFFloat;
   Draw(TPasGLTF.TMatrix4x4(Pointer(@aModelMatrix)^),
        TPasGLTF.TMatrix4x4(Pointer(@TPasGLTF.TDefaults.IdentityMatrix4x4)^),
        TPasGLTF.TMatrix4x4(Pointer(@aShadowMapMatrix)^),
-       TPasGLTF.TMatrix4x4(Pointer(@aShadowMapMatrix)^),
        aNonSkinnedNormalShadingShader,
        aNonSkinnedAlphaTestShadingShader,
        aSkinnedNormalShadingShader,
@@ -5730,7 +5725,6 @@ begin
  Draw(aModelMatrix,
       aViewMatrix,
       aProjectionMatrix,
-      TPasGLTF.TDefaults.IdentityMatrix4x4,
       aNonSkinnedNormalShadingShader,
       aNonSkinnedAlphaTestShadingShader,
       aSkinnedNormalShadingShader,

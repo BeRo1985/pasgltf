@@ -190,7 +190,6 @@ begin
     '  mat4 inverseViewMatrix;'+#13#10+
     '  mat4 modelMatrix;'+#13#10+
     '  mat4 viewProjectionMatrix;'+#13#10+
-    '  mat4 shadowMapMatrix;'+#13#10+
     '  mat4 normalMatrix;'+#13#10+
     '} uFrameGlobals;'+#13#10+
     'struct MorphTargetVertex {'+#13#10+
@@ -267,7 +266,6 @@ begin
     '  mat4 inverseViewMatrix;'+#13#10+
     '  mat4 modelMatrix;'+#13#10+
     '  mat4 viewProjectionMatrix;'+#13#10+
-    '  mat4 shadowMapMatrix;'+#13#10+
     '  mat4 normalMatrix;'+#13#10+
     '} uFrameGlobals;'+#13#10+
     'layout(std140, binding = '+IntToStr(uboMaterial)+') uniform uboMaterial {'+#13#10+
@@ -509,7 +507,7 @@ begin
     '  shadingModel = (flags >> 0u) & 0xfu;'+#13#10;
  if aShadowMap then begin
   f:=f+
-       '  vec4 t = uFrameGlobals.shadowMapMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
+       '  vec4 t = uFrameGlobals.viewProjectionMatrix * vec4(vWorldSpacePosition, 1.0);'+#13#10+
        '  float d = fma(t.z / t.w, 0.5, 0.5);'+#13#10+
        '  float s = d * d;'+#13#10+
        '  vec4 m = vec4(d, s, s * d, s * s);'+#13#10+
