@@ -642,6 +642,7 @@ type EGLTFOpenGL=class(Exception);
        function GetAnimationEndTime(const aAnimation:TPasGLTFSizeInt):TPasGLTFFloat;
        function GetNodeIndex(const aNodeName:TPasGLTFUTF8String):TPasGLTFSizeInt;
 {$ifndef PasGLTFBindlessTextures}
+       procedure ClearExternalTextures;
        procedure SetExternalTexture(const aTextureName:TPasGLTFUTF8String;const aHandle:glUInt);
 {$endif}
        function AcquireInstance:TGLTFOpenGL.TInstance;
@@ -4044,6 +4045,16 @@ begin
 end;
 
 {$ifndef PasGLTFBindlessTextures}
+procedure TGLTFOpenGL.ClearExternalTextures;
+var Index:TPasGLTFSizeInt;
+    Texture:TGLTFOpenGL.PTexture;
+begin
+ for Index:=0 to length(fTextures)-1 do begin
+  Texture:=@fTextures[Index];
+  Texture^.ExternalHandle:=0;
+ end;
+end;
+
 procedure TGLTFOpenGL.SetExternalTexture(const aTextureName:TPasGLTFUTF8String;const aHandle:glUInt);
 var Index:TPasGLTFSizeInt;
     Texture:TGLTFOpenGL.PTexture;
