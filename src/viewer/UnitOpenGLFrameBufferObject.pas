@@ -543,12 +543,12 @@ begin
       glTexParameteri(GL_TEXTURE_CUBE_MAP_ARRAY,GL_GENERATE_MIPMAP,0);
       for j:=0 to MaxLevel do begin
        for i:=low(CubeMapTexs) to high(CubeMapTexs) do begin
-        glTexImage3D(CubeMapTexs[i],0,GL_DEPTH_COMPONENT,FBO.WorkWidth shr j,FBO.WorkHeight shr j,FBO.WorkDepth,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
+        glTexImage3D(CubeMapTexs[i],0,GL_DEPTH_COMPONENT32F,FBO.WorkWidth shr j,FBO.WorkHeight shr j,FBO.WorkDepth,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
        end;
       end;
      end else begin
       for i:=low(CubeMapTexs) to high(CubeMapTexs) do begin
-       glTexImage3D(CubeMapTexs[i],0,GL_DEPTH_COMPONENT,FBO.WorkWidth,FBO.WorkHeight,FBO.WorkDepth,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
+       glTexImage3D(CubeMapTexs[i],0,GL_DEPTH_COMPONENT32F,FBO.WorkWidth,FBO.WorkHeight,FBO.WorkDepth,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
       end;
       if MipMapping then begin
        glGenerateMipmap(GL_TEXTURE_CUBE_MAP_ARRAY);
@@ -576,12 +576,12 @@ begin
       glTexParameteri(GL_TEXTURE_CUBE_MAP,GL_GENERATE_MIPMAP,0);
       for j:=0 to MaxLevel do begin
        for i:=low(CubeMapTexs) to high(CubeMapTexs) do begin
-        glTexImage2D(CubeMapTexs[i],0,GL_DEPTH_COMPONENT,FBO.WorkWidth shr j,FBO.WorkHeight shr j,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
+        glTexImage2D(CubeMapTexs[i],0,GL_DEPTH_COMPONENT32F,FBO.WorkWidth shr j,FBO.WorkHeight shr j,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
        end;
       end;
      end else begin
       for i:=low(CubeMapTexs) to high(CubeMapTexs) do begin
-       glTexImage2D(CubeMapTexs[i],0,GL_DEPTH_COMPONENT,FBO.WorkWidth,FBO.WorkHeight,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
+       glTexImage2D(CubeMapTexs[i],0,GL_DEPTH_COMPONENT32F,FBO.WorkWidth,FBO.WorkHeight,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
       end;
       if MipMapping then begin
        glGenerateMipmap(GL_TEXTURE_CUBE_MAP);
@@ -610,10 +610,10 @@ begin
       glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_TEXTURE_MAX_LEVEL,MaxLevel);
       glTexParameteri(GL_TEXTURE_2D_ARRAY,GL_GENERATE_MIPMAP,0);
       for j:=0 to MaxLevel do begin
-       glTexImage3D(GL_TEXTURE_2D_ARRAY,j,GL_DEPTH_COMPONENT,FBO.WorkWidth shr j,FBO.WorkHeight shr j,FBO.WorkDepth,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
+       glTexImage3D(GL_TEXTURE_2D_ARRAY,j,GL_DEPTH_COMPONENT32F,FBO.WorkWidth shr j,FBO.WorkHeight shr j,FBO.WorkDepth,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
       end;
      end else begin
-      glTexImage3D(GL_TEXTURE_2D_ARRAY,0,GL_DEPTH_COMPONENT,FBO.WorkWidth,FBO.WorkHeight,FBO.WorkDepth,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
+      glTexImage3D(GL_TEXTURE_2D_ARRAY,0,GL_DEPTH_COMPONENT32F,FBO.WorkWidth,FBO.WorkHeight,FBO.WorkDepth,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
       if MipMapping then begin
        glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
       end;
@@ -637,10 +637,10 @@ begin
       glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAX_LEVEL,MaxLevel);
       glTexParameteri(GL_TEXTURE_2D,GL_GENERATE_MIPMAP,0);
       for j:=0 to MaxLevel do begin
-       glTexImage2D(GL_TEXTURE_2D,j,GL_DEPTH_COMPONENT,FBO.WorkWidth shr j,FBO.WorkHeight shr j,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
+       glTexImage2D(GL_TEXTURE_2D,j,GL_DEPTH_COMPONENT32F,FBO.WorkWidth shr j,FBO.WorkHeight shr j,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
       end;
      end else begin
-      glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,FBO.WorkWidth,FBO.WorkHeight,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
+      glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT32F,FBO.WorkWidth,FBO.WorkHeight,0,GL_DEPTH_COMPONENT,GL_FLOAT,nil);
       if MipMapping then begin
        glGenerateMipmap(GL_TEXTURE_2D);
       end;
@@ -941,7 +941,7 @@ begin
   if HasDepthBuffer then begin
    glGenRenderbuffers(1,@DepthBuffer);
    glBindRenderbuffer(GL_RENDERBUFFER,DepthBuffer);
-   glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT,Width,Height);
+   glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT32F,Width,Height);
    glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_RENDERBUFFER,DepthBuffer);
   end;
   glFramebufferTexture2D(GL_FRAMEBUFFER,GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,GL_TEXTURE_CUBE_MAP_POSITIVE_X,0);
@@ -974,13 +974,13 @@ begin
     end;
    end;
 {$ifdef gles20}
-   glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,Width,Height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_SHORT,nil);
+   glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT32F,Width,Height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_SHORT,nil);
 {$else}
 // glTexParameteri(GL_TEXTURE_2D,GL_GENERATE_MIPMAP,0);
    glTexParameteri(GL_TEXTURE_2D,GL_DEPTH_TEXTURE_MODE,GL_LUMINANCE);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_COMPARE_MODE,GL_NONE);
    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_COMPARE_FUNC,GL_ALWAYS);
-   glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT,Width,Height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_BYTE,nil);
+   glTexImage2D(GL_TEXTURE_2D,0,GL_DEPTH_COMPONENT32F,Width,Height,0,GL_DEPTH_COMPONENT,GL_UNSIGNED_BYTE,nil);
 {$endif}
    glBindTexture(GL_TEXTURE_2D,0);
    glFramebufferTexture2D(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,TextureHandles[Counter],0);
@@ -991,7 +991,7 @@ begin
 {$ifdef gles20}
    glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT16,Width,Height);
 {$else}
-   glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT,Width,Height);
+   glRenderbufferStorage(GL_RENDERBUFFER,GL_DEPTH_COMPONENT32F,Width,Height);
 {$endif}
    glFramebufferRenderbuffer(GL_FRAMEBUFFER,GL_DEPTH_ATTACHMENT,GL_RENDERBUFFER,DepthBuffer);
   end;
