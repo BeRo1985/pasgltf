@@ -120,6 +120,9 @@ type TShadingShader=class(TShader)
              ssboMorphTargetVertices=3;
              ssboNodeMeshPrimitiveMetaData=4;
              ssboLightData=5;
+{$ifdef PasGLTFUseExternalData}
+             ssboExternalData=6;
+{$endif}
       public
        uBRDFLUTTexture:glInt;
        uNormalShadowMapArrayTexture:glInt;
@@ -206,6 +209,11 @@ begin
     '  uvec4 primitiveMetaData;'+#13#10+
     '  float morphTargetWeights[];'+#13#10+
     '};'+#13#10+
+{$ifdef PasGLTFUseExternalData}
+    'layout(std430, binding = '+IntToStr(ssboExternalData)+') buffer ssboExternalData {'+#13#10+
+    '  mat4 externalModelMatrix;'+#13#10+
+    '};'+#13#10+
+{$endif}
     f0+
     'void main(){'+#13#10+
     f1+
@@ -220,6 +228,9 @@ begin
     '    tangent += morphTargetVertices[morphTargetVertexIndex].tangent.xyz * morphTargetWeight;'+#13#10+
     '  }'+#13#10+
     '  mat4 modelMatrix = uFrameGlobals.modelMatrix * nodeMatrix'+f2+';'+#13#10+
+{$ifdef PasGLTFUseExternalData}
+    '  modelMatrix = externalModelMatrix * modelMatrix;'+#13#10+
+{$endif}
     '  mat3 normalMatrix = transpose(inverse(mat3(modelMatrix)));'+#13#10+
     '  vNormal = normalize(normalMatrix * normal);'+#13#10+
     '  vTangent = normalize(normalMatrix * tangent);'+#13#10+
