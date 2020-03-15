@@ -5607,23 +5607,27 @@ var LightZFar:TPasGLTFFloat;
    glBindFrameBuffer(GL_FRAMEBUFFER,0);
   end;
  end;
- function GetSpotLightShadowMapMatrix(const aLightPosition,aLightDirection:TPasGLTF.TVector3;const aRange:TPasGLTFFloat;const aAABB:TAABB):TPasGLTF.TMatrix4x4;
+ function GetSpotLightShadowMapMatrix(const aLightPosition,aLightDirection:TPasGLTF.TVector3;const aRange,aFOV:TPasGLTFFloat;const aAABB:TAABB):TPasGLTF.TMatrix4x4;
  const DEG2RAD=PI/180;
-       AspectRatio=1.0;
-       InverseAspectRatio=1.0/AspectRatio;
+       RAD2DEG=180/PI;
  var ViewMatrix,ProjectionMatrix:TPasGLTF.TMatrix4x4;
-     ZNear,ZFar,f:TPasGLTFFloat;
+     ZNear,ZFar,f,a,b:TPasGLTFFloat;
+     UpVector:TVector3;
  begin
-  ZNear:=1e-2;
+  ZNear:=0.1;
   if aRange>1e-4 then begin
    ZFar:=Max(1.0,aRange);
   end else begin
    ZFar:=Max(1.0,sqrt(sqr(aAABB.Max[0]-aAABB.Min[0])+sqr(aAABB.Max[1]-aAABB.Min[1])+sqr(aAABB.Max[2]-aAABB.Min[2])));
   end;
+  UpVector:=Vector3(0.0,1.0,0.0);
+  if abs(Vector3Dot(UpVector,aLightPosition))>0.9 then begin
+   UpVector:=Vector3(0.0,0.0,1.0);
+  end;
   LightZFar:=ZFar;
-  ViewMatrix:=MatrixLookAt(aLightPosition,Vector3Add(aLightPosition,aLightDirection),Vector3(0.0,1.0,0.0));
-  f:=1.0/tan(45.0*DEG2RAD*0.5);
-  ProjectionMatrix[0]:=f*InverseAspectRatio;
+  ViewMatrix:=MatrixLookAt(aLightPosition,Vector3Add(aLightPosition,aLightDirection),UpVector);
+  f:=1.0/tan(Min(Max((aFOV*RAD2DEG)*2.0,10.0),170.0)*DEG2RAD*0.5);
+  ProjectionMatrix[0]:=f;
   ProjectionMatrix[1]:=0.0;
   ProjectionMatrix[2]:=0.0;
   ProjectionMatrix[3]:=0.0;
@@ -5657,7 +5661,7 @@ var LightZFar:TPasGLTFFloat;
  var ViewMatrix,ProjectionMatrix:TPasGLTF.TMatrix4x4;
      ZNear,ZFar,f:TPasGLTFFloat;
  begin
-  ZNear:=1e-2;
+  ZNear:=0.1;
   if aRange>1e-4 then begin
    ZFar:=Max(1.0,aRange);
   end else begin
@@ -5731,7 +5735,7 @@ begin
         ShadowMapMatrix:=GetDirectionalLightShadowMapMatrix(Direction,AABB,AABB);
        end;
        TGLTFOpenGL.TLightDataType.Spot:begin
-        ShadowMapMatrix:=GetSpotLightShadowMapMatrix(Position,Direction,Light^.Range,AABB);
+        ShadowMapMatrix:=GetSpotLightShadowMapMatrix(Position,Direction,Light^.Range,Light^.OuterConeAngle,AABB);
        end;
        else begin
         ShadowMapMatrix:=TPasGLTF.TDefaults.IdentityMatrix4x4;
