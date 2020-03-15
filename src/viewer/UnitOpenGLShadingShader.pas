@@ -656,15 +656,16 @@ begin
      '            }'+#13#10+
      '            case 3u:{'+#13#10+ // Spot
 {$if true}
-     '              float angularAttenuation = clamp(fma(dot(normalize(light.directionZFar.xyz), normalize(-lightVector)), uintBitsToFloat(light.metaData.z), uintBitsToFloat(light.metaData.w)), 0.0, 1.0);'+#13#10+
+     '              float angularAttenuation = clamp(fma(dot(normalize(lightDirection), normalize(-lightVector)), uintBitsToFloat(light.metaData.z), uintBitsToFloat(light.metaData.w)), 0.0, 1.0);'+#13#10+
 {$else}
      // Just for as reference
      '              float innerConeCosinus = uintBitsToFloat(light.metaData.z);'+#13#10+
      '              float outerConeCosinus = uintBitsToFloat(light.metaData.w);'+#13#10+
-     '              float actualCosinus = dot(normalize(light.directionZFar.xyz), normalize(-lightVector));'+#13#10+
+     '              float actualCosinus = dot(normalize(lightDirection), normalize(-lightVector));'+#13#10+
      '              float angularAttenuation = mix(0.0, mix(smoothstep(outerConeCosinus, innerConeCosinus, actualCosinus), 1.0, step(innerConeCosinus, actualCosinus)), step(outerConeCosinus, actualCosinus));'+#13#10+
 {$ifend}
      '              lightAttenuation *= angularAttenuation * angularAttenuation;'+#13#10+
+     '              lightDirection = -lightVector;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '            default:{'+#13#10+

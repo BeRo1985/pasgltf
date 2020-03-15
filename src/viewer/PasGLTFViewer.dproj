@@ -267,6 +267,7 @@
         <DCC_DebugInfoInExe>true</DCC_DebugInfoInExe>
         <Manifest_File>None</Manifest_File>
         <DCC_RemoteDebug>true</DCC_RemoteDebug>
+        <Debugger_RunParams>&quot;d:\Dropbox\creativetoolkit\trunk\projects\UC10_Invitation\scene_wohnzimmer.glb&quot;</Debugger_RunParams>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

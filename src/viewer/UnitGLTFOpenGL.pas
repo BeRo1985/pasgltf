@@ -535,6 +535,8 @@ type EGLTFOpenGL=class(Exception);
              // uvec4 MetaData; begin
               Type_:TPasGLTFUInt32;
               ShadowMapIndex:TPasGLTFUInt32;
+{             InnerConeCosinus:TPasGLTFFloat;
+              OuterConeCosinus:TPasGLTFFloat;}
               LightAngleScale:TPasGLTFFloat;
               LightAngleOffset:TPasGLTFFloat;
              // uvec4 MetaData; end
@@ -3654,6 +3656,8 @@ var AllVertices:TAllVertices;
    end else begin
     LightShaderStorageBufferObjectDataItem^.ShadowMapIndex:=TPasGLTFUInt32($ffffffff);
    end;
+  {LightShaderStorageBufferObjectDataItem^.InnerConeCosinus:=InnerConeAngleCosinus;
+   LightShaderStorageBufferObjectDataItem^.OuterConeCosinus:=OuterConeAngleCosinus;}
    LightShaderStorageBufferObjectDataItem^.LightAngleScale:=1.0/Max(1e-5,InnerConeAngleCosinus-OuterConeAngleCosinus);
    LightShaderStorageBufferObjectDataItem^.LightAngleOffset:=-(OuterConeAngleCosinus*LightShaderStorageBufferObjectDataItem^.LightAngleScale);
    LightShaderStorageBufferObjectDataItem^.ColorIntensity[0]:=Light^.Color[0];

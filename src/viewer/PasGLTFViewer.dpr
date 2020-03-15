@@ -5,6 +5,7 @@ program PasGLTFViewer;
 {$ifdef profiledebug}
  {$apptype console}
 {$endif}
+ {$apptype console}
 {$ifdef win32}
  {$define windows}
 {$endif}
