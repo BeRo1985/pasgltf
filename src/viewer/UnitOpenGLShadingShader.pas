@@ -614,8 +614,9 @@ begin
      '        for(int lightIndex = 0, lightCount = int(lightMetaData.x); lightIndex < lightCount; lightIndex++){'+#13#10+
      '          Light light = lights[lightIndex];'+#13#10+
      '          float lightAttenuation = 1.0;'+#13#10+
-     '          vec3 lightDirection = light.directionZFar.xyz;'+#13#10+
+     '          vec3 lightDirection;'+#13#10+
      '          vec3 lightVector = light.positionRange.xyz - vWorldSpacePosition.xyz;'+#13#10+
+     '          vec3 normalizedLightVector = normalize(lightVector);'+#13#10+
      '          if((uShadows != 0) && ((light.metaData.y & 0x80000000u) == 0u)){'+#13#10+
      '            switch(light.metaData.x){'+#13#10+
      '              case 1u:'+#13#10+  // Directional
@@ -650,22 +651,26 @@ begin
      '            }'+#13#10+
      '          }'+#13#10+
      '          switch(light.metaData.x){'+#13#10+
-     '            case 1u:'+#13#10+  // Directional
+     '            case 1u:{'+#13#10+  // Directional
+     '              lightDirection = -light.directionZFar.xyz;'+#13#10+
+     '              break;'+#13#10+
+     '            }'+#13#10+
      '            case 2u:{'+#13#10+ // Point
+     '              lightDirection = normalizedLightVector;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '            case 3u:{'+#13#10+ // Spot
 {$if true}
-     '              float angularAttenuation = clamp(fma(dot(normalize(lightDirection), normalize(-lightVector)), uintBitsToFloat(light.metaData.z), uintBitsToFloat(light.metaData.w)), 0.0, 1.0);'+#13#10+
+     '              float angularAttenuation = clamp(fma(dot(normalize(light.directionZFar.xyz), -normalizedLightVector), uintBitsToFloat(light.metaData.z), uintBitsToFloat(light.metaData.w)), 0.0, 1.0);'+#13#10+
 {$else}
      // Just for as reference
      '              float innerConeCosinus = uintBitsToFloat(light.metaData.z);'+#13#10+
      '              float outerConeCosinus = uintBitsToFloat(light.metaData.w);'+#13#10+
-     '              float actualCosinus = dot(normalize(lightDirection), normalize(-lightVector));'+#13#10+
+     '              float actualCosinus = dot(normalize(light.directionZFar.xyz), -normalizedLightVector);'+#13#10+
      '              float angularAttenuation = mix(0.0, mix(smoothstep(outerConeCosinus, innerConeCosinus, actualCosinus), 1.0, step(innerConeCosinus, actualCosinus)), step(outerConeCosinus, actualCosinus));'+#13#10+
 {$ifend}
      '              lightAttenuation *= angularAttenuation * angularAttenuation;'+#13#10+
-     '              lightDirection = -lightVector;'+#13#10+
+     '              lightDirection = normalizedLightVector;'+#13#10+
      '              break;'+#13#10+
      '            }'+#13#10+
      '            default:{'+#13#10+
@@ -691,7 +696,7 @@ begin
      '          if(lightAttenuation > 0.0){'+#13#10+
      '            doSingleLight(light.colorIntensity.xyz * light.colorIntensity.w,'+#13#10+
      '                          vec3(lightAttenuation),'+#13#10+
-     '                          -lightDirection,'+#13#10+
+     '                          lightDirection,'+#13#10+
      '                          normal.xyz,'+#13#10+
      '                          diffuseColorAlpha.xyz,'+#13#10+
      '                          specularColorRoughness.xyz,'+#13#10+
