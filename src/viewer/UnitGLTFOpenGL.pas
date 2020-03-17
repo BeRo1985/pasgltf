@@ -2920,6 +2920,7 @@ begin
   LoadMaterials;
   LoadMeshes;
   LoadSkins;
+  LoadCameras;
   LoadNodes;
   LoadScenes;
   ProcessScenes;
@@ -4934,7 +4935,7 @@ begin
  if result then begin
   Camera:=@fParent.fCameras[fParent.fNodes[aNodeIndex].Camera];
   NodeMatrix:=fNodes[aNodeIndex].WorkMatrix;
-  aViewMatrix:=NodeMatrix;
+  aViewMatrix:=MatrixInverse(NodeMatrix);
   case Camera.Type_ of
    TPasGLTF.TCamera.TType.Orthographic:begin
     aProjectionMatrix[0]:=2.0/Camera^.XMag;
@@ -4955,7 +4956,7 @@ begin
     aProjectionMatrix[15]:=1.0;
    end;
    TPasGLTF.TCamera.TType.Perspective:begin
-    f:=1.0/tan(Camera^.YFov*DEG2RAD*0.5);
+    f:=1.0/tan(Camera^.YFov*0.5);
     aProjectionMatrix[0]:=f/Camera^.AspectRatio;
     aProjectionMatrix[1]:=0.0;
     aProjectionMatrix[2]:=0.0;

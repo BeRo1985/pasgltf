@@ -3280,10 +3280,10 @@ end;
 constructor TPasGLTF.TCamera.TPerspective.Create(const aDocument:TDocument);
 begin
  inherited Create(aDocument);
- fAspectRatio:=0.0;
- fYFov:=0.0;
- fZNear:=0.0;
- fZFar:=0.0;
+ fAspectRatio:=1.778;
+ fYFov:=0.252;
+ fZNear:=0.1;
+ fZFar:=1000.0;
  fEmpty:=false;
 end;
 
