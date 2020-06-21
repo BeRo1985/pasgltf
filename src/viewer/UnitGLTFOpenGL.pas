@@ -5052,7 +5052,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
         end;
         if DepthWriteMaskState<>1 then begin
          DepthWriteMaskState:=1;
-         glDepthMask(true);
+         glDepthMask(GL_TRUE);
         end;
        end;
        TPasGLTF.TMaterial.TAlphaMode.Mask:begin
@@ -5062,7 +5062,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
         end;
         if DepthWriteMaskState<>1 then begin
          DepthWriteMaskState:=1;
-         glDepthMask(true);
+         glDepthMask(GL_TRUE);
         end;
        end;
        TPasGLTF.TMaterial.TAlphaMode.Blend:begin
@@ -5073,7 +5073,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
         end;
         if DepthWriteMaskState<>0 then begin
          DepthWriteMaskState:=0;
-         glDepthMask(false);
+         glDepthMask(GL_TRUE);
         end;
        end;
        else begin
@@ -5168,7 +5168,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
       end;
       if DepthWriteMaskState<>1 then begin
        DepthWriteMaskState:=1;
-       glDepthMask(true);
+       glDepthMask(GL_TRUE);
       end;
       if CullFaceState<>1 then begin
        CullFaceState:=1;
@@ -5381,7 +5381,7 @@ begin
   CurrentSkinShaderStorageBufferObjectHandle:=0;
   UpdateFrameGlobalsUniformBufferObject;
   UpdateLights;
-  PreviousDepthWriteMask:=false;
+  PreviousDepthWriteMask:=GL_FALSE;
   glGetBooleanv(GL_DEPTH_WRITEMASK,@PreviousDepthWriteMask);
   glBindVertexArray(fParent.fVertexArrayHandle);
   glBindBuffer(GL_ARRAY_BUFFER,fParent.fVertexBufferObjectHandle);
@@ -5421,7 +5421,7 @@ begin
   glBindBuffer(GL_ARRAY_BUFFER,0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
   glActiveTexture(GL_TEXTURE0);
-  if (DepthWriteMaskState>=0) and ((DepthWriteMaskState<>0)<>PreviousDepthWriteMask) then begin
+  if (DepthWriteMaskState>=0) and ((DepthWriteMaskState<>0)<>(PreviousDepthWriteMask<>GL_FALSE)) then begin
    glDepthMask(PreviousDepthWriteMask);
   end;
  end;
