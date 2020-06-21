@@ -5073,7 +5073,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
         end;
         if DepthWriteMaskState<>0 then begin
          DepthWriteMaskState:=0;
-         glDepthMask(GL_TRUE);
+         glDepthMask(GL_FALSE);
         end;
        end;
        else begin
