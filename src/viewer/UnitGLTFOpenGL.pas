@@ -5005,7 +5005,7 @@ procedure TGLTFOpenGL.TInstance.Draw(const aModelMatrix:TPasGLTF.TMatrix4x4;
 var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
     CurrentShader:TShader;
     CurrentSkinShaderStorageBufferObjectHandle:glUInt;
-    CullFace,Blend:TPasGLTFInt32;
+    CullFaceState,BlendState,DepthWriteMaskState:TPasGLTFInt32;
  procedure UseShader(const aShader:TShader);
  begin
   if CurrentShader<>aShader then begin
@@ -5046,22 +5046,34 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      if Material^.AlphaMode=aAlphaMode then begin
       case aAlphaMode of
        TPasGLTF.TMaterial.TAlphaMode.Opaque:begin
-        if Blend<>0 then begin
-         Blend:=0;
+        if BlendState<>0 then begin
+         BlendState:=0;
          glDisable(GL_BLEND);
+        end;
+        if DepthWriteMaskState<>1 then begin
+         DepthWriteMaskState:=1;
+         glDepthMask(true);
         end;
        end;
        TPasGLTF.TMaterial.TAlphaMode.Mask:begin
-        if Blend<>0 then begin
-         Blend:=0;
+        if BlendState<>0 then begin
+         BlendState:=0;
          glDisable(GL_BLEND);
+        end;
+        if DepthWriteMaskState<>1 then begin
+         DepthWriteMaskState:=1;
+         glDepthMask(true);
         end;
        end;
        TPasGLTF.TMaterial.TAlphaMode.Blend:begin
-        if Blend<>1 then begin
-         Blend:=1;
+        if BlendState<>1 then begin
+         BlendState:=1;
          glEnable(GL_BLEND);
          glBlendFuncSeparate(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA,GL_ONE,GL_ONE_MINUS_SRC_ALPHA);
+        end;
+        if DepthWriteMaskState<>0 then begin
+         DepthWriteMaskState:=0;
+         glDepthMask(false);
         end;
        end;
        else begin
@@ -5069,13 +5081,13 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
        end;
       end;
       if Material^.DoubleSided then begin
-       if CullFace<>0 then begin
-        CullFace:=0;
+       if CullFaceState<>0 then begin
+        CullFaceState:=0;
         glDisable(GL_CULL_FACE);
        end;
       end else begin
-       if CullFace<>1 then begin
-        CullFace:=1;
+       if CullFaceState<>1 then begin
+        CullFaceState:=1;
         glEnable(GL_CULL_FACE);
        end;
       end;
@@ -5150,12 +5162,16 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      end;
     end else begin
      if aAlphaMode=TPasGLTF.TMaterial.TAlphaMode.Opaque then begin
-      if Blend<>0 then begin
-       Blend:=0;
+      if BlendState<>0 then begin
+       BlendState:=0;
        glDisable(GL_BLEND);
       end;
-      if CullFace<>1 then begin
-       CullFace:=1;
+      if DepthWriteMaskState<>1 then begin
+       DepthWriteMaskState:=1;
+       glDepthMask(true);
+      end;
+      if CullFaceState<>1 then begin
+       CullFaceState:=1;
        glEnable(GL_CULL_FACE);
       end;
       glBindBufferRange(GL_UNIFORM_BUFFER,
@@ -5276,7 +5292,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      glBindBufferBase(GL_SHADER_STORAGE_BUFFER,
                       TShadingShader.ssboJointMatrices,
                       SkinShaderStorageBufferObject^.ShaderStorageBufferObjectHandle);
-    enD;
+    end;
     ShadingShader:=SkinnedShadingShader;
    end else begin
     ShadingShader:=NonSkinnedShadingShader;
@@ -5358,18 +5374,22 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
 var Index:TPasGLTFSizeInt;
     Scene:PScene;
     AlphaMode:TPasGLTF.TMaterial.TAlphaMode;
+    PreviousDepthWriteMask:TGLboolean;
 begin
  Scene:=GetScene;
  if assigned(Scene) then begin
   CurrentSkinShaderStorageBufferObjectHandle:=0;
   UpdateFrameGlobalsUniformBufferObject;
   UpdateLights;
+  PreviousDepthWriteMask:=false;
+  glGetBooleanv(GL_DEPTH_WRITEMASK,@PreviousDepthWriteMask);
   glBindVertexArray(fParent.fVertexArrayHandle);
   glBindBuffer(GL_ARRAY_BUFFER,fParent.fVertexBufferObjectHandle);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,fParent.fIndexBufferObjectHandle);
   glCullFace(GL_BACK);
-  CullFace:=-1;
-  Blend:=-1;
+  CullFaceState:=-1;
+  BlendState:=-1;
+  DepthWriteMaskState:=-1;
   CurrentShader:=nil;
   for AlphaMode:=TPasGLTF.TMaterial.TAlphaMode.Opaque to TPasGLTF.TMaterial.TAlphaMode.Blend do begin
    if (aAlphaModes=[]) or (AlphaMode in aAlphaModes) then begin
@@ -5401,6 +5421,9 @@ begin
   glBindBuffer(GL_ARRAY_BUFFER,0);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,0);
   glActiveTexture(GL_TEXTURE0);
+  if (DepthWriteMaskState>=0) and ((DepthWriteMaskState<>0)<>PreviousDepthWriteMask) then begin
+   glDepthMask(PreviousDepthWriteMask);
+  end;
  end;
 end;
 
