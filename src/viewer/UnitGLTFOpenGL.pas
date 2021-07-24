@@ -113,6 +113,7 @@ type EGLTFOpenGL=class(Exception);
                    PSkin=^TSkin;
                    TSkins=array of TSkin;
                    TNodeIndices=array of TPasGLTFSizeInt;
+                   TOnNodeMatrix=procedure(const aInstance:TInstance;aNode,InstanceNode:pointer;var Matrix:TPasGLTF.TMatrix4x4) of object;
              private
               fParent:TGLTFOpenGL;
               fScene:TPasGLTFSizeInt;
@@ -126,6 +127,9 @@ type EGLTFOpenGL=class(Exception);
               fLightShadowMapZFarValues:TPasGLTFFloatDynamicArray;
               fDynamicBoundingBox:TBoundingBox;
               fWorstCaseStaticBoundingBox:TBoundingBox;
+              fUserData:pointer;
+              fOnNodeMatrixPre:TOnNodeMatrix;
+              fOnNodeMatrixPost:TOnNodeMatrix;
               function GetAutomation(const aIndex:TPasGLTFSizeInt):TAnimation;
               procedure SetAnimation(const aAnimation:TPasGLTFSizeInt);
               procedure SetScene(const aScene:TPasGLTFSizeInt);
@@ -180,9 +184,12 @@ type EGLTFOpenGL=class(Exception);
               property Skins:TSkins read fSkins;
               property DynamicBoundingBox:TBoundingBox read fDynamicBoundingBox;
               property WorstCaseStaticBoundingBox:TBoundingBox read fWorstCaseStaticBoundingBox;
+              property UserData:pointer read fUserData write fUserData;
              published
               property Parent:TGLTFOpenGL read fParent;
               property Automations[const aIndex:TPasGLTFSizeInt]:TAnimation read GetAutomation;
+              property OnNodeMatrixPre:TOnNodeMatrix read fOnNodeMatrixPre write fOnNodeMatrixPre;
+              property OnNodeMatrixPost:TOnNodeMatrix read fOnNodeMatrixPost write fOnNodeMatrixPost;
             end;
             TAnimation=record
              public
@@ -4657,14 +4664,18 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
    end;
   end;
   Matrix:=MatrixMul(
-           MatrixMul(
+            MatrixFromScale(Scale),
             MatrixMul(
-             MatrixFromScale(Scale),
-             MatrixMul(
-              MatrixFromRotation(Rotation),
-              MatrixFromTranslation(Translation))),
-            Node^.Matrix),
-           aMatrix);
+             MatrixFromRotation(Rotation),
+             MatrixFromTranslation(Translation)));
+  if assigned(fOnNodeMatrixPre) then begin
+   fOnNodeMatrixPre(self,Node,InstanceNode,Matrix);
+  end;
+  Matrix:=MatrixMul(Matrix,Node^.Matrix);
+  if assigned(fOnNodeMatrixPost) then begin
+   fOnNodeMatrixPost(self,Node,InstanceNode,Matrix);
+  end;
+  Matrix:=MatrixMul(Matrix,aMatrix);
   InstanceNode^.WorkMatrix:=Matrix;
   if (Node^.Mesh>=0) and (Node^.Mesh<length(fParent.fMeshes)) then begin
    if (fAnimation>=0) and (Node^.Skin>=0) and (Node^.Skin<length(fSkins)) then begin
