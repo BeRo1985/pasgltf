@@ -30,6 +30,14 @@ type EGLTFOpenGL=class(Exception);
              EnvironmentMapTextureUnit=GL_TEXTURE3;
              BaseTextureUnit=GL_TEXTURE4;
        type TGetURI=function(const aURI:TPasGLTFUTF8String):TStream of object;
+            TVector3Sum=record
+             x,y,z,FactorSum:TPasGLTFDouble;
+            end;
+            PVector3Sum=^TVector3Sum;
+            TVector4Sum=record
+             x,y,z,w,FactorSum:TPasGLTFDouble;
+            end;
+            PVector4Sum=^TVector4Sum;
             TBoundingBox=record
              case boolean of
               false:(
@@ -47,24 +55,53 @@ type EGLTFOpenGL=class(Exception);
             end;
             PScene=^TScene;
             TScenes=array of TScene;
+            { TInstance }
             TInstance=class
              public
-              type TNode=record
+              type { TAnimation }
+                   TAnimation=class
+                    private
+                     fFactor:TPasGLTFFloat;
+                     fTime:TPasGLTFFloat;
+                    public
+                     constructor Create; reintroduce;
+                     destructor Destroy; override;
+                    published
+                     property Factor:TPasGLTFFloat read fFactor write fFactor;
+                     property Time:TPasGLTFFloat read fTime write fTime;
+                   end;
+                   TAnimations=array of TAnimation;
+                   TNode=record
                     public
                      type TOverwriteFlag=
                            (
+                            Defaults,
                             Translation,
                             Rotation,
                             Scale,
                             Weights
                            );
                           TOverwriteFlags=set of TOverwriteFlag;
+                          TOverwrite=record
+                           public
+                            Flags:TOverwriteFlags;
+                            Translation:TPasGLTF.TVector3;
+                            Rotation:TPasGLTF.TVector4;
+                            Scale:TPasGLTF.TVector3;
+                            Weights:TPasGLTFFloatDynamicArray;
+                            Factor:TPasGLTFFloat;
+                          end;
+                          POverwrite=^TOverwrite;
+                          TOverwrites=array of TOverwrite;
                     public
+                     Overwrites:TOverwrites;
+                     CountOverwrites:TPasGLTFSizeInt;
                      OverwriteFlags:TOverwriteFlags;
                      OverwriteTranslation:TPasGLTF.TVector3;
                      OverwriteRotation:TPasGLTF.TVector4;
                      OverwriteScale:TPasGLTF.TVector3;
                      OverwriteWeights:TPasGLTFFloatDynamicArray;
+                     OverwriteWeightsSum:TPasGLTFDoubleDynamicArray;
                      WorkWeights:TPasGLTFFloatDynamicArray;
                      WorkMatrix:TPasGLTF.TMatrix4x4;
                    end;
@@ -79,6 +116,7 @@ type EGLTFOpenGL=class(Exception);
              private
               fParent:TGLTFOpenGL;
               fScene:TPasGLTFSizeInt;
+              fAnimations:TAnimations;
               fAnimation:TPasGLTFSizeInt;
               fAnimationTime:TPasGLTFFloat;
               fNodes:TNodes;
@@ -88,8 +126,9 @@ type EGLTFOpenGL=class(Exception);
               fLightShadowMapZFarValues:TPasGLTFFloatDynamicArray;
               fDynamicBoundingBox:TBoundingBox;
               fWorstCaseStaticBoundingBox:TBoundingBox;
-              procedure SetScene(const aScene:TPasGLTFSizeInt);
+              function GetAutomation(const aIndex:TPasGLTFSizeInt):TAnimation;
               procedure SetAnimation(const aAnimation:TPasGLTFSizeInt);
+              procedure SetScene(const aScene:TPasGLTFSizeInt);
               function GetScene:TGLTFOpenGL.PScene;
              public
               constructor Create(const aParent:TGLTFOpenGL); reintroduce;
@@ -143,6 +182,7 @@ type EGLTFOpenGL=class(Exception);
               property WorstCaseStaticBoundingBox:TBoundingBox read fWorstCaseStaticBoundingBox;
              published
               property Parent:TGLTFOpenGL read fParent;
+              property Automations[const aIndex:TPasGLTFSizeInt]:TAnimation read GetAutomation;
             end;
             TAnimation=record
              public
@@ -4079,10 +4119,24 @@ begin
  result:=TGLTFOpenGL.TInstance.Create(self);
 end;
 
+{ TGLTFOpenGL.TInstance.TAnimation }
+
+constructor TGLTFOpenGL.TInstance.TAnimation.Create;
+begin
+ inherited Create;
+ fFactor:=-1.0;
+ fTime:=0.0;
+end;
+
+destructor TGLTFOpenGL.TInstance.TAnimation.Destroy;
+begin
+ inherited Destroy;
+end;
+
 { TGLTFOpenGL.TInstance }
 
 constructor TGLTFOpenGL.TInstance.Create(const aParent:TGLTFOpenGL);
-var Index:TPasGLTFSizeInt;
+var Index,OtherIndex:TPasGLTFSizeInt;
     InstanceNode:TGLTFOpenGL.TInstance.PNode;
     Node:TGLTFOpenGL.PNode;
 begin
@@ -4092,6 +4146,7 @@ begin
  fAnimation:=-1;
  fNodes:=nil;
  fSkins:=nil;
+ fAnimations:=nil;
  SetLength(fNodes,length(fParent.fNodes));
  SetLength(fSkins,length(fParent.fSkins));
  SetLength(fLightNodes,length(fParent.fLights));
@@ -4105,19 +4160,38 @@ begin
   Node:=@fParent.fNodes[Index];
   SetLength(InstanceNode^.WorkWeights,length(Node^.Weights));
   SetLength(InstanceNode^.OverwriteWeights,length(Node^.Weights));
+  SetLength(InstanceNode^.OverwriteWeightsSum,length(Node^.Weights));
+  SetLength(InstanceNode^.Overwrites,length(aParent.Animations)+1);
+  for OtherIndex:=0 to length(aParent.Animations) do begin
+   SetLength(InstanceNode^.Overwrites[OtherIndex].Weights,length(Node^.Weights));
+  end;
+ end;
+ SetLength(fAnimations,length(fParent.fAnimations)+1);
+ for Index:=0 to length(fAnimations)-1 do begin
+  fAnimations[Index]:=TGLTFOpenGL.TInstance.TAnimation.Create;
  end;
 end;
 
 destructor TGLTFOpenGL.TInstance.Destroy;
+var Index:TPasGLTFSizeInt;
 begin
+ for Index:=0 to length(fAnimations)-1 do begin
+  FreeAndNil(fAnimations[Index]);
+ end;
  fNodes:=nil;
  fSkins:=nil;
+ fAnimations:=nil;
  inherited Destroy;
 end;
 
 procedure TGLTFOpenGL.TInstance.SetScene(const aScene:TPasGLTFSizeInt);
 begin
  fScene:=Min(Max(aScene,-1),length(fParent.fScenes)-1);
+end;
+
+function TGLTFOpenGL.TInstance.GetAutomation(const aIndex:TPasGLTFSizeInt):TGLTFOpenGL.TInstance.TAnimation;
+begin
+ result:=fAnimations[aIndex+1];
 end;
 
 procedure TGLTFOpenGL.TInstance.SetAnimation(const aAnimation:TPasGLTFSizeInt);
@@ -4156,12 +4230,30 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
  begin
   InstanceNode:=@fNodes[aNodeIndex];
   Node:=@fParent.fNodes[aNodeIndex];
+  InstanceNode^.CountOverwrites:=0;
   InstanceNode^.OverwriteFlags:=[];
   for Index:=0 to length(Node^.Children)-1 do begin
    ResetNode(Node^.Children[Index]);
   end;
  end;
- procedure ProcessAnimation(const aAnimationIndex:TPasGLTFSizeInt);
+ procedure ProcessBaseOverwrite(const aFactor:TPasGLTFFloat);
+ var Index:TPasGLTFSizeInt;
+     InstanceNode:TGLTFOpenGL.TInstance.PNode;
+     Overwrite:TGLTFOpenGL.TInstance.TNode.POverwrite;
+ begin
+  if aFactor>=-0.5 then begin
+   for Index:=0 to length(fParent.fNodes)-1 do begin
+    InstanceNode:=@fNodes[Index];
+    if InstanceNode^.CountOverwrites<length(InstanceNode^.Overwrites) then begin
+     Overwrite:=@InstanceNode^.Overwrites[InstanceNode^.CountOverwrites];
+     Overwrite^.Flags:=[TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Defaults];
+     Overwrite^.Factor:=Max(aFactor,0.0);
+     inc(InstanceNode^.CountOverwrites);
+    end;
+   end;
+  end;
+ end;
+ procedure ProcessAnimation(const aAnimationIndex:TPasGLTFSizeInt;const aAnimationTime:TPasGLTFFloat;const aFactor:TPasGLTFFloat);
  var ChannelIndex,
      InputTimeArrayIndex,
      WeightIndex,
@@ -4177,6 +4269,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
      Vector3s:array[0..1] of TPasGLTF.PVector3;
      Vector4s:array[0..1] of TPasGLTF.PVector4;
      TimeIndices:array[0..1] of TPasGLTFSizeInt;
+     Overwrite:TGLTFOpenGL.TInstance.TNode.POverwrite;
  begin
 
   Animation:=@fParent.fAnimations[aAnimationIndex];
@@ -4189,7 +4282,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
 
     TimeIndices[1]:=length(AnimationChannel^.InputTimeArray)-1;
 
-    Time:=Min(Max(AnimationTime,AnimationChannel^.InputTimeArray[0]),AnimationChannel^.InputTimeArray[TimeIndices[1]]);
+    Time:=Min(Max(aAnimationTime,AnimationChannel^.InputTimeArray[0]),AnimationChannel^.InputTimeArray[TimeIndices[1]]);
 
     if (AnimationChannel^.Last<=0) or (Time<AnimationChannel^.InputTimeArray[AnimationChannel.Last-1]) then begin
      l:=0;
@@ -4250,21 +4343,30 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
 
      Node:=@fNodes[AnimationChannel^.Node];
 
+     if (aFactor>=-0.5) and (Node^.CountOverwrites<length(Node^.Overwrites)) then begin
+      Overwrite:=@Node^.Overwrites[Node^.CountOverwrites];
+      Overwrite^.Flags:=[];
+      Overwrite^.Factor:=Max(aFactor,0.0);
+      inc(Node^.CountOverwrites);
+     end else begin
+      Overwrite:=nil;
+     end;
+
      case AnimationChannel^.Target of
-      TAnimation.TChannel.TTarget.Translation,
-      TAnimation.TChannel.TTarget.Scale:begin
+      TGLTFOpenGL.TAnimation.TChannel.TTarget.Translation,
+      TGLTFOpenGL.TAnimation.TChannel.TTarget.Scale:begin
        case AnimationChannel^.Interpolation of
-        TAnimation.TChannel.TInterpolation.Linear:begin
+        TGLTFOpenGL.TAnimation.TChannel.TInterpolation.Linear:begin
          Vector3s[0]:=@AnimationChannel^.OutputVector3Array[TimeIndices[0]];
          Vector3s[1]:=@AnimationChannel^.OutputVector3Array[TimeIndices[1]];
          Vector3[0]:=(Vector3s[0]^[0]*(1.0-Factor))+(Vector3s[1]^[0]*Factor);
          Vector3[1]:=(Vector3s[0]^[1]*(1.0-Factor))+(Vector3s[1]^[1]*Factor);
          Vector3[2]:=(Vector3s[0]^[2]*(1.0-Factor))+(Vector3s[1]^[2]*Factor);
         end;
-        TAnimation.TChannel.TInterpolation.Step:begin
+        TGLTFOpenGL.TAnimation.TChannel.TInterpolation.Step:begin
          Vector3:=AnimationChannel^.OutputVector3Array[TimeIndices[0]];
         end;
-        TAnimation.TChannel.TInterpolation.CubicSpline:begin
+        TGLTFOpenGL.TAnimation.TChannel.TInterpolation.CubicSpline:begin
          SqrFactor:=sqr(Factor);
          CubeFactor:=SqrFactor*Factor;
          Vector3:=Vector3Add(Vector3Add(Vector3Add(Vector3Scale(AnimationChannel^.OutputVector3Array[(TimeIndices[0]*3)+1],((2.0*CubeFactor)-(3.0*SqrFactor))+1.0),
@@ -4277,27 +4379,37 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
         end;
        end;
        case AnimationChannel^.Target of
-        TAnimation.TChannel.TTarget.Translation:begin
-         Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Translation);
-         Node^.OverwriteTranslation:=Vector3;
+        TGLTFOpenGL.TAnimation.TChannel.TTarget.Translation:begin
+         if assigned(Overwrite) then begin
+          Include(Overwrite^.Flags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Translation);
+          Overwrite^.Translation:=Vector3;
+         end else begin
+          Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Translation);
+          Node^.OverwriteTranslation:=Vector3;
+         end;
         end;
-        TAnimation.TChannel.TTarget.Scale:begin
-         Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Scale);
-         Node^.OverwriteScale:=Vector3;
+        TGLTFOpenGL.TAnimation.TChannel.TTarget.Scale:begin
+         if assigned(Overwrite) then begin
+          Include(Overwrite^.Flags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Scale);
+          Overwrite^.Scale:=Vector3;
+         end else begin
+          Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Scale);
+          Node^.OverwriteScale:=Vector3;
+         end;
         end;
        end;
       end;
-      TAnimation.TChannel.TTarget.Rotation:begin
+      TGLTFOpenGL.TAnimation.TChannel.TTarget.Rotation:begin
        case AnimationChannel^.Interpolation of
-        TAnimation.TChannel.TInterpolation.Linear:begin
+        TGLTFOpenGL.TAnimation.TChannel.TInterpolation.Linear:begin
          Vector4:=QuaternionSlerp(AnimationChannel^.OutputVector4Array[TimeIndices[0]],
                                   AnimationChannel^.OutputVector4Array[TimeIndices[1]],
                                   Factor);
         end;
-        TAnimation.TChannel.TInterpolation.Step:begin
+        TGLTFOpenGL.TAnimation.TChannel.TInterpolation.Step:begin
          Vector4:=AnimationChannel^.OutputVector4Array[TimeIndices[0]];
         end;
-        TAnimation.TChannel.TInterpolation.CubicSpline:begin
+        TGLTFOpenGL.TAnimation.TChannel.TInterpolation.CubicSpline:begin
          SqrFactor:=sqr(Factor);
          CubeFactor:=SqrFactor*Factor;
          Vector4:=Vector4Normalize(QuaternionAdd(QuaternionAdd(QuaternionAdd(QuaternionScalarMul(AnimationChannel^.OutputVector4Array[(TimeIndices[0]*3)+1],((2.0*CubeFactor)-(3.0*SqrFactor))+1.0),
@@ -4309,39 +4421,73 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
          Assert(false);
         end;
        end;
-       Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Rotation);
-       Node^.OverwriteRotation:=Vector4;
+       if assigned(Overwrite) then begin
+        Include(Overwrite^.Flags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Rotation);
+        Overwrite^.Rotation:=Vector4;
+       end else begin
+        Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Rotation);
+        Node^.OverwriteRotation:=Vector4;
+       end;
       end;
-      TAnimation.TChannel.TTarget.Weights:begin
-       Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Weights);
+      TGLTFOpenGL.TAnimation.TChannel.TTarget.Weights:begin
        CountWeights:=length(Node^.WorkWeights);
-       case AnimationChannel^.Interpolation of
-        TAnimation.TChannel.TInterpolation.Linear:begin
-         for WeightIndex:=0 to CountWeights-1 do begin
-          Node^.OverwriteWeights[WeightIndex]:=(AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex]*(1.0-Factor))+
-                                               (AnimationChannel^.OutputScalarArray[(TimeIndices[1]*CountWeights)+WeightIndex]*Factor);
+       if assigned(Overwrite) then begin
+        Include(Overwrite^.Flags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Weights);
+        case AnimationChannel^.Interpolation of
+         TGLTFOpenGL.TAnimation.TChannel.TInterpolation.Linear:begin
+          for WeightIndex:=0 to CountWeights-1 do begin
+           Overwrite^.Weights[WeightIndex]:=(AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex]*(1.0-Factor))+
+                                            (AnimationChannel^.OutputScalarArray[(TimeIndices[1]*CountWeights)+WeightIndex]*Factor);
+          end;
+         end;
+         TGLTFOpenGL.TAnimation.TChannel.TInterpolation.Step:begin
+          for WeightIndex:=0 to CountWeights-1 do begin
+           Overwrite^.Weights[WeightIndex]:=AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex];
+          end;
+         end;
+         TGLTFOpenGL.TAnimation.TChannel.TInterpolation.CubicSpline:begin
+          SqrFactor:=sqr(Factor);
+          CubeFactor:=SqrFactor*Factor;
+          for WeightIndex:=0 to CountWeights-1 do begin
+           Overwrite^. Weights[WeightIndex]:=((((2.0*CubeFactor)-(3.0*SqrFactor))+1.0)*AnimationChannel^.OutputScalarArray[(((TimeIndices[0]*3)+1)*CountWeights)+WeightIndex])+
+                                             (((CubeFactor-(2.0*SqrFactor))+Factor)*KeyDelta*AnimationChannel^.OutputScalarArray[(((TimeIndices[0]*3)+2)*CountWeights)+WeightIndex])+
+                                             (((3.0*SqrFactor)-(2.0*CubeFactor))*AnimationChannel^.OutputScalarArray[(((TimeIndices[1]*3)+1)*CountWeights)+WeightIndex])+
+                                             ((CubeFactor-SqrFactor)*KeyDelta*AnimationChannel^.OutputScalarArray[(((TimeIndices[1]*3)+0)*CountWeights)+WeightIndex]);
+          end;
+         end;
+         else begin
+          Assert(false);
          end;
         end;
-        TAnimation.TChannel.TInterpolation.Step:begin
-         for WeightIndex:=0 to CountWeights-1 do begin
-          Node^.OverwriteWeights[WeightIndex]:=AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex];
+       end else begin
+        Include(Node^.OverwriteFlags,TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Weights);
+        case AnimationChannel^.Interpolation of
+         TGLTFOpenGL.TAnimation.TChannel.TInterpolation.Linear:begin
+          for WeightIndex:=0 to CountWeights-1 do begin
+           Node^.OverwriteWeights[WeightIndex]:=(AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex]*(1.0-Factor))+
+                                                (AnimationChannel^.OutputScalarArray[(TimeIndices[1]*CountWeights)+WeightIndex]*Factor);
+          end;
          end;
-        end;
-        TAnimation.TChannel.TInterpolation.CubicSpline:begin
-         SqrFactor:=sqr(Factor);
-         CubeFactor:=SqrFactor*Factor;
-         for WeightIndex:=0 to CountWeights-1 do begin
-          Node^.OverwriteWeights[WeightIndex]:=((((2.0*CubeFactor)-(3.0*SqrFactor))+1.0)*AnimationChannel^.OutputScalarArray[(((TimeIndices[0]*3)+1)*CountWeights)+WeightIndex])+
-                                               (((CubeFactor-(2.0*SqrFactor))+Factor)*KeyDelta*AnimationChannel^.OutputScalarArray[(((TimeIndices[0]*3)+2)*CountWeights)+WeightIndex])+
-                                               (((3.0*SqrFactor)-(2.0*CubeFactor))*AnimationChannel^.OutputScalarArray[(((TimeIndices[1]*3)+1)*CountWeights)+WeightIndex])+
-                                               ((CubeFactor-SqrFactor)*KeyDelta*AnimationChannel^.OutputScalarArray[(((TimeIndices[1]*3)+0)*CountWeights)+WeightIndex]);
+         TGLTFOpenGL.TAnimation.TChannel.TInterpolation.Step:begin
+          for WeightIndex:=0 to CountWeights-1 do begin
+           Node^.OverwriteWeights[WeightIndex]:=AnimationChannel^.OutputScalarArray[(TimeIndices[0]*CountWeights)+WeightIndex];
+          end;
          end;
-        end;
-        else begin
-         Assert(false);
+         TGLTFOpenGL.TAnimation.TChannel.TInterpolation.CubicSpline:begin
+          SqrFactor:=sqr(Factor);
+          CubeFactor:=SqrFactor*Factor;
+          for WeightIndex:=0 to CountWeights-1 do begin
+           Node^.OverwriteWeights[WeightIndex]:=((((2.0*CubeFactor)-(3.0*SqrFactor))+1.0)*AnimationChannel^.OutputScalarArray[(((TimeIndices[0]*3)+1)*CountWeights)+WeightIndex])+
+                                                (((CubeFactor-(2.0*SqrFactor))+Factor)*KeyDelta*AnimationChannel^.OutputScalarArray[(((TimeIndices[0]*3)+2)*CountWeights)+WeightIndex])+
+                                                (((3.0*SqrFactor)-(2.0*CubeFactor))*AnimationChannel^.OutputScalarArray[(((TimeIndices[1]*3)+1)*CountWeights)+WeightIndex])+
+                                                ((CubeFactor-SqrFactor)*KeyDelta*AnimationChannel^.OutputScalarArray[(((TimeIndices[1]*3)+0)*CountWeights)+WeightIndex]);
+          end;
+         end;
+         else begin
+          Assert(false);
+         end;
         end;
        end;
-
       end;
      end;
 
@@ -4354,37 +4500,160 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
 
  end;
  procedure ProcessNode(const aNodeIndex:TPasGLTFSizeInt;const aMatrix:TMatrix);
- var Index:TPasGLTFSizeInt;
+ var Index,OtherIndex:TPasGLTFSizeInt;
      Matrix:TPasGLTF.TMatrix4x4;
      InstanceNode:TGLTFOpenGL.TInstance.PNode;
      Node:TGLTFOpenGL.PNode;
-     Translation,Scale:TVector3;
-     Rotation:TVector4;
+     Translation,Scale:TPasGLTF.TVector3;
+     Rotation:TPasGLTF.TVector4;
+     TranslationSum,ScaleSum:TGLTFOpenGL.TVector3Sum;
+     RotationSum:TGLTFOpenGL.TVector4Sum;
+     Factor,
+     WeightsFactorSum:TPasGLTFDouble;
+     Overwrite:TGLTFOpenGL.TInstance.TNode.POverwrite;
+     FirstWeights:boolean;
  begin
   InstanceNode:=@fNodes[aNodeIndex];
   Node:=@fParent.fNodes[aNodeIndex];
-  if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Translation in InstanceNode^.OverwriteFlags then begin
-   Translation:=InstanceNode^.OverwriteTranslation;
-  end else begin
-   Translation:=Node^.Translation;
-  end;
-  if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Scale in InstanceNode^.OverwriteFlags then begin
-   Scale:=InstanceNode^.OverwriteScale;
-  end else begin
-   Scale:=Node^.Scale;
-  end;
-  if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Rotation in InstanceNode^.OverwriteFlags then begin
-   Rotation:=InstanceNode^.OverwriteRotation;
-  end else begin
-   Rotation:=Node^.Rotation;
-  end;
-  if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Weights in InstanceNode^.OverwriteFlags then begin
-   for Index:=0 to Min(length(InstanceNode^.WorkWeights),length(InstanceNode^.OverwriteWeights))-1 do begin
-    InstanceNode^.WorkWeights[Index]:=InstanceNode^.OverwriteWeights[Index];
+  if InstanceNode^.CountOverwrites>0 then begin
+   TranslationSum.x:=0.0;
+   TranslationSum.y:=0.0;
+   TranslationSum.z:=0.0;
+   TranslationSum.FactorSum:=0.0;
+   ScaleSum.x:=0.0;
+   ScaleSum.y:=0.0;
+   ScaleSum.z:=0.0;
+   ScaleSum.FactorSum:=0.0;
+   RotationSum.x:=0.0;
+   RotationSum.y:=0.0;
+   RotationSum.z:=0.0;
+   RotationSum.w:=0.0;
+   RotationSum.FactorSum:=0.0;
+   WeightsFactorSum:=0.0;
+   FirstWeights:=true;
+   for Index:=0 to InstanceNode^.CountOverwrites-1 do begin
+    Overwrite:=@InstanceNode^.Overwrites[Index];
+    Factor:=Overwrite^.Factor;
+    if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Defaults in Overwrite^.Flags then begin
+     TranslationSum.x:=TranslationSum.x+(Node^.Translation[0]*Factor);
+     TranslationSum.y:=TranslationSum.y+(Node^.Translation[1]*Factor);
+     TranslationSum.z:=TranslationSum.z+(Node^.Translation[2]*Factor);
+     TranslationSum.FactorSum:=TranslationSum.FactorSum+Factor;
+     ScaleSum.x:=ScaleSum.x+(Node^.Scale[0]*Factor);
+     ScaleSum.y:=ScaleSum.y+(Node^.Scale[1]*Factor);
+     ScaleSum.z:=ScaleSum.z+(Node^.Scale[2]*Factor);
+     ScaleSum.FactorSum:=ScaleSum.FactorSum+Factor;
+     RotationSum.x:=RotationSum.x+(Node^.Rotation[0]*Factor);
+     RotationSum.y:=RotationSum.y+(Node^.Rotation[1]*Factor);
+     RotationSum.z:=RotationSum.z+(Node^.Rotation[2]*Factor);
+     RotationSum.w:=RotationSum.w+(Node^.Rotation[3]*Factor);
+     RotationSum.FactorSum:=RotationSum.FactorSum+Factor;
+     if length(Node^.Weights)>0 then begin
+      if FirstWeights then begin
+       FirstWeights:=false;
+       for OtherIndex:=0 to length(InstanceNode^.OverwriteWeightsSum)-1 do begin
+        InstanceNode^.OverwriteWeightsSum[OtherIndex]:=0.0;
+       end;
+      end;
+      for OtherIndex:=0 to Min(length(InstanceNode^.OverwriteWeightsSum),length(Node^.Weights))-1 do begin
+       InstanceNode^.OverwriteWeightsSum[OtherIndex]:=InstanceNode^.OverwriteWeightsSum[OtherIndex]+(Node^.Weights[OtherIndex]*Factor);
+      end;
+      WeightsFactorSum:=WeightsFactorSum+Factor;
+     end;
+    end else begin
+     if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Translation in Overwrite^.Flags then begin
+      TranslationSum.x:=TranslationSum.x+(Overwrite^.Translation[0]*Factor);
+      TranslationSum.y:=TranslationSum.y+(Overwrite^.Translation[1]*Factor);
+      TranslationSum.z:=TranslationSum.z+(Overwrite^.Translation[2]*Factor);
+      TranslationSum.FactorSum:=TranslationSum.FactorSum+Factor;
+     end;
+     if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Scale in Overwrite^.Flags then begin
+      ScaleSum.x:=ScaleSum.x+(Overwrite^.Scale[0]*Factor);
+      ScaleSum.y:=ScaleSum.y+(Overwrite^.Scale[1]*Factor);
+      ScaleSum.z:=ScaleSum.z+(Overwrite^.Scale[2]*Factor);
+      ScaleSum.FactorSum:=ScaleSum.FactorSum+Factor;
+     end;
+     if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Rotation in Overwrite^.Flags then begin
+      RotationSum.x:=RotationSum.x+(Overwrite^.Rotation[0]*Factor);
+      RotationSum.y:=RotationSum.y+(Overwrite^.Rotation[1]*Factor);
+      RotationSum.z:=RotationSum.z+(Overwrite^.Rotation[2]*Factor);
+      RotationSum.w:=RotationSum.w+(Overwrite^.Rotation[3]*Factor);
+      RotationSum.FactorSum:=RotationSum.FactorSum+Factor;
+     end;
+     if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Weights in Overwrite^.Flags then begin
+      if FirstWeights then begin
+       FirstWeights:=false;
+       for OtherIndex:=0 to length(InstanceNode^.OverwriteWeightsSum)-1 do begin
+        InstanceNode^.OverwriteWeightsSum[OtherIndex]:=0.0;
+       end;
+      end;
+      for OtherIndex:=0 to Min(length(InstanceNode^.OverwriteWeightsSum),length(Overwrite^.Weights))-1 do begin
+       InstanceNode^.OverwriteWeightsSum[OtherIndex]:=InstanceNode^.OverwriteWeightsSum[OtherIndex]+(Overwrite^.Weights[OtherIndex]*Factor);
+      end;
+      WeightsFactorSum:=WeightsFactorSum+Factor;
+     end;
+    end;
+   end;
+   if TranslationSum.FactorSum>0.0 then begin
+    Factor:=1.0/TranslationSum.FactorSum;
+    Translation[0]:=TranslationSum.x*Factor;
+    Translation[1]:=TranslationSum.y*Factor;
+    Translation[2]:=TranslationSum.z*Factor;
+   end else begin
+    Translation:=Node^.Translation;
+   end;
+   if ScaleSum.FactorSum>0.0 then begin
+    Factor:=1.0/ScaleSum.FactorSum;
+    Scale[0]:=ScaleSum.x*Factor;
+    Scale[1]:=ScaleSum.y*Factor;
+    Scale[2]:=ScaleSum.z*Factor;
+   end else begin
+    Scale:=Node^.Scale;
+   end;
+   if RotationSum.FactorSum>0.0 then begin
+    Factor:=1.0/RotationSum.FactorSum;
+    Rotation[0]:=RotationSum.x*Factor;
+    Rotation[1]:=RotationSum.y*Factor;
+    Rotation[2]:=RotationSum.z*Factor;
+    Rotation[3]:=RotationSum.w*Factor;
+    Rotation:=Vector4Normalize(Rotation);
+   end else begin
+    Rotation:=Node^.Rotation;
+   end;
+   if WeightsFactorSum>0.0 then begin
+    Factor:=1.0/WeightsFactorSum;
+    for Index:=0 to Min(length(InstanceNode^.WorkWeights),length(Node^.Weights))-1 do begin
+     InstanceNode^.WorkWeights[Index]:=InstanceNode^.OverwriteWeightsSum[Index]*Factor;
+    end;
+   end else begin
+    for Index:=0 to Min(length(InstanceNode^.WorkWeights),length(Node^.Weights))-1 do begin
+     InstanceNode^.WorkWeights[Index]:=Node^.Weights[Index];
+    end;
    end;
   end else begin
-   for Index:=0 to Min(length(InstanceNode^.WorkWeights),length(Node^.Weights))-1 do begin
-    InstanceNode^.WorkWeights[Index]:=Node^.Weights[Index];
+   if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Translation in InstanceNode^.OverwriteFlags then begin
+    Translation:=InstanceNode^.OverwriteTranslation;
+   end else begin
+    Translation:=Node^.Translation;
+   end;
+   if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Scale in InstanceNode^.OverwriteFlags then begin
+    Scale:=InstanceNode^.OverwriteScale;
+   end else begin
+    Scale:=Node^.Scale;
+   end;
+   if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Rotation in InstanceNode^.OverwriteFlags then begin
+    Rotation:=InstanceNode^.OverwriteRotation;
+   end else begin
+    Rotation:=Node^.Rotation;
+   end;
+   if TGLTFOpenGL.TInstance.TNode.TOverwriteFlag.Weights in InstanceNode^.OverwriteFlags then begin
+    for Index:=0 to Min(length(InstanceNode^.WorkWeights),length(InstanceNode^.OverwriteWeights))-1 do begin
+     InstanceNode^.WorkWeights[Index]:=InstanceNode^.OverwriteWeights[Index];
+    end;
+   end else begin
+    for Index:=0 to Min(length(InstanceNode^.WorkWeights),length(Node^.Weights))-1 do begin
+     InstanceNode^.WorkWeights[Index]:=Node^.Weights[Index];
+    end;
    end;
   end;
   Matrix:=MatrixMul(
@@ -4411,6 +4680,7 @@ var NonSkinnedShadingShader,SkinnedShadingShader:TShadingShader;
  end;
 var Index:TPasGLTFSizeInt;
     Scene:TGLTFOpenGL.PScene;
+    Animation:TGLTFOpenGL.TInstance.TAnimation;
 begin
  Scene:=GetScene;
  if assigned(Scene) then begin
@@ -4425,7 +4695,18 @@ begin
    fSkins[Index].Used:=false;
   end;
   if (fAnimation>=0) and (fAnimation<length(fParent.fAnimations)) then begin
-   ProcessAnimation(fAnimation);
+   ProcessAnimation(fAnimation,fAnimationTime,-1.0);
+  end else begin
+   for Index:=-1 to length(fAnimations)-2 do begin
+    Animation:=fAnimations[Index+1];
+    if Animation.fFactor>=-0.5 then begin
+     if Index<0 then begin
+      ProcessBaseOverwrite(Animation.fFactor);
+     end else begin
+      ProcessAnimation(Index,Animation.fTime,Animation.fFactor);
+     end;
+    end;
+   end;
   end;
   for Index:=0 to length(Scene^.Nodes)-1 do begin
    ProcessNode(Scene^.Nodes[Index],TPasGLTF.TDefaults.IdentityMatrix4x4);
