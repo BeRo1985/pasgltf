@@ -92,6 +92,8 @@ begin
 
    if Files.Count>0 then begin
 
+    Files.Sort;
+
     for Index:=0 to Files.Count-1 do begin
 
      InputFileName:=Files[Index];
