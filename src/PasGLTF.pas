@@ -1,12 +1,12 @@
 (******************************************************************************
  *                                 PasGLTF                                    *
  ******************************************************************************
- *                          Version 2020-02-12-00-29                          *
+ *                          Version 2021-07-29-15-54                          *
  ******************************************************************************
  *                                zlib license                                *
  *============================================================================*
  *                                                                            *
- * Copyright (C) 2018-2020, Benjamin Rosseaux (benjamin@rosseaux.de)          *
+ * Copyright (C) 2018-2021, Benjamin Rosseaux (benjamin@rosseaux.de)          *
  *                                                                            *
  * This software is provided 'as-is', without any express or implied          *
  * warranty. In no event will the authors be held liable for any damages      *
@@ -840,7 +840,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                             property ComponentType:TComponentType read fComponentType write fComponentType default TComponentType.None;
                             property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView default 0;
                             property ByteOffset:TPasGLTFSizeUInt read fByteOffset write fByteOffset default 0;
-                            property Empty:boolean read fEmpty;
+                            property Empty:boolean read fEmpty write fEmpty;
                           end;
                           TValues=class(TBaseExtensionsExtrasObject)
                            private
@@ -853,7 +853,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                            published
                             property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView default 0;
                             property ByteOffset:TPasGLTFSizeUInt read fByteOffset write fByteOffset default 0;
-                            property Empty:boolean read fEmpty;
+                            property Empty:boolean read fEmpty write fEmpty;
                           end;
                     private
                      fCount:TPasGLTFSizeInt;
@@ -926,7 +926,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                            published
                             property Node:TPasGLTFSizeInt read fNode write fNode default -1;
                             property Path:TPasGLTFUTF8String read fPath write fPath;
-                            property Empty:boolean read fEmpty;
+                            property Empty:boolean read fEmpty write fEmpty;
                           end;
                     private
                      fSampler:TPasGLTFSizeInt;
@@ -989,7 +989,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Generator:TPasGLTFUTF8String read fGenerator write fGenerator;
               property MinVersion:TPasGLTFUTF8String read fMinVersion write fMinVersion;
               property Version:TPasGLTFUTF8String read fVersion write fVersion;
-              property Empty:boolean read fEmpty;
+              property Empty:boolean read fEmpty write fEmpty;
             end;
             TBuffer=class(TBaseExtensionsExtrasObject)
              private
@@ -1070,7 +1070,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      property YMag:TPasGLTFFloat read fYMag write fYMag;
                      property ZNear:TPasGLTFFloat read fZNear write fZNear;
                      property ZFar:TPasGLTFFloat read fZFar write fZFar;
-                     property Empty:boolean read fEmpty;
+                     property Empty:boolean read fEmpty write fEmpty;
                    end;
                    TPerspective=class(TBaseExtensionsExtrasObject)
                     private
@@ -1087,7 +1087,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      property YFov:TPasGLTFFloat read fYFov write fYFov;
                      property ZNear:TPasGLTFFloat read fZNear write fZNear;
                      property ZFar:TPasGLTFFloat read fZFar write fZFar;
-                     property Empty:boolean read fEmpty;
+                     property Empty:boolean read fEmpty write fEmpty;
                    end;
              private
               fType:TType;
@@ -4639,6 +4639,7 @@ end;
 procedure TPasGLTF.TDocument.LoadFromBinary(const aStream:TStream);
 var GLBHeader:TGLBHeader;
     OtherEndianness:boolean;
+    CountBuffers:TPasGLTFSizeInt;
  function SwapEndianness32(const aValue:TPasGLTFUInt32):TPasGLTFUInt32;
  begin
   if OtherEndianness then begin
@@ -4689,23 +4690,33 @@ begin
   finally
    FreeAndNil(JSONItem);
   end;
- end; 
- if aStream.Position<aStream.Size then begin
+ end;
+ CountBuffers:=0;
+ while aStream.Position<aStream.Size do begin
   if aStream.Read(ChunkHeader,SizeOf(TChunkHeader))<>SizeOf(ChunkHeader) then begin
    raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
   end;
   ChunkHeader.ChunkLength:=SwapEndianness32(ChunkHeader.ChunkLength);
   ChunkHeader.ChunkType:=SwapEndianness32(ChunkHeader.ChunkType);
-  if (ChunkHeader.ChunkType<>GLBChunkBinaryNativeEndianness) or
-     ((ChunkHeader.ChunkLength+aStream.Position)>GLBHeader.Length) then begin
-   raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
+  if ChunkHeader.ChunkType=GLBChunkBinaryNativeEndianness then begin
+   if (ChunkHeader.ChunkType<>GLBChunkBinaryNativeEndianness) or
+      ((ChunkHeader.ChunkLength+aStream.Position)>GLBHeader.Length) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
+   end;
+   inc(CountBuffers);
+   if fBuffers.Count<CountBuffers then begin
+    fBuffers.Add(TBuffer.Create(self));
+   end;
+   Stream:=fBuffers[CountBuffers-1].fData;
+   Stream.Clear;
+   Stream.CopyFrom(aStream,ChunkHeader.ChunkLength);
+  end else begin
+   if (ChunkHeader.ChunkLength+aStream.Position)<=GLBHeader.Length then begin
+    Stream.Seek(ChunkHeader.ChunkLength,soCurrent);
+   end else begin
+    raise EPasGLTFInvalidDocument.Create('Invalid GLB document');
+   end;
   end;
-  if fBuffers.Count<1 then begin
-   fBuffers.Add(TBuffer.Create(self));
-  end;
-  Stream:=fBuffers[0].fData;
-  Stream.Clear;
-  Stream.CopyFrom(aStream,ChunkHeader.ChunkLength);
  end;
 end;
 
@@ -5757,9 +5768,11 @@ begin
 end;
 
 procedure TPasGLTF.TDocument.SaveToBinary(const aStream:TStream);
-var JSONRawByteString:TPasJSONRawByteString;
+var Index:TPasGLTFSizeInt;
+    JSONRawByteString:TPasJSONRawByteString;
     GLBHeader:TGLBHeader;
     ChunkHeader:TChunkHeader;
+    Buffer:TPasGLTF.TBuffer;
 begin
  JSONRawByteString:=SaveToJSON(false);
  while (length(JSONRawByteString)=0) or ((length(JSONRawByteString) and 3)<>0) do begin
@@ -5775,11 +5788,14 @@ begin
  GLBHeader.JSONChunkHeader.ChunkType:=GLBChunkJSONNativeEndianness;
  aStream.WriteBuffer(GLBHeader,SizeOf(TGLBHeader));
  aStream.WriteBuffer(JSONRawByteString[1],Length(JSONRawByteString));
- if (fBuffers.Count>0) and (fBuffers[0].fData.Size>0) then begin
-  ChunkHeader.ChunkLength:=fBuffers[0].fData.Size;
+ for Index:=0 to fBuffers.Count-1 do begin
+  Buffer:=fBuffers[Index];
+  ChunkHeader.ChunkLength:=Buffer.fData.Size;
   ChunkHeader.ChunkType:=GLBChunkBinaryNativeEndianness;
   aStream.WriteBuffer(ChunkHeader,SizeOf(TChunkHeader));
-  aStream.WriteBuffer(fBuffers[0].fData.Memory^,fBuffers[0].fData.Size);
+  if ChunkHeader.ChunkLength>0 then begin
+   aStream.WriteBuffer(Buffer.fData.Memory^,Buffer.fData.Size);
+  end;
  end;
 end;
 

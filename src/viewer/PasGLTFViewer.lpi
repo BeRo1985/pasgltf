@@ -11,7 +11,7 @@
         <CompatibilityMode Value="True"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="projectmanager"/>
+      <Title Value="PasGLTF Viewer"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
