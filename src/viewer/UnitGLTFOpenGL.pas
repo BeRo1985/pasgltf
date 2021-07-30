@@ -4115,7 +4115,6 @@ begin
   Texture:=@fTextures[Index];
   if assigned(Texture) and ((Texture^.Name=aTextureName) or (((Texture^.Image>=0) and (Texture^.Image<length(fImages))) and (fImages[Texture^.Image].Name=aTextureName))) then begin
    Texture^.ExternalHandle:=aHandle;
-   break;
   end;
  end;
 end;
