@@ -1,12 +1,12 @@
 (******************************************************************************
  *                                 PasGLTF                                    *
  ******************************************************************************
- *                          Version 2021-07-29-15-54                          *
+ *                          Version 2022-07-05-00-29                          *
  ******************************************************************************
  *                                zlib license                                *
  *============================================================================*
  *                                                                            *
- * Copyright (C) 2018-2021, Benjamin Rosseaux (benjamin@rosseaux.de)          *
+ * Copyright (C) 2018-2022, Benjamin Rosseaux (benjamin@rosseaux.de)          *
  *                                                                            *
  * This software is provided 'as-is', without any express or implied          *
  * warranty. In no event will the authors be held liable for any damages      *
@@ -1436,6 +1436,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property GetURI:TGetURI read fGetURI write fGetURI;
             end;
       public
+       class function HexToDec(const aHex:TPasGLTFChar):TPasGLTFUInt8; static;
+       class function DecodeURI(const aURI:TPasGLTFUTF8String):TPasGLTFUTF8String; static;
        class function ResolveURIToPath(const aURI:TPasGLTFUTF8String):TPasGLTFUTF8String; static;
      end;
 
@@ -2425,9 +2427,45 @@ end;
 
 { TPasGLTF }
 
+class function TPasGLTF.HexToDec(const aHex:TPasGLTFChar):TPasGLTFUInt8;
+begin
+ case aHex of
+  '0'..'9':begin
+   result:=TPasGLTFUInt8(aHex)-TPasGLTFUInt8(TPasGLTFChar('0'));
+  end;
+  'a'..'f':begin
+   result:=(TPasGLTFUInt8(aHex)-TPasGLTFUInt8(TPasGLTFChar('a')))+$a;
+  end;
+  'A'..'F':begin
+   result:=(TPasGLTFUInt8(aHex)-TPasGLTFUInt8(TPasGLTFChar('A')))+$a;
+  end;
+  else begin
+   result:=0;
+  end;
+ end;
+end;
+
+class function TPasGLTF.DecodeURI(const aURI:TPasGLTFUTF8String):TPasGLTFUTF8String;
+var Index,Value:TPasGLTFInt32;
+begin
+ result:=aURI;
+ Index:=1;
+ while (Index+2)<=length(result) do begin
+  if (result[Index]='%') and
+     (result[Index+1] in ['0'..'9','a'..'f','A','F']) and
+     (result[Index+2] in ['0'..'9','a'..'f','A','F']) then begin
+   Value:=(HexToDec(result[Index+1]) shl 4) or HexToDec(result[Index+2]);
+   Delete(result,Index,3);
+   Insert(TPasGLTFChar(TPasGLTFUInt8(Value)),result,Index);
+  end else begin
+   inc(Index);
+  end;
+ end;
+end;
+
 class function TPasGLTF.ResolveURIToPath(const aURI:TPasGLTFUTF8String):TPasGLTFUTF8String;
 begin
- result:=TPasGLTFUTF8String(StringReplace(String(aURI),{$ifdef Windows}'/','\'{$else}'\','/'{$endif},[rfReplaceAll]));
+ result:=TPasGLTFUTF8String(StringReplace(String(DecodeURI(aURI)),{$ifdef Windows}'/','\'{$else}'\','/'{$endif},[rfReplaceAll]));
 end;
 
 { TPasGLTF.TBase64 }
