@@ -1,12 +1,12 @@
 (******************************************************************************
  *                                 PasGLTF                                    *
  ******************************************************************************
- *                          Version 2022-07-05-00-29                          *
+ *                          Version 2023-05-10-09-35                          *
  ******************************************************************************
  *                                zlib license                                *
  *============================================================================*
  *                                                                            *
- * Copyright (C) 2018-2022, Benjamin Rosseaux (benjamin@rosseaux.de)          *
+ * Copyright (C) 2018-2023, Benjamin Rosseaux (benjamin@rosseaux.de)          *
  *                                                                            *
  * This software is provided 'as-is', without any express or implied          *
  * warranty. In no event will the authors be held liable for any damages      *
@@ -807,7 +807,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                    end;
                    TRawComponentType=TPasGLTFUInt16;
                    PRawComponentType=^TRawComponentType;
-                   TType=
+                   TType_=
                     (
                      None=0,
                      Scalar=1,
@@ -818,10 +818,11 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      Mat3=6,
                      Mat4=7
                     );
-                   PType=^TType;
-                   TTypeHelper=record helper for TType
+                   TTypeHelper=record helper for TType_
                     function GetComponentCount:TPasGLTFSizeInt; inline;
                    end;
+                   TType=TType_; 
+                   PType=^TType;
                    TRawType=TPasGLTFUInt8;
                    PRawType=^TRawType;
                    TMinMaxDynamicArray=TPasGLTFDynamicArray<TPasGLTFFloat>;
@@ -941,12 +942,13 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                    TChannels=TPasGLTFObjectList<TChannel>;
                    TSampler=class(TBaseExtensionsExtrasObject)
                     public
-                     type TType=
+                     type TType_=
                            (
                             Linear=0,
                             Step=1,
                             CubicSpline=2
                            );
+                           TType=TType_;                            
                            PType=^TType;
                     private
                      fInput:TPasGLTFSizeInt;
@@ -1049,12 +1051,13 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
             TBufferViews=TPasGLTFObjectList<TBufferView>;
             TCamera=class(TBaseExtensionsExtrasObject)
              public
-              type TType=
+              type TType_=
                     (
                      None=0,
                      Orthographic=1,
                      Perspective=2
                     );
+                   TType=TType_;                            
                    TOrthographic=class(TBaseExtensionsExtrasObject)
                     private
                      fXMag:TPasGLTFFloat;
