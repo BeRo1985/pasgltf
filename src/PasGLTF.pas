@@ -807,7 +807,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                    end;
                    TRawComponentType=TPasGLTFUInt16;
                    PRawComponentType=^TRawComponentType;
-                   TType_=
+                   TAccessorType=
                     (
                      None=0,
                      Scalar=1,
@@ -818,11 +818,12 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      Mat3=6,
                      Mat4=7
                     );
-                   TTypeHelper=record helper for TType_
+                   PAccessorType=^TAccessorType;
+                   TAccessorTypeHelper=record helper for TAccessorType
                     function GetComponentCount:TPasGLTFSizeInt; inline;
                    end;
-                   TType=TType_; 
-                   PType=^TType;
+                   TType=TAccessorType;
+                   PType=PAccessorType;
                    TRawType=TPasGLTFUInt8;
                    PRawType=^TRawType;
                    TMinMaxDynamicArray=TPasGLTFDynamicArray<TPasGLTFFloat>;
@@ -874,7 +875,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
              private
               fName:TPasGLTFUTF8String;
               fComponentType:TComponentType;
-              fType:TType;
+              fType:TAccessorType;
               fBufferView:TPasGLTFSizeInt;
               fByteOffset:TPasGLTFSizeUInt;
               fCount:TPasGLTFSizeUInt;
@@ -902,7 +903,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               function DecodeAsMatrix4x4Array(const aForVertex:boolean=true):TMatrix4x4DynamicArray;
              published
               property ComponentType:TComponentType read fComponentType write fComponentType default TComponentType.None;
-              property Type_:TType read fType write fType default TType.None;
+              property Type_:TAccessorType read fType write fType default TAccessorType.None;
               property BufferView:TPasGLTFSizeInt read fBufferView write fBufferView default -1;
               property ByteOffset:TPasGLTFSizeUInt read fByteOffset write fByteOffset default 0;
               property Count:TPasGLTFSizeUInt read fCount write fCount default 0;
@@ -942,14 +943,15 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                    TChannels=TPasGLTFObjectList<TChannel>;
                    TSampler=class(TBaseExtensionsExtrasObject)
                     public
-                     type TType_=
+                     type TSamplerInterpolationType=
                            (
                             Linear=0,
                             Step=1,
                             CubicSpline=2
                            );
-                           TType=TType_;                            
-                           PType=^TType;
+                           PSamplerInterpolationType=^TSamplerInterpolationType;
+                           TType=TSamplerInterpolationType;
+                           PType=PSamplerInterpolationType;
                     private
                      fInput:TPasGLTFSizeInt;
                      fOutput:TPasGLTFSizeInt;
@@ -960,7 +962,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                     published
                      property Input:TPasGLTFSizeInt read fInput write fInput default -1;
                      property Output:TPasGLTFSizeInt read fOutput write fOutput default -1;
-                     property Interpolation:TType read fInterpolation write fInterpolation default TType.Linear;
+                     property Interpolation:TSamplerInterpolationType read fInterpolation write fInterpolation default TSamplerInterpolationType.Linear;
                    end;
                    TSamplers=TPasGLTFObjectList<TSampler>;
              private
@@ -1051,13 +1053,13 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
             TBufferViews=TPasGLTFObjectList<TBufferView>;
             TCamera=class(TBaseExtensionsExtrasObject)
              public
-              type TType_=
+              type TCameraType=
                     (
                      None=0,
                      Orthographic=1,
                      Perspective=2
                     );
-                   TType=TType_;                            
+                   TType=TCameraType;
                    TOrthographic=class(TBaseExtensionsExtrasObject)
                     private
                      fXMag:TPasGLTFFloat;
@@ -1093,7 +1095,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      property Empty:boolean read fEmpty write fEmpty;
                    end;
              private
-              fType:TType;
+              fType:TCameraType;
               fOrthographic:TOrthographic;
               fPerspective:TPerspective;
               fName:TPasGLTFUTF8String;
@@ -1101,7 +1103,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
              published
-              property Type_:TType read fType write fType;
+              property Type_:TCameraType read fType write fType;
               property Orthographic:TOrthographic read fOrthographic;
               property Perspective:TPerspective read fPerspective;
               property Name:TPasGLTFUTF8String read fName write fName;
@@ -2645,9 +2647,9 @@ begin
  end;
 end;
 
-{ TPasGLTF.TAccessor.TTypeHelper }
+{ TPasGLTF.TAccessor.TAccessorTypeHelper }
 
-function TPasGLTF.TAccessor.TTypeHelper.GetComponentCount:TPasGLTFSizeInt;
+function TPasGLTF.TAccessor.TAccessorTypeHelper.GetComponentCount:TPasGLTFSizeInt;
 begin
  result:=TPasGLTF.TAccessor.TypeComponentCountTable[self];
 end;
