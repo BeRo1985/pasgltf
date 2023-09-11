@@ -3648,7 +3648,7 @@ procedure TPasGLTF.TBufferView.TEXTMeshOptCompression.Decode;
   if DecodeVertexBuffer(pointer(fData.Memory),
                         fCount,
                         fByteStride,
-                        @PPasGLTFUInt8Array(fData.Memory)^[fByteOffset],
+                        @PPasGLTFUInt8Array(Buffer.Data.Memory)^[fByteOffset],
                         fByteLength) then begin
 
    case fFilter of
