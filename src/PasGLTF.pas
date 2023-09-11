@@ -1,7 +1,7 @@
 (******************************************************************************
  *                                 PasGLTF                                    *
  ******************************************************************************
- *                          Version 2023-05-10-09-35                          *
+ *                          Version 2023-09-11-14-18                          *
  ******************************************************************************
  *                                zlib license                                *
  *============================================================================*
@@ -313,6 +313,10 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
      PPasGLTFInt8=^TPasGLTFInt8;
      TPasGLTFInt8={$ifdef fpc}Int8{$else}shortint{$endif};
 
+     PPPasGLTFInt8Array=^PPasGLTFInt8Array;
+     PPasGLTFInt8Array=^TPasGLTFInt8Array;
+     TPasGLTFInt8Array=array[0..65535] of TPasGLTFInt8;
+
      PPPasGLTFUInt8=^PPasGLTFUInt8;
      PPasGLTFUInt8=^TPasGLTFUInt8;
      TPasGLTFUInt8={$ifdef fpc}UInt8{$else}byte{$endif};
@@ -327,13 +331,25 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
      PPasGLTFInt16=^TPasGLTFInt16;
      TPasGLTFInt16={$ifdef fpc}Int16{$else}smallint{$endif};
 
+     PPPasGLTFInt16Array=^PPasGLTFInt16Array;
+     PPasGLTFInt16Array=^TPasGLTFInt16Array;
+     TPasGLTFInt16Array=array[0..65535] of TPasGLTFInt16;
+
      PPPasGLTFUInt16=^PPasGLTFUInt16;
      PPasGLTFUInt16=^TPasGLTFUInt16;
      TPasGLTFUInt16={$ifdef fpc}UInt16{$else}word{$endif};
 
+     PPPasGLTFUInt16Array=^PPasGLTFUInt16Array;
+     PPasGLTFUInt16Array=^TPasGLTFUInt16Array;
+     TPasGLTFUInt16Array=array[0..65535] of TPasGLTFUInt16;
+
      PPPasGLTFInt32=^PPasGLTFInt32;
      PPasGLTFInt32=^TPasGLTFInt32;
      TPasGLTFInt32={$ifdef fpc}Int32{$else}longint{$endif};
+
+     PPPasGLTFInt32Array=^PPasGLTFInt32Array;
+     PPasGLTFInt32Array=^TPasGLTFInt32Array;
+     TPasGLTFInt32Array=array[0..65535] of TPasGLTFInt32;
 
      TPasGLTFInt32DynamicArray=array of TPasGLTFInt32;
 
@@ -996,11 +1012,23 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Empty:boolean read fEmpty write fEmpty;
             end;
             TBuffer=class(TBaseExtensionsExtrasObject)
+             public
+              type { TEXTMeshOptCompression }
+                   TEXTMeshOptCompression=class
+                    private
+                     fFallBack:boolean;
+                    public
+                     constructor Create; reintroduce;
+                     destructor Destroy; override;
+                    published
+                     property FallBack:boolean read fFallBack write fFallBack;
+                   end;
              private
               fByteLength:TPasGLTFSizeUInt;
               fName:TPasGLTFUTF8String;
               fURI:TPasGLTFUTF8String;
               fData:TMemoryStream;
+              fEXTMeshOptCompression:TBuffer.TEXTMeshOptCompression;
              public
               constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
@@ -1010,6 +1038,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property Name:TPasGLTFUTF8String read fName write fName;
               property URI:TPasGLTFUTF8String read fURI write fURI;
               property Data:TMemoryStream read fData write fData;
+              property EXTMeshOptCompression:TBuffer.TEXTMeshOptCompression read fEXTMeshOptCompression write fEXTMeshOptCompression;
             end;
             TBuffers=TPasGLTFObjectList<TBuffer>;
             TBufferView=class(TBaseExtensionsExtrasObject)
@@ -1021,6 +1050,46 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      ElementArrayBuffer=34963
                     );
                    PTargetType=^TTargetType;
+                   { TEXTMeshOptCompression }
+                   TEXTMeshOptCompression=class
+                    public
+                     type TEXTMeshOptCompressionMode=
+                           (
+                            Attributes,
+                            Triangles,
+                            Indices
+                           );
+                          PEXTMeshOptCompressionMode=^TEXTMeshOptCompressionMode;
+                          TMode=TEXTMeshOptCompressionMode;
+                          TEXTMeshOptCompressionFilter=
+                           (
+                            None,
+                            Octahedral,
+                            Quaternion,
+                            Exponential
+                           );
+                          PEXTMeshOptCompressionFilter=^TEXTMeshOptCompressionFilter;
+                          TFilter=TEXTMeshOptCompressionFilter;
+                    private
+                     fBuffer:TPasGLTFSizeInt;
+                     fByteOffset:TPasGLTFSizeUInt;
+                     fByteLength:TPasGLTFSizeUInt;
+                     fByteStride:TPasGLTFSizeUInt;
+                     fCount:TPasGLTFSizeUInt;
+                     fMode:TEXTMeshOptCompressionMode;
+                     fFilter:TEXTMeshOptCompressionFilter;
+                    public
+                     constructor Create; reintroduce;
+                     destructor Destroy; override;
+                    published
+                     property Buffer:TPasGLTFSizeInt read fBuffer write fBuffer;
+                     property ByteOffset:TPasGLTFSizeUInt read fByteOffset write fByteOffset;
+                     property ByteLength:TPasGLTFSizeUInt read fByteLength write fByteLength;
+                     property ByteStride:TPasGLTFSizeUInt read fByteStride write fByteStride;
+                     property Count:TPasGLTFSizeUInt read fCount write fCount;
+                     property Mode:TEXTMeshOptCompressionMode read fMode write fMode;
+                     property Filter:TEXTMeshOptCompressionFilter read fFilter write fFilter;
+                   end;
              private
               fName:TPasGLTFUTF8String;
               fBuffer:TPasGLTFSizeInt;
@@ -1028,6 +1097,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               fByteLength:TPasGLTFSizeUInt;
               fByteStride:TPasGLTFSizeUInt;
               fTarget:TTargetType;
+              fEXTMeshOptCompression:TBufferView.TEXTMeshOptCompression;
              public
               constructor Create(const aDocument:TDocument); override;
               destructor Destroy; override;
@@ -1049,6 +1119,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property ByteLength:TPasGLTFSizeUInt read fByteLength write fByteLength;
               property ByteStride:TPasGLTFSizeUInt read fByteStride write fByteStride;
               property Target:TTargetType read fTarget write fTarget default TTargetType.None;
+              property EXTMeshOptCompression:TBufferView.TEXTMeshOptCompression read fEXTMeshOptCompression write fEXTMeshOptCompression;
             end;
             TBufferViews=TPasGLTFObjectList<TBufferView>;
             TCamera=class(TBaseExtensionsExtrasObject)
@@ -1447,6 +1518,53 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
      end;
 
 implementation
+
+{$if not declared(SARLongint)}
+function SARLongint(Value,Shift:TPasGLTFInt32):TPasGLTFInt32;
+{$if defined(cpu386)} assembler; register; {$ifdef fpc}nostackframe;{$endif}
+asm
+ mov ecx,edx
+ sar eax,cl
+end;
+{$elseif defined(cpux64) or defined(cpuamd64) or defined(cpux86_64)} assembler; register; {$ifdef fpc}nostackframe;{$endif}
+asm
+{$ifndef fpc}
+ .noframe
+{$endif}
+{$if defined(Win32) or defined(Win64) or defined(Windows)}
+ mov eax,ecx
+ mov ecx,edx
+{$else}
+ mov eax,edi
+ mov ecx,esi
+{$ifend}
+ sar eax,cl
+end;
+{$elseif defined(cpuarm)} assembler; {$ifdef fpc}nostackframe;{$endif}
+asm
+ mov r0,r0,asr r1
+{$if defined(cpuarm_has_bx)}
+ bx lr
+{$else}
+ mov pc,lr
+{$ifend}
+end;
+{$else} {$ifdef caninline}inline;{$endif}
+begin
+ Shift:=Shift and 31;
+ result:=(TPasGLTFUInt32(Value) shr Shift) or (TPasGLTFUInt32(TPasGLTFInt32(TPasGLTFUInt32(0-TPasGLTFUInt32(TPasGLTFUInt32(Value) shr 31)) and TPasGLTFUInt32(0-TPasGLTFUInt32(ord(Shift<>0) and 1)))) shl (32-Shift));
+end;
+{$ifend}
+{$ifend}
+
+function Dezig(const v:TPasGLTFUInt32):TPasGLTFUInt32;
+begin
+ if (v and 1)<>0 then begin
+  result:=not (v shr 1);
+ end else begin
+  result:=v shr 1;
+ end;
+end;
 
 {$ifndef fpc}
 class function TPasGLTFTypedSort<T>.BSRDWord(aValue:TPasGLTFUInt32):TPasGLTFInt32;
@@ -3148,6 +3266,19 @@ begin
  inherited Destroy;
 end;
 
+{ TPasGLTF.TBuffer.TEXTMeshOptCompression }
+
+constructor TPasGLTF.TBuffer.TEXTMeshOptCompression.Create;
+begin
+ inherited Create;
+ fFallBack:=false;
+end;
+
+destructor TPasGLTF.TBuffer.TEXTMeshOptCompression.Destroy;
+begin
+ inherited Destroy;
+end;
+
 { TPasGLTF.TBuffer }
 
 constructor TPasGLTF.TBuffer.Create(const aDocument:TDocument);
@@ -3157,17 +3288,38 @@ begin
  fName:='';
  fURI:='';
  fData:=TMemoryStream.Create;
+ fEXTMeshOptCompression:=nil;
 end;
 
 destructor TPasGLTF.TBuffer.Destroy;
 begin
  FreeAndNil(fData);
+ FreeAndNil(fEXTMeshOptCompression);
  inherited Destroy;
 end;
 
 procedure TPasGLTF.TBuffer.SetEmbeddedResourceData;
 begin
  fURI:='data:'+MimeTypeApplicationOctet+';base64,'+TBase64.Encode(fData);
+end;
+
+{ TPasGLTF.TBufferView.TEXTMeshOptCompression }
+
+constructor TPasGLTF.TBufferView.TEXTMeshOptCompression.Create;
+begin
+ inherited Create;
+ fBuffer:=-1;
+ fByteOffset:=0;
+ fByteLength:=0;
+ fByteStride:=0;
+ fCount:=0;
+ fMode:=TEXTMeshOptCompressionMode.Attributes;
+ fFilter:=TEXTMeshOptCompressionFilter.None;
+end;
+
+destructor TPasGLTF.TBufferView.TEXTMeshOptCompression.Destroy;
+begin
+ inherited Destroy;
 end;
 
 { TPasGLTF.TBufferView }
@@ -3181,10 +3333,12 @@ begin
  fByteLength:=0;
  fByteStride:=0;
  fTarget:=TTargetType.None;
+ fEXTMeshOptCompression:=nil;
 end;
 
 destructor TPasGLTF.TBufferView.Destroy;
 begin
+ FreeAndNil(fEXTMeshOptCompression);
  inherited Destroy;
 end;
 
@@ -3199,6 +3353,729 @@ function TPasGLTF.TBufferView.Decode(const aSkipEvery:TPasGLTFSizeUInt;
                                      const aByteOffset:TPasGLTFSizeUInt;
                                      const aNormalized:boolean;
                                      const aForVertex:boolean):TPasGLTFDoubleDynamicArray;
+var EXTMeshOptCompressionResult:TPasGLTFUInt8DynamicArray;
+ function ProcessEXTMeshOptCompression:boolean;
+  procedure DecodeVertexBuffer;
+  type TLastVertex=array[0..255] of TPasGLTFUInt8;
+  const kVertexHeader=$a0;
+        kVertexBlockSizeBytes=8192;
+        kVertexBlockMaxSize=256;
+        kByteGroupSize=16;
+        kByteGroupDecodeLimit=24;
+        kTailMaxSize=32;
+   function GetVertexBlockSize(VertexSize:TPasGLTFSizeUInt):TPasGLTFSizeUInt;
+   begin
+    result:=kVertexBlockSizeBytes div VertexSize;
+    result:=result and not (kByteGroupSize-1);
+    if result>=kVertexBlockMaxSize then begin
+     result:=kVertexBlockMaxSize;
+    end;
+   end;
+   function Unzigzag8(v:TPasGLTFUInt8):TPasGLTFUInt8;
+   begin
+    result:=(-(v and 1)) xor (v shr 1);
+   end;
+   function DecodeBytesGroup(Data,Buffer:PPasGLTFUInt8;BitsLog2:TPasGLTFSizeInt):Pointer;
+   var ByteValue,Enc,EncV:TPasGLTFUInt8;
+       DataVar:PPasGLTFUInt8;
+    procedure Read; {$ifdef fpc}inline;{$endif}
+    begin
+     ByteValue:=Data^;
+     inc(Data);
+    end;
+    procedure Next(const Bits:TPasGLTFSizeInt); {$ifdef fpc}inline;{$endif}
+    begin
+     Enc:=ByteValue shr (8-Bits);
+     ByteValue:=ByteValue shl Bits;
+     EncV:=DataVar^;
+     Buffer^:=IfThen(Enc=((1 shl Bits)-1),EncV,Enc);
+     inc(Buffer);
+     inc(DataVar,ord(Enc=((1 shl Bits)-1)) and 1);
+    end;
+   begin
+    case BitsLog2 of
+     0:begin
+      FillChar(Buffer^,kByteGroupSize,0);
+      result:=Data;
+     end;
+     1:begin
+      DataVar:=@PPasGLTFUInt8Array(Data)^[4];
+      Read; Next(2); Next(2); Next(2); Next(2);
+      Read; Next(2); Next(2); Next(2); Next(2);
+      Read; Next(2); Next(2); Next(2); Next(2);
+      Read; Next(2); Next(2); Next(2); Next(2);
+      result:=DataVar;
+     end;
+     2:begin
+      DataVar:=@PPasGLTFUInt8Array(Data)^[8];
+      Read; Next(4); Next(4);
+      Read; Next(4); Next(4);
+      Read; Next(4); Next(4);
+      Read; Next(4); Next(4);
+      Read; Next(4); Next(4);
+      Read; Next(4); Next(4);
+      Read; Next(4); Next(4);
+      Read; Next(4); Next(4);
+      result:=DataVar;
+     end;
+     3:begin
+      Move(Data^,Buffer^,kByteGroupSize);
+      result:=@PPasGLTFUInt8Array(Data)^[kByteGroupSize];
+     end;
+     else begin
+      raise EPasGLTFInvalidDocument.Create('Invalid document');
+     end;
+    end;
+   end;
+   function DecodeBytes(Data,DataEnd,Buffer:PPasGLTFUInt8;BufferSize:TPasGLTFSizeUInt):Pointer;
+   var Header:PPasGLTFUInt8;
+       HeaderSize,Index,HeaderOffset:TPasGLTFSizeUInt;
+       BitsLog2:TPasGLTFSizeInt;
+   begin
+    if (BufferSize mod kByteGroupSize)<>0 then begin
+     raise EPasGLTFInvalidDocument.Create('Invalid document');
+    end;
+    Header:=Data;
+    HeaderSize:=((BufferSize div kByteGroupSize)+3) shr 2;
+    if TPasGLTFSizeUInt(TPasGLTFPtrUInt(DataEnd)-TPasGLTFPtrUInt(Data))<HeaderSize then begin
+     result:=nil;
+     exit;
+    end;
+    inc(Data,HeaderSize);
+    Index:=0;
+    while Index<BufferSize do begin
+     if TPasGLTFSizeUInt(TPasGLTFPtrUInt(DataEnd)-TPasGLTFPtrUInt(Data))<kByteGroupDecodeLimit then begin
+      result:=nil;
+      exit;
+     end;
+     HeaderOffset:=Index div kByteGroupSize;
+     BitsLog2:=(PPasGLTFUInt8Array(Header)^[HeaderOffset shr 2] shr ((HeaderOffset and 3) shl 1)) and 3;
+     Data:=DecodeBytesGroup(Data,@PPasGLTFUInt8Array(Buffer)^[Index],BitsLog2);
+     inc(Index,kByteGroupSize);
+    end;
+    result:=Data;
+   end;
+   function DecodeVertexBlock(Data,DataEnd,VertexData:PPasGLTFUInt8;VertexCount,VertexSize:TPasGLTFSizeUInt;var LastVertex:TLastVertex):Pointer;
+   var Buffer:array[0..kVertexBlockMaxSize-1] of TPasGLTFUInt8;
+       Transposed:array[0..kVertexBlockSizeBytes-1] of TPasGLTFUInt8;
+       VertexCountAligned,k,VertexOffset,i:TPasGLTFSizeUInt;
+       p,v:TPasGLTFUInt8;
+   begin
+    if (VertexCount<=0) or (VertexCount>kVertexBlockMaxSize) then begin
+     raise EPasGLTFInvalidDocument.Create('Invalid document');
+    end;
+    VertexCountAligned:=(VertexCount+(kByteGroupSize-1)) and not (kByteGroupSize-1);
+    k:=0;
+    while k<VertexSize do begin
+     Data:=DecodeBytes(Data,DataEnd,@Buffer[0],VertexCountAligned);
+     if not assigned(Data) then begin
+      result:=nil;
+      exit;
+     end;
+     VertexOffset:=k;
+     p:=LastVertex[k];
+     i:=0;
+     while i<VertexCount do begin
+      v:=Unzigzag8(Buffer[i])+p;
+      Transposed[VertexOffset]:=v;
+      p:=v;
+      inc(VertexOffset,VertexSize);
+      inc(i);
+     end;
+     inc(k);
+    end;
+    Move(Transposed,VertexData^,VertexCount*VertexSize);
+    Move(Transposed[VertexSize*(VertexCount-1)],LastVertex,VertexSize);
+    result:=Data;
+   end;
+   function DecodeVertexBuffer(Destination:PPasGLTFUInt8;VertexCount,VertexSize:TPasGLTFSizeUInt;Buffer:PPasGLTFUInt8;BufferSize:TPasGLTFSizeUInt):boolean;
+   var VertexData,Data,DataEnd:PPasGLTFUInt8;
+       DataHeader,Version:TPasGLTFUInt8;
+       LastVertex:TLastVertex;
+       VertexBlockSize,VertexOffset,BlockSize,TailSize,Size:TPasGLTFSizeUInt;
+   begin
+    if ((VertexSize=0) or (VertexSize>256)) or ((VertexSize and 3)<>0) then begin
+     raise EPasGLTFInvalidDocument.Create('Invalid document');
+    end;
+    VertexData:=Destination;
+    Data:=Buffer;
+    DataEnd:=@PPasGLTFUInt8Array(Buffer)^[BufferSize];
+    if TPasGLTFSizeUInt(TPasGLTFPtrUInt(DataEnd)-TPasGLTFPtrUInt(Data))<(VertexSize+1) then begin
+     result:=false;
+     exit;
+    end;
+    DataHeader:=Data^;
+    inc(Data);
+    if (DataHeader and $f0)<>kVertexHeader then begin
+     result:=false;
+     exit;
+    end;
+    Version:=DataHeader and $f;
+    if Version>0 then begin
+     result:=false;
+     exit;
+    end;
+    Move(PPasGLTFUInt8Array(DataEnd)^[-VertexSize],LastVertex,VertexSize);
+    VertexBlockSize:=GetVertexBlockSize(VertexSize);
+    VertexOffset:=0;
+    while VertexOffset<VertexCount do begin
+     if (VertexOffset+VertexBlockSize)<VertexCount then begin
+      BlockSize:=VertexBlockSize;
+     end else begin
+      BlockSize:=VertexCount-VertexOffset;
+     end;
+     Data:=DecodeVertexBlock(Data,
+                             DataEnd,
+                             @PPasGLTFUInt8Array(VertexData)^[VertexOffset*VertexSize],
+                             BlockSize,
+                             VertexSize,
+                             LastVertex);
+     if not assigned(Data) then begin
+      raise EPasGLTFInvalidDocument.Create('Invalid document');
+      result:=false;
+      exit;
+     end;
+     inc(VertexOffset,BlockSize);
+    end;
+    if VertexSize<kTailMaxSize then begin
+     TailSize:=kTailMaxSize;
+    end else begin
+     TailSize:=VertexSize;
+    end;
+    Size:=TPasGLTFSizeUInt(TPasGLTFPtrUInt(DataEnd)-TPasGLTFPtrUInt(Data));
+    if Size<>TailSize then begin
+     raise EPasGLTFInvalidDocument.Create('Invalid document');
+     result:=false;
+     exit;
+    end;
+    result:=true;
+   end;
+   procedure DecodeFilterOct8(Data:PPasGLTFInt8Array;Count:TPasGLTFSizeUInt);
+   var MaxRange,Index:TPasGLTFSizeUInt;
+       x,y,z,t,s:TPasGLTFFloat;
+   begin
+    MaxRange:=(1 shl ((SizeOf(TPasGLTFInt8) shl 3)-1))-1;
+    Index:=0;
+    while Index<Count do begin
+     x:=Data^[(Index shl 2) or 0];
+     y:=Data^[(Index shl 2) or 1];
+     z:=Data^[(Index shl 2) or 2]-(abs(x)+abs(y));
+     if z>=0.0 then begin
+      t:=0.0;
+     end else begin
+      t:=z;
+     end;
+     if x>=0.0 then begin
+      x:=x+t;
+     end else begin
+      x:=x-t;
+     end;
+     if y>=0.0 then begin
+      y:=y+t;
+     end else begin
+      y:=y-t;
+     end;
+     s:=MaxRange/sqrt(sqr(x)+sqr(y)+sqr(z));
+     Data^[(Index shl 2) or 0]:=Min(Max(round((x*s)+(Sign(x)*0.5)),-128),127);
+     Data^[(Index shl 2) or 1]:=Min(Max(round((y*s)+(Sign(y)*0.5)),-128),127);
+     Data^[(Index shl 2) or 2]:=Min(Max(round((z*s)+(Sign(z)*0.5)),-128),127);
+     inc(Index);
+    end;
+   end;
+   procedure DecodeFilterOct16(Data:PPasGLTFInt16Array;Count:TPasGLTFSizeUInt);
+   var MaxRange,Index:TPasGLTFSizeUInt;
+       x,y,z,t,s:TPasGLTFFloat;
+   begin
+    MaxRange:=(1 shl ((SizeOf(TPasGLTFInt16) shl 3)-1))-1;
+    Index:=0;
+    while Index<Count do begin
+     x:=Data^[(Index shl 2) or 0];
+     y:=Data^[(Index shl 2) or 1];
+     z:=Data^[(Index shl 2) or 2]-(abs(x)+abs(y));
+     if z>=0.0 then begin
+      t:=0.0;
+     end else begin
+      t:=z;
+     end;
+     if x>=0.0 then begin
+      x:=x+t;
+     end else begin
+      x:=x-t;
+     end;
+     if y>=0.0 then begin
+      y:=y+t;
+     end else begin
+      y:=y-t;
+     end;
+     s:=MaxRange/sqrt(sqr(x)+sqr(y)+sqr(z));
+     Data^[(Index shl 2) or 0]:=Min(Max(round((x*s)+(Sign(x)*0.5)),-32768),32767);
+     Data^[(Index shl 2) or 1]:=Min(Max(round((y*s)+(Sign(y)*0.5)),-32768),32767);
+     Data^[(Index shl 2) or 2]:=Min(Max(round((z*s)+(Sign(z)*0.5)),-32768),32767);
+     inc(Index);
+    end;
+   end;
+   procedure DecodeFilterOuat(Data:PPasGLTFInt16Array;Count:TPasGLTFSizeUInt);
+   const Scale=0.7071067811865476;
+   var Index,b:TPasGLTFSizeUInt;
+       sf,qc:TPasGLTFSizeInt;
+       ss,x,y,z,ww,w:TPasGLTFFloat;
+       xf,yf,zf,wf:TPasGLTFInt32;
+   begin
+    Index:=0;
+    while Index<Count do begin
+     b:=Data^[(Index shl 2) or 3];
+     sf:=b or 3;
+     ss:=Scale/sf;
+     x:=Data^[(Index shl 2) or 0]*ss;
+     y:=Data^[(Index shl 2) or 1]*ss;
+     z:=Data^[(Index shl 2) or 2]*ss;
+     ww:=1.0-(sqr(x)+sqr(y)+sqr(z));
+     if ww>0.0 then begin
+      w:=ww;
+     end else begin
+      w:=0.0;
+     end;
+     xf:=Min(Max(round((x*32767.0)+(Sign(x)*0.5)),-32768),32767);
+     yf:=Min(Max(round((y*32767.0)+(Sign(x)*0.5)),-32768),32767);
+     zf:=Min(Max(round((z*32767.0)+(Sign(x)*0.5)),-32768),32767);
+     wf:=Min(Max(round((w*32767.0)+0.5),-32768),32767);
+     qc:=b and 3;
+     Data^[(Index shl 2) or ((qc+1) and 3)]:=xf;
+     Data^[(Index shl 2) or ((qc+2) and 3)]:=yf;
+     Data^[(Index shl 2) or ((qc+3) and 3)]:=zf;
+     Data^[(Index shl 2) or ((qc+0) and 3)]:=wf;
+     inc(Index);
+    end;
+   end;
+   procedure DecodeFilterExp(Data:PPasGLTFUInt32Array;Count:TPasGLTFSizeUInt);
+   var Index:TPasGLTFSizeUInt;
+       v:TPasGLTFUInt32;
+       m,e:TPasGLTFInt32;
+   begin
+    Index:=0;
+    while Index<Count do begin
+     v:=Data^[Index];
+     m:=SARLongint(TPasGLTFInt32(v) shl 8,8);
+     e:=SARLongint(v,24);
+     v:=TPasGLTFUInt32(e+127) shl 23;
+     TPasGLTFFloat(pointer(@Data^[Index])^):=TPasGLTFFloat(pointer(@v)^)*m; // ldexp(m,e)
+     inc(Index);
+    end;
+   end;
+  var Buffer:TPasGLTF.TBuffer;
+  begin
+
+   Buffer:=fDocument.fBuffers[fEXTMeshOptCompression.fBuffer];
+
+   if DecodeVertexBuffer(pointer(@EXTMeshOptCompressionResult[0]),
+                         fEXTMeshOptCompression.fCount,
+                         fEXTMeshOptCompression.fByteStride,
+                         @PPasGLTFUInt8Array(Buffer.fData.Memory)^[fEXTMeshOptCompression.fByteOffset],
+                         fEXTMeshOptCompression.fByteLength) then begin
+
+    case fEXTMeshOptCompression.fFilter of
+     TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionFilter.Octahedral:begin
+      case fEXTMeshOptCompression.fByteStride of
+       4:begin
+        DecodeFilterOct8(pointer(@EXTMeshOptCompressionResult[0]),fEXTMeshOptCompression.fCount);
+       end;
+       8:begin
+        DecodeFilterOct16(pointer(@EXTMeshOptCompressionResult[0]),fEXTMeshOptCompression.fCount);
+       end;
+       else begin
+        raise EPasGLTFInvalidDocument.Create('Invalid document');
+       end;
+      end;
+     end;
+     TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionFilter.Quaternion:begin
+      case fEXTMeshOptCompression.fByteStride of
+       8:begin
+        DecodeFilterOuat(pointer(@EXTMeshOptCompressionResult[0]),fEXTMeshOptCompression.fCount);
+       end;
+       else begin
+        raise EPasGLTFInvalidDocument.Create('Invalid document');
+       end;
+      end;
+     end;
+     TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionFilter.Exponential:begin
+      if (fEXTMeshOptCompression.fByteStride and 3)=0 then begin
+       DecodeFilterExp(pointer(@EXTMeshOptCompressionResult[0]),fEXTMeshOptCompression.fCount);
+      end else begin
+       raise EPasGLTFInvalidDocument.Create('Invalid document');
+      end;
+     end;
+     else {TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionFilter.None:}begin
+     end;
+    end;
+
+   end else begin
+    raise EPasGLTFInvalidDocument.Create('Invalid document');
+   end;
+
+  end;
+  procedure DecodeIndexBuffer;
+  var Stride,Offset,ElementCount,
+      TriCount,CodeOffs,DataOffs,CodeAuxOffs,Last,Next,DstOffs,Code,
+      b0,b1:TPasGLTFSizeUInt;
+      TriangleIndex:TPasGLTFSizeInt;
+      a,b,c:TPasGLTFInt32;
+      e,z,w:TPasGLTFUInt32;
+      Buffer:TPasGLTF.TBuffer;
+      BufferData,Source,TargetData:PPasGLTFUInt8Array;
+      EdgeFifo:array[0..31] of TPasGLTFUInt32;
+      VertexFifo:array[0..15] of TPasGLTFUInt32;
+   procedure EdgeFifoPush(n:TPasGLTFUInt32);
+   var i:TPasGLTFSizeInt;
+   begin
+    for i:=31 downto 1 do begin
+     EdgeFifo[i]:=EdgeFifo[i-1];
+    end;
+    EdgeFifo[0]:=n;
+   end;
+   procedure VertexFifoPush(n:TPasGLTFUInt32);
+   var i:TPasGLTFSizeInt;
+   begin
+    for i:=15 downto 1 do begin
+     VertexFifo[i]:=VertexFifo[i-1];
+    end;
+    VertexFifo[0]:=n;
+   end;
+   function ReadLEB128:TPasGLTFUInt64;
+   var i:TPasGLTFSizeInt;
+       b:TPasGLTFUInt64;
+   begin
+    result:=0;
+    i:=0;
+    repeat
+     if (DataOffs>=0) and (DataOffs<fEXTMeshOptCompression.fByteLength) then begin
+      b:=Source^[DataOffs];
+      inc(DataOffs);
+     end else begin
+      raise EPasGLTFInvalidDocument.Create('Invalid document');
+     end;
+     result:=result or ((b and $7f) shl i);
+     if b<$80 then begin
+      exit;
+     end else begin
+      inc(i,7);
+     end;
+    until false;
+   end;
+  begin
+
+   TargetData:=@EXTMeshOptCompressionResult[0];
+
+   Buffer:=fDocument.fBuffers[fEXTMeshOptCompression.fBuffer];
+
+   Stride:=fEXTMeshOptCompression.fByteStride;
+
+   Offset:=fEXTMeshOptCompression.fByteOffset;
+
+   BufferData:=Buffer.fData.Memory;
+
+   ElementCount:=fEXTMeshOptCompression.fCount;
+
+   Source:=@PPasGLTFUInt8Array(BufferData)^[Offset];
+
+   if (Source^[0]<>$e1) or ((ElementCount mod 3)<>0) or ((Stride<>2) and (Stride<>4)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid document');
+   end;
+
+   TriCount:=ElementCount div 3;
+
+   CodeOffs:=1;
+   DataOffs:=CodeOffs+TriCount;
+   CodeAuxOffs:=fEXTMeshOptCompression.fByteLength-16;
+
+   Next:=0;
+   Last:=0;
+
+   FillChar(EdgeFifo,SizeOf(EdgeFifo),#0);
+   FillChar(VertexFifo,SizeOf(VertexFifo),#0);
+
+   Code:=0;
+
+   DstOffs:=0;
+   for TriangleIndex:=0 to TPasGLTFSizeInt(TriCount)-1 do begin
+    if (CodeOffs>=0) and (CodeOffs<fEXTMeshOptCompression.fByteLength) then begin
+     Code:=Source^[CodeOffs];
+     inc(CodeOffs);
+    end else begin
+     raise EPasGLTFInvalidDocument.Create('Invalid document');
+    end;
+    b0:=Code shr 4;
+    b1:=Code and $f;
+    if b0<$f then begin
+     a:=EdgeFifo[(b0 shl 1) or 0];
+     b:=EdgeFifo[(b0 shl 1) or 1];
+     c:=-1;
+     case b1 of
+      $0:begin
+       c:=Next;
+       inc(Next);
+       VertexFifoPush(c);
+      end;
+      $1..$c:begin
+       c:=VertexFifo[b1];
+      end;
+      $d:begin
+       dec(Last);
+       c:=Last;
+       VertexFifoPush(c);
+      end;
+      $e:begin
+       inc(Last);
+       c:=Last;
+       VertexFifoPush(c);
+      end;
+      $f:begin
+       inc(Last,Dezig(ReadLEB128));
+       c:=Last;
+       VertexFifoPush(c);
+      end;
+      else begin
+       Assert(false);
+      end;
+     end;
+     EdgeFifoPush(b);
+     EdgeFifoPush(c);
+     EdgeFifoPush(c);
+     EdgeFifoPush(a);
+     case Stride of
+      2:Begin
+      if (DstOffs>=0) and (((DstOffs+3) shl 1)<=length(EXTMeshOptCompressionResult)) then begin
+        PPasGLTFUInt16Array(TargetData)^[DstOffs+0]:=a;
+        PPasGLTFUInt16Array(TargetData)^[DstOffs+1]:=b;
+        PPasGLTFUInt16Array(TargetData)^[DstOffs+2]:=c;
+        inc(DstOffs,3);
+       end else begin
+        raise EPasGLTFInvalidDocument.Create('Invalid document');
+       end;
+      end;
+      4:Begin
+       if (DstOffs>=0) and (((DstOffs+3) shl 2)<=length(EXTMeshOptCompressionResult)) then begin
+        PPasGLTFUInt32Array(TargetData)^[DstOffs+0]:=a;
+        PPasGLTFUInt32Array(TargetData)^[DstOffs+1]:=b;
+        PPasGLTFUInt32Array(TargetData)^[DstOffs+2]:=c;
+        inc(DstOffs,3);
+       end else begin
+        raise EPasGLTFInvalidDocument.Create('Invalid document');
+       end;
+      end;
+      else begin
+       Assert(false);
+      end;
+     end;
+    end else{if b0=$f then}begin
+     a:=-1;
+     b:=-1;
+     c:=-1;
+     if b1<$e then begin
+      if ((CodeAuxOffs+b1)>=0) and ((CodeAuxOffs+b1)<fEXTMeshOptCompression.fByteLength) then begin
+       e:=Source^[CodeAuxOffs+b1];
+      end else begin
+       raise EPasGLTFInvalidDocument.Create('Invalid document');
+      end;
+      z:=e shr 4;
+      w:=e and $f;
+      a:=Next;
+      inc(Next);
+      if z=0 then begin
+       b:=Next;
+       inc(Next);
+      end else begin
+       b:=VertexFifo[z-1];
+      end;
+      if w=0 then begin
+       c:=Next;
+       inc(Next);
+      end else begin
+       c:=VertexFifo[w-1];
+      end;
+      VertexFifoPush(a);
+      if z=0 then begin
+       VertexFifoPush(b);
+      end;
+      if w=0 then begin
+       VertexFifoPush(c);
+      end;
+     end else begin
+      if (DataOffs>=0) and (DataOffs<fEXTMeshOptCompression.fByteLength) then begin
+       e:=Source^[DataOffs];
+       inc(DataOffs);
+      end else begin
+       raise EPasGLTFInvalidDocument.Create('Invalid document');
+      end;
+      if e=0 then begin
+       Next:=0;
+      end;
+      z:=e shr 4;
+      w:=e and $f;
+      if b1=$e then begin
+       a:=Next;
+       inc(Next);
+      end else begin
+       inc(Last,Dezig(ReadLEB128));
+       a:=Last;
+      end;
+      if z=0 then begin
+       b:=Next;
+       inc(Next);
+      end else if z=$f then begin
+       inc(Last,Dezig(ReadLEB128));
+       b:=Last;
+      end else begin
+       b:=VertexFifo[z-1];
+      end;
+      if w=0 then begin
+       c:=Next;
+       inc(Next);
+      end else if w=$f then begin
+       inc(Last,Dezig(ReadLEB128));
+       c:=Last;
+      end else begin
+       c:=VertexFifo[w-1];
+      end;
+      VertexFifoPush(a);
+      if (z=0) or (z=$f) then begin
+       VertexFifoPush(b);
+      end;
+      if (w=0) or (w=$f) then begin
+       VertexFifoPush(c);
+      end;
+     end;
+     EdgeFifoPush(a);
+     EdgeFifoPush(b);
+     EdgeFifoPush(b);
+     EdgeFifoPush(c);
+     EdgeFifoPush(c);
+     EdgeFifoPush(a);
+     case Stride of
+      2:Begin
+      if (DstOffs>=0) and (((DstOffs+3) shl 1)<=length(EXTMeshOptCompressionResult)) then begin
+        PPasGLTFUInt16Array(TargetData)^[DstOffs+0]:=a;
+        PPasGLTFUInt16Array(TargetData)^[DstOffs+1]:=b;
+        PPasGLTFUInt16Array(TargetData)^[DstOffs+2]:=c;
+        inc(DstOffs,3);
+       end else begin
+        raise EPasGLTFInvalidDocument.Create('Invalid document');
+       end;
+      end;
+      4:Begin
+       if (DstOffs>=0) and (((DstOffs+3) shl 2)<=length(EXTMeshOptCompressionResult)) then begin
+        PPasGLTFUInt32Array(TargetData)^[DstOffs+0]:=a;
+        PPasGLTFUInt32Array(TargetData)^[DstOffs+1]:=b;
+        PPasGLTFUInt32Array(TargetData)^[DstOffs+2]:=c;
+        inc(DstOffs,3);
+       end else begin
+        raise EPasGLTFInvalidDocument.Create('Invalid document');
+       end;
+      end;
+      else begin
+       Assert(false);
+      end;
+     end;
+    end;
+   end;
+
+  end;
+  procedure DecodeIndexSequence;
+  var Stride,Offset,ElementCount,
+      DataOffs:TPasGLTFSizeUInt;
+      Index:TPasGLTFSizeInt;
+      v,b,Delta:TPasGLTFUInt32;
+      Last:array[0..1] of TPasGLTFUInt32;
+      Buffer:TPasGLTF.TBuffer;
+      BufferData,Source,TargetData:PPasGLTFUInt8Array;
+   function ReadLEB128:TPasGLTFUInt64;
+   var i:TPasGLTFSizeInt;
+       b:TPasGLTFUInt64;
+   begin
+    result:=0;
+    i:=0;
+    repeat
+     b:=Source^[DataOffs];
+     inc(DataOffs);
+     result:=result or ((b and $7f) shl i);
+     if b<$80 then begin
+      exit;
+     end else begin
+      inc(i,7);
+     end;
+    until false;
+   end;
+  begin
+
+   TargetData:=@EXTMeshOptCompressionResult[0];
+
+   Buffer:=fDocument.fBuffers[fEXTMeshOptCompression.fBuffer];
+
+   Stride:=fEXTMeshOptCompression.fByteStride;
+
+   Offset:=fEXTMeshOptCompression.fByteOffset;
+
+   BufferData:=Buffer.fData.Memory;
+
+   ElementCount:=fEXTMeshOptCompression.fCount;
+
+   Source:=@PPasGLTFUInt8Array(BufferData)^[Offset];
+
+   if (Source^[0]<>$d1) or ((Stride<>2) and (Stride<>4)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid document');
+   end;
+
+   DataOffs:=1;
+
+   Last[0]:=0;
+   Last[1]:=0;
+
+   for Index:=0 to TPasGLTFSizeInt(ElementCount)-1 do begin
+    v:=ReadLEB128;
+    b:=v and 1;
+    Delta:=Dezig(v shr 1);
+    inc(Last[b],Delta);
+    case Stride of
+     2:Begin
+      if (Index>=0) and (((Index+1) shl 1)<=length(EXTMeshOptCompressionResult)) then begin
+       PPasGLTFUInt16Array(TargetData)^[Index]:=Last[b];
+      end else begin
+       raise EPasGLTFInvalidDocument.Create('Invalid document');
+      end;
+     end;
+     4:Begin
+      if (Index>=0) and (((Index+1) shl 2)<=length(EXTMeshOptCompressionResult)) then begin
+       PPasGLTFUInt32Array(TargetData)^[Index]:=Last[b];
+      end else begin
+       raise EPasGLTFInvalidDocument.Create('Invalid document');
+      end;
+     end;
+     else begin
+      Assert(false);
+     end;
+    end;
+   end;
+
+  end;
+ begin
+  result:=assigned(fEXTMeshOptCompression);
+  if result then begin
+   SetLength(EXTMeshOptCompressionResult,fEXTMeshOptCompression.fCount*fEXTMeshOptCompression.fByteStride);
+   case fEXTMeshOptCompression.fMode of
+    TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionMode.Attributes:begin
+     DecodeVertexBuffer;
+    end;
+    TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionMode.Triangles:begin
+     DecodeIndexBuffer;
+    end;
+    TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionMode.Indices:begin
+     DecodeIndexSequence;
+    end;
+    else begin
+     Assert(false);
+    end;
+   end;
+  end;
+ end;
 var Stride,Offset,Index,
     ComponentIndex,
     OutputIndex:TPasGLTFSizeUInt;
@@ -3209,94 +4086,127 @@ begin
 
  result:=nil;
 
- Buffer:=fDocument.fBuffers[fBuffer];
+ EXTMeshOptCompressionResult:=nil;
+ try
 
- if fByteStride<>0 then begin
-  Stride:=fByteStride;
- end else begin
-  Stride:=aElementSize;
- end;
+  if assigned(fEXTMeshOptCompression) and ProcessEXTMeshOptCompression then begin
 
- if aForVertex and ((Stride and 3)<>0) then begin
-  inc(Stride,4-(Stride and 3));
- end;
-
- SetLength(result,aCount*aComponentCount);
-
- Offset:=fByteOffset+aByteOffset;
-
- BufferData:=Buffer.fData.Memory;
-
- if (((Stride*(aCount-1))+aElementSize)>fByteLength) or
-    ((Offset+((Stride*(aCount-1))+aElementSize))>TPasGLTFSizeUInt(Buffer.fData.Size)) then begin
-  raise EPasGLTFInvalidDocument.Create('Invalid document');
- end;
-
- OutputIndex:=0;
-
- for Index:=1 to aCount do begin
-
-  Source:=@BufferData^[Offset+((Index-1)*Stride)];
-
-  for ComponentIndex:=1 to aComponentCount do begin
-
-   if (aSkipEvery>0) and (ComponentIndex>1) and (((ComponentIndex-1) mod aSkipEvery)=0)  then begin
-    Source:=@Source^[aSkipBytes];
+   if fEXTMeshOptCompression.fByteStride<>0 then begin
+    Stride:=fEXTMeshOptCompression.fByteStride;
+   end else begin
+    Stride:=aElementSize;
    end;
 
-   Value:=0.0;
-
-   case aComponentType of
-    TPasGLTF.TAccessor.TComponentType.SignedByte:begin
-     if aNormalized then begin
-      Value:=TPasGLTFInt8(TPasGLTFPointer(@Source^[0])^)/128.0;
-     end else begin
-      Value:=TPasGLTFInt8(TPasGLTFPointer(@Source^[0])^);
-     end;
-    end;
-    TPasGLTF.TAccessor.TComponentType.UnsignedByte:begin
-     if aNormalized then begin
-      Value:=TPasGLTFUInt8(TPasGLTFPointer(@Source^[0])^)/255.0;
-     end else begin
-      Value:=TPasGLTFUInt8(TPasGLTFPointer(@Source^[0])^);
-     end;
-    end;
-    TPasGLTF.TAccessor.TComponentType.SignedShort:begin
-     if aNormalized then begin
-      Value:=TPasGLTFInt16(TPasGLTFPointer(@Source^[0])^)/32768.0;
-     end else begin
-      Value:=TPasGLTFInt16(TPasGLTFPointer(@Source^[0])^);
-     end;
-    end;
-    TPasGLTF.TAccessor.TComponentType.UnsignedShort:begin
-     if aNormalized then begin
-      Value:=TPasGLTFUInt16(TPasGLTFPointer(@Source^[0])^)/65535.0;
-     end else begin
-      Value:=TPasGLTFUInt16(TPasGLTFPointer(@Source^[0])^);
-     end;
-    end;
-    TPasGLTF.TAccessor.TComponentType.UnsignedInt:begin
-     if aNormalized then begin
-      Value:=TPasGLTFUInt32(TPasGLTFPointer(@Source^[0])^)/4294967295.0;
-     end else begin
-      Value:=TPasGLTFUInt32(TPasGLTFPointer(@Source^[0])^);
-     end;
-    end;
-    TPasGLTF.TAccessor.TComponentType.Float:begin
-     Value:=TPasGLTFFloat(TPasGLTFPointer(@Source^[0])^);
-    end;
-    else {TPasGLTF.TAccessor.TComponentType.None:}begin
-     raise EPasGLTFInvalidDocument.Create('Invalid document');
-    end;
+   if aForVertex and ((Stride and 3)<>0) then begin
+    inc(Stride,4-(Stride and 3));
    end;
 
-   result[OutputIndex]:=Value;
-   inc(OutputIndex);
+   if (({Offset+}((Stride*(aCount-1))+aElementSize))>TPasGLTFSizeUInt(length(EXTMeshOptCompressionResult))) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid document');
+   end;
 
-   Source:=@Source^[aComponentSize];
+   SetLength(result,aCount*aComponentCount);
+
+   Offset:=0;
+
+   BufferData:=@EXTMeshOptCompressionResult[0];
+
+  end else begin
+
+   Buffer:=fDocument.fBuffers[fBuffer];
+
+   if fByteStride<>0 then begin
+    Stride:=fByteStride;
+   end else begin
+    Stride:=aElementSize;
+   end;
+
+   if aForVertex and ((Stride and 3)<>0) then begin
+    inc(Stride,4-(Stride and 3));
+   end;
+
+   SetLength(result,aCount*aComponentCount);
+
+   Offset:=fByteOffset+aByteOffset;
+
+   BufferData:=Buffer.fData.Memory;
+
+   if (((Stride*(aCount-1))+aElementSize)>fByteLength) or
+      ((Offset+((Stride*(aCount-1))+aElementSize))>TPasGLTFSizeUInt(Buffer.fData.Size)) then begin
+    raise EPasGLTFInvalidDocument.Create('Invalid document');
+   end;
 
   end;
 
+  OutputIndex:=0;
+
+  for Index:=1 to aCount do begin
+
+   Source:=@BufferData^[Offset+((Index-1)*Stride)];
+
+   for ComponentIndex:=1 to aComponentCount do begin
+
+    if (aSkipEvery>0) and (ComponentIndex>1) and (((ComponentIndex-1) mod aSkipEvery)=0) then begin
+     Source:=@Source^[aSkipBytes];
+    end;
+
+    Value:=0.0;
+
+    case aComponentType of
+     TPasGLTF.TAccessor.TComponentType.SignedByte:begin
+      if aNormalized then begin
+       Value:=TPasGLTFInt8(TPasGLTFPointer(@Source^[0])^)/128.0;
+      end else begin
+       Value:=TPasGLTFInt8(TPasGLTFPointer(@Source^[0])^);
+      end;
+     end;
+     TPasGLTF.TAccessor.TComponentType.UnsignedByte:begin
+      if aNormalized then begin
+       Value:=TPasGLTFUInt8(TPasGLTFPointer(@Source^[0])^)/255.0;
+      end else begin
+       Value:=TPasGLTFUInt8(TPasGLTFPointer(@Source^[0])^);
+      end;
+     end;
+     TPasGLTF.TAccessor.TComponentType.SignedShort:begin
+      if aNormalized then begin
+       Value:=TPasGLTFInt16(TPasGLTFPointer(@Source^[0])^)/32768.0;
+      end else begin
+       Value:=TPasGLTFInt16(TPasGLTFPointer(@Source^[0])^);
+      end;
+     end;
+     TPasGLTF.TAccessor.TComponentType.UnsignedShort:begin
+      if aNormalized then begin
+       Value:=TPasGLTFUInt16(TPasGLTFPointer(@Source^[0])^)/65535.0;
+      end else begin
+       Value:=TPasGLTFUInt16(TPasGLTFPointer(@Source^[0])^);
+      end;
+     end;
+     TPasGLTF.TAccessor.TComponentType.UnsignedInt:begin
+      if aNormalized then begin
+       Value:=TPasGLTFUInt32(TPasGLTFPointer(@Source^[0])^)/4294967295.0;
+      end else begin
+       Value:=TPasGLTFUInt32(TPasGLTFPointer(@Source^[0])^);
+      end;
+     end;
+     TPasGLTF.TAccessor.TComponentType.Float:begin
+      Value:=TPasGLTFFloat(TPasGLTFPointer(@Source^[0])^);
+     end;
+     else {TPasGLTF.TAccessor.TComponentType.None:}begin
+      raise EPasGLTFInvalidDocument.Create('Invalid document');
+     end;
+    end;
+
+    result[OutputIndex]:=Value;
+    inc(OutputIndex);
+
+    Source:=@Source^[aComponentSize];
+
+   end;
+
+  end;
+
+ finally
+  EXTMeshOptCompressionResult:=nil;
  end;
 
 end;
@@ -3722,6 +4632,7 @@ begin
 end;
 
 procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
+var UseEXTMeshOptCompression:boolean;
  function Required(const aJSONItem:TPasJSONItem;const aName:TPasGLTFUTF8String=''):TPasJSONItem;
  begin
   result:=aJSONItem;
@@ -3985,6 +4896,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  procedure ProcessBuffers(const aJSONItem:TPasJSONItem);
   function ProcessBuffer(const aJSONItem:TPasJSONItem):TBuffer;
   var JSONObject:TPasJSONItemObject;
+      JSONEXTMeshOptCompressionItem:TPasJSONItem;
   begin
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -3996,6 +4908,13 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
     result.fURI:=TPasJSON.GetString(JSONObject.Properties['uri'],result.fURI);
     result.fByteLength:=TPasJSON.GetInt64(Required(JSONObject.Properties['byteLength'],'byteLength'),result.fByteLength);
+    if UseEXTMeshOptCompression and assigned(result.Extensions) then begin
+     JSONExtMeshOptCompressionItem:=result.Extensions.Properties['EXT_meshopt_compression'];
+     if assigned(JSONEXTMeshOptCompressionItem) and (JSONExtMeshOptCompressionItem is TPasJSONItemObject) then begin
+      result.fEXTMeshOptCompression:=TBuffer.TEXTMeshOptCompression.Create;
+      result.fEXTMeshOptCompression.fFallback:=TPasJSON.GetBoolean(TPasJSONItemObject(JSONExtMeshOptCompressionItem).Properties['fallback'],false);
+     end;
+    end;
    except
     FreeAndNil(result);
     raise;
@@ -4015,6 +4934,8 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
  procedure ProcessBufferViews(const aJSONItem:TPasJSONItem);
   function ProcessBufferView(const aJSONItem:TPasJSONItem):TBufferView;
   var JSONObject:TPasJSONItemObject;
+      JSONEXTMeshOptCompressionItem:TPasJSONItem;
+      TemporaryString:TPasJSONUTF8String;
   begin
    if not (assigned(aJSONItem) and (aJSONItem is TPasJSONItemObject)) then begin
     raise EPasGLTFInvalidDocument.Create('Invalid GLTF document');
@@ -4029,6 +4950,39 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
     result.fByteStride:=TPasJSON.GetInt64(JSONObject.Properties['byteStride'],result.fByteStride);
     result.fName:=TPasJSON.GetString(JSONObject.Properties['name'],result.fName);
     result.fTarget:=TBufferView.TTargetType(TPasJSON.GetInt64(JSONObject.Properties['target'],TPasGLTFInt64(result.fTarget)));
+    if UseEXTMeshOptCompression and assigned(result.Extensions) then begin
+     JSONExtMeshOptCompressionItem:=result.Extensions.Properties['EXT_meshopt_compression'];
+     if assigned(JSONEXTMeshOptCompressionItem) and (JSONExtMeshOptCompressionItem is TPasJSONItemObject) then begin
+      result.fEXTMeshOptCompression:=TBufferView.TEXTMeshOptCompression.Create;
+      result.fEXTMeshOptCompression.fBuffer:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONExtMeshOptCompressionItem).Properties['buffer'],'buffer'),result.fEXTMeshOptCompression.fBuffer);
+      result.fEXTMeshOptCompression.fByteLength:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONExtMeshOptCompressionItem).Properties['byteLength'],'byteLength'),result.fEXTMeshOptCompression.fByteLength);
+      result.fEXTMeshOptCompression.fByteOffset:=TPasJSON.GetInt64(TPasJSONItemObject(JSONExtMeshOptCompressionItem).Properties['byteOffset'],result.fEXTMeshOptCompression.fByteOffset);
+      result.fEXTMeshOptCompression.fByteStride:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONExtMeshOptCompressionItem).Properties['byteStride'],'byteStride'),result.fEXTMeshOptCompression.fByteStride);
+      result.fEXTMeshOptCompression.fCount:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONExtMeshOptCompressionItem).Properties['count'],'count'),result.fEXTMeshOptCompression.fCount);
+      TemporaryString:=UpperCase(TPasJSON.GetString(Required(TPasJSONItemObject(JSONExtMeshOptCompressionItem).Properties['mode'],'mode'),'ATTRIBUTES'));
+      if TemporaryString='ATTRIBUTES' then begin
+       result.fEXTMeshOptCompression.fMode:=TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionMode.Attributes;
+      end else if TemporaryString='TRIANGLES' then begin
+       result.fEXTMeshOptCompression.fMode:=TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionMode.Triangles;
+      end else if TemporaryString='INDICES' then begin
+       result.fEXTMeshOptCompression.fMode:=TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionMode.Indices;
+      end else begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document, unknown "'+TemporaryString+'" EXT_meshopt_compression mode');
+      end;
+      TemporaryString:=UpperCase(TPasJSON.GetString(TPasJSONItemObject(JSONExtMeshOptCompressionItem).Properties['filter'],'NONE'));
+      if TemporaryString='NONE' then begin
+       result.fEXTMeshOptCompression.fFilter:=TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionFilter.None;
+      end else if TemporaryString='OCTAHEDRAL' then begin
+       result.fEXTMeshOptCompression.fFilter:=TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionFilter.Octahedral;
+      end else if TemporaryString='QUATERNION' then begin
+       result.fEXTMeshOptCompression.fFilter:=TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionFilter.Quaternion;
+      end else if TemporaryString='EXPONENTIAL' then begin
+       result.fEXTMeshOptCompression.fFilter:=TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionFilter.Exponential;
+      end else begin
+       raise EPasGLTFInvalidDocument.Create('Invalid GLTF document, unknown "'+TemporaryString+'" EXT_meshopt_compression filter');
+      end;
+     end;
+    end;
    except
     FreeAndNil(result);
     raise;
@@ -4626,6 +5580,7 @@ procedure TPasGLTF.TDocument.LoadFromJSON(const aJSONRootItem:TPasJSONItem);
   end;
  end;
 var JSONObject:TPasJSONItemObject;
+    JSONObjectItem:TPasJSONItem;
     JSONObjectProperty:TPasJSONItemObjectProperty;
     HasAsset:boolean;
 begin
@@ -4635,6 +5590,20 @@ begin
  JSONObject:=TPasJSONItemObject(aJSONRootItem);
  ProcessExtensionsAndExtras(JSONObject,self);
  HasAsset:=false;
+ begin
+  JSONObjectItem:=JSONObject.Properties['extensionsUsed'];
+  if assigned(JSONObjectItem) then begin
+   ProcessStringList(JSONObjectItem,fExtensionsUsed);
+  end;
+ end;
+ begin
+  JSONObjectItem:=JSONObject.Properties['extensionsRequired'];
+  if assigned(JSONObjectItem) then begin
+   ProcessStringList(JSONObjectItem,fExtensionsRequired);
+  end;
+ end;
+ UseEXTMeshOptCompression:=(fExtensionsUsed.IndexOf('EXT_meshopt_compression')>=0){and
+                           (fExtensionsRequired.IndexOf('EXT_meshopt_compression')>=0)};
  for JSONObjectProperty in JSONObject do begin
   if JSONObjectProperty.Key='accessors' then begin
    ProcessAccessors(JSONObjectProperty.Value);
@@ -4667,10 +5636,10 @@ begin
    ProcessSkins(JSONObjectProperty.Value);
   end else if JSONObjectProperty.Key='textures' then begin
    ProcessTextures(JSONObjectProperty.Value);
-  end else if JSONObjectProperty.Key='extensionsUsed' then begin
+{ end else if JSONObjectProperty.Key='extensionsUsed' then begin
    ProcessStringList(JSONObjectProperty.Value,fExtensionsUsed);
   end else if JSONObjectProperty.Key='extensionsRequired' then begin
-   ProcessStringList(JSONObjectProperty.Value,fExtensionsRequired);
+   ProcessStringList(JSONObjectProperty.Value,fExtensionsRequired);//}
   end;
  end;
  if not HasAsset then begin
