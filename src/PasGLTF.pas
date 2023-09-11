@@ -1041,9 +1041,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
               property EXTMeshOptCompression:TBuffer.TEXTMeshOptCompression read fEXTMeshOptCompression write fEXTMeshOptCompression;
             end;
             TBuffers=TPasGLTFObjectList<TBuffer>;
-
             { TBufferView }
-
             TBufferView=class(TBaseExtensionsExtrasObject)
              public
               type TTargetType=
@@ -1074,6 +1072,8 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                           PEXTMeshOptCompressionFilter=^TEXTMeshOptCompressionFilter;
                           TFilter=TEXTMeshOptCompressionFilter;
                     private
+                     fBufferView:TPasGLTF.TBufferView;
+                     fDocument:TPasGLTF.TDocument;
                      fBuffer:TPasGLTFSizeInt;
                      fByteOffset:TPasGLTFSizeUInt;
                      fByteLength:TPasGLTFSizeUInt;
@@ -1083,7 +1083,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      fFilter:TEXTMeshOptCompressionFilter;
                      fData:TMemoryStream;
                     public
-                     constructor Create; reintroduce;
+                     constructor Create(const aBufferView:TPasGLTF.TBufferView); reintroduce;
                      destructor Destroy; override;
                      procedure Decode;
                     published
@@ -1094,6 +1094,7 @@ type PPPasGLTFInt8=^PPasGLTFInt8;
                      property Count:TPasGLTFSizeUInt read fCount write fCount;
                      property Mode:TEXTMeshOptCompressionMode read fMode write fMode;
                      property Filter:TEXTMeshOptCompressionFilter read fFilter write fFilter;
+                     property Data:TMemoryStream read fData write fData;
                    end;
              private
               fName:TPasGLTFUTF8String;
@@ -3310,9 +3311,11 @@ end;
 
 { TPasGLTF.TBufferView.TEXTMeshOptCompression }
 
-constructor TPasGLTF.TBufferView.TEXTMeshOptCompression.Create;
+constructor TPasGLTF.TBufferView.TEXTMeshOptCompression.Create(const aBufferView:TPasGLTF.TBufferView);
 begin
  inherited Create;
+ fBufferView:=aBufferView;
+ fDocument:=fBufferView.fDocument;
  fBuffer:=-1;
  fByteOffset:=0;
  fByteLength:=0;
@@ -4930,7 +4933,7 @@ var UseEXTMeshOptCompression:boolean;
     if UseEXTMeshOptCompression and assigned(result.Extensions) then begin
      JSONExtMeshOptCompressionItem:=result.Extensions.Properties['EXT_meshopt_compression'];
      if assigned(JSONEXTMeshOptCompressionItem) and (JSONExtMeshOptCompressionItem is TPasJSONItemObject) then begin
-      result.fEXTMeshOptCompression:=TBufferView.TEXTMeshOptCompression.Create;
+      result.fEXTMeshOptCompression:=TBufferView.TEXTMeshOptCompression.Create(result);
       result.fEXTMeshOptCompression.fBuffer:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONExtMeshOptCompressionItem).Properties['buffer'],'buffer'),result.fEXTMeshOptCompression.fBuffer);
       result.fEXTMeshOptCompression.fByteLength:=TPasJSON.GetInt64(Required(TPasJSONItemObject(JSONExtMeshOptCompressionItem).Properties['byteLength'],'byteLength'),result.fEXTMeshOptCompression.fByteLength);
       result.fEXTMeshOptCompression.fByteOffset:=TPasJSON.GetInt64(TPasJSONItemObject(JSONExtMeshOptCompressionItem).Properties['byteOffset'],result.fEXTMeshOptCompression.fByteOffset);
