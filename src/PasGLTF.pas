@@ -3355,7 +3355,7 @@ function TPasGLTF.TBufferView.Decode(const aSkipEvery:TPasGLTFSizeUInt;
                                      const aForVertex:boolean):TPasGLTFDoubleDynamicArray;
 var EXTMeshOptCompressionResult:TPasGLTFUInt8DynamicArray;
  function ProcessEXTMeshOptCompression:boolean;
-  procedure DecodeVertexBuffer;
+  procedure DecodeVertexBufferEx;
   type TLastVertex=array[0..255] of TPasGLTFUInt8;
   const kVertexHeader=$a0;
         kVertexBlockSizeBytes=8192;
@@ -3713,273 +3713,254 @@ var EXTMeshOptCompressionResult:TPasGLTFUInt8DynamicArray;
    end;
 
   end;
-  procedure DecodeIndexBuffer;
-  var Stride,Offset,ElementCount,
-      TriCount,CodeOffs,DataOffs,CodeAuxOffs,Last,Next,DstOffs,Code,
-      b0,b1:TPasGLTFSizeUInt;
-      TriangleIndex:TPasGLTFSizeInt;
-      a,b,c:TPasGLTFInt32;
-      e,z,w:TPasGLTFUInt32;
-      Buffer:TPasGLTF.TBuffer;
-      BufferData,Source,TargetData:PPasGLTFUInt8Array;
-      EdgeFifo:array[0..31] of TPasGLTFUInt32;
-      VertexFifo:array[0..15] of TPasGLTFUInt32;
-   procedure EdgeFifoPush(n:TPasGLTFUInt32);
-   var i:TPasGLTFSizeInt;
-   begin
-    for i:=31 downto 1 do begin
-     EdgeFifo[i]:=EdgeFifo[i-1];
-    end;
-    EdgeFifo[0]:=n;
-   end;
-   procedure VertexFifoPush(n:TPasGLTFUInt32);
-   var i:TPasGLTFSizeInt;
-   begin
-    for i:=15 downto 1 do begin
-     VertexFifo[i]:=VertexFifo[i-1];
-    end;
-    VertexFifo[0]:=n;
-   end;
-   function ReadLEB128:TPasGLTFUInt64;
-   var i:TPasGLTFSizeInt;
-       b:TPasGLTFUInt64;
-   begin
-    result:=0;
-    i:=0;
-    repeat
-     if (DataOffs>=0) and (DataOffs<fEXTMeshOptCompression.fByteLength) then begin
-      b:=Source^[DataOffs];
-      inc(DataOffs);
-     end else begin
-      raise EPasGLTFInvalidDocument.Create('Invalid document');
-     end;
-     result:=result or ((b and $7f) shl i);
-     if b<$80 then begin
+  procedure DecodeIndexBufferEx;
+  const kIndexHeader=$e0;
+  type TVertexFifo=array[0..15] of TPasGLTFUInt32;
+       TEdge=array[0..1] of TPasGLTFUInt32;
+       TEdgeFifo=array[0..15] of TEdge;
+   function DecodeIndexBuffer(Destination:PPasGLTFUInt8Array;IndexCount,IndexSize:TPasGLTFSizeUInt;Buffer:PPasGLTFUInt8Array;BufferSize:TPasGLTFSizeUInt):boolean;
+   var Version,EdgeFifoOffset,VertexFifoOffset,Index:TPasGLTFSizeUInt;
+       FecMax,Fec,Fec0,Fe,Feb,Feb0,Fea:TPasGLTFSizeInt;
+       Next,Last,a,b,cf,c,v,d,bf:TPasGLTFUInt32;
+       CodeTri,CodeAux:TPasGLTFUInt8;
+       Code,Data,DataSafeEnd,CodeAuxTable:PPasGLTFUInt8Array;
+       EdgeFifo:TEdgeFifo;
+       VertexFifo:TVertexFifo;
+    function DecodeVByte:TPasGLTFUInt32;
+    var Lead,Shift,Index,GRoup:TPasGLTFUInt32;
+    begin
+     Lead:=Data^[0];
+     Data:=@Data^[1];
+     if Lead<128 then begin
+      result:=Lead;
       exit;
-     end else begin
-      inc(i,7);
      end;
-    until false;
+     result:=Lead and $7f;
+     Shift:=7;
+     for Index:=1 to 4 do begin
+      Group:=Data^[0];
+      Data:=@Data^[1];
+      result:=result or ((Group and $7f) shl Shift);
+      inc(Shift,7);
+      if Group<128 then begin
+       exit;
+      end;
+     end;
+    end;
+    procedure PushVertexFifo(var VertexFifo:TVertexFifo;const v:TPasGLTFUInt32;var Offset:TPasGLTFSizeUInt;const Condition:TPasGLTFSizeUInt=1);
+    begin
+     VertexFifo[Offset]:=v;
+     Offset:=(Offset+Condition) and $f;
+    end;
+    procedure PushEdgeFifo(var EdgeFifo:TEdgeFifo;const a,b:TPasGLTFUInt32;var Offset:TPasGLTFSizeUInt);
+    begin
+     EdgeFifo[Offset,0]:=a;
+     EdgeFifo[Offset,1]:=b;
+     Offset:=(Offset+1) and $f;
+    end;
+    procedure WriteTriangle(const Destination:PPasGLTFUInt8Array;Offset,IndexSize:TPasGLTFSizeUInt;a,b,c:TPasGLTFUInt32);
+    begin
+     case IndexSize of
+      2:begin
+       PPasGLTFUInt16Array(Destination)^[Offset+0]:=a;
+       PPasGLTFUInt16Array(Destination)^[Offset+1]:=b;
+       PPasGLTFUInt16Array(Destination)^[Offset+2]:=c;
+      end;
+      4:begin
+       PPasGLTFUInt32Array(Destination)^[Offset+0]:=a;
+       PPasGLTFUInt32Array(Destination)^[Offset+1]:=b;
+       PPasGLTFUInt32Array(Destination)^[Offset+2]:=c;
+      end;
+      else begin
+       raise EPasGLTFInvalidDocument.Create('Invalid document');
+      end;
+     end;
+    end;
+   begin
+    if ((IndexSize<>2) and (IndexSize<>4)) or ((IndexCount mod 3)<>0) then begin
+     raise EPasGLTFInvalidDocument.Create('Invalid document');
+    end;
+    if BufferSize<(1+(IndexCount div 3)+16) then begin
+     raise EPasGLTFInvalidDocument.Create('Invalid document');
+     result:=false;
+     exit;
+    end;
+    if (Buffer^[0] and $f0)<>kIndexHeader then begin
+     raise EPasGLTFInvalidDocument.Create('Invalid document');
+     result:=false;
+     exit;
+    end;
+    Version:=Buffer^[0] and $f;
+    if Version>1 then begin
+     raise EPasGLTFInvalidDocument.Create('Invalid document');
+     result:=false;
+     exit;
+    end;
+    FillChar(EdgeFifo,SizeOf(TEdgeFifo),#$ff);
+    FillChar(VertexFifo,SizeOf(TVertexFifo),#$ff);
+    EdgeFifoOffset:=0;
+    VertexFifoOffset:=0;
+    Next:=0;
+    Last:=0;
+    if Version>=1 then begin
+     FecMax:=13;
+    end else begin
+     FecMax:=15;
+    end;
+    Code:=@Buffer^[1];
+    Data:=@Code^[IndexCount div 3];
+    DataSafeEnd:=@Buffer^[BufferSize-16];
+    CodeAuxTable:=DataSafeEnd;
+    Index:=0;
+    while Index<IndexCount do begin
+     if TPasGLTFPtrUInt(Data)>TPasGLTFPtrUInt(DataSafeEnd) then begin
+      result:=false;
+      exit;
+     end;
+     CodeTri:=Code^[0];
+     Code:=@Code^[1];
+     if CodeTri<$f0 then begin
+      fe:=CodeTri shr 4;
+      a:=EdgeFifo[(EdgeFifoOffset-(fe+1)) and $f,0];
+      b:=EdgeFifo[(EdgeFifoOffset-(fe+1)) and $f,1];
+      Fec:=CodeTri and $f;
+      if Fec<FecMax then begin
+       cf:=VertexFifo[(VertexFifoOffset-(Fec+1)) and $f];
+       if Fec=0 then begin
+        c:=Next;
+       end else begin
+        c:=cf;
+       end;
+       Fec0:=ord(Fec=0) and 1;
+       inc(Next,Fec0);
+       WriteTriangle(Destination,Index,IndexSize,a,b,c);
+       PushVertexFifo(VertexFifo,c,VertexFifoOffset,Fec0);
+       PushEdgeFifo(EdgeFifo,c,b,EdgeFifoOffset);
+       PushEdgeFifo(EdgeFifo,a,c,EdgeFifoOffset);
+      end else begin
+       c:=0;
+       if Fec<>15 then begin
+        c:=Last+(Fec-(Fec xor 3));
+       end else begin
+        v:=DecodeVByte;
+        d:=(v shr 1) xor (-(v and 1));
+        c:=Last+d;
+       end;
+       Last:=c;
+       WriteTriangle(Destination,Index,IndexSize,a,b,c);
+       PushVertexFifo(VertexFifo,c,VertexFifoOffset);
+       PushEdgeFifo(EdgeFifo,c,b,EdgeFifoOffset);
+       PushEdgeFifo(EdgeFifo,a,c,EdgeFifoOffset);
+      end;
+     end else begin
+      if CodeTri<$fe then begin
+       CodeAux:=CodeAuxTable^[CodeTri and $f];
+       Feb:=CodeAux shr 4;
+       Fec:=CodeAux and $f;
+       a:=Next;
+       inc(Next);
+       bf:=VertexFifo[(VertexFifoOffset-Feb) and 15];
+       if Feb=0 then begin
+        b:=Next;
+       end else begin
+        b:=bf;
+       end;
+       Feb0:=ord(Feb=0) and 1;
+       inc(Next,Feb0);
+       cf:=VertexFifo[(VertexFifoOffset-Fec) and 15];
+       if Fec=0 then begin
+        c:=Next;
+       end else begin
+        c:=cf;
+       end;
+       Fec0:=ord(Fec=0) and 1;
+       inc(Next,Fec0);
+       WriteTriangle(Destination,Index,IndexSize,a,b,c);
+       PushVertexFifo(VertexFifo,a,VertexFifoOffset);
+       PushVertexFifo(VertexFifo,b,VertexFifoOffset,Feb0);
+       PushVertexFifo(VertexFifo,c,VertexFifoOffset,Fec0);
+       PushEdgeFifo(EdgeFifo,b,a,EdgeFifoOffset);
+       PushEdgeFifo(EdgeFifo,c,b,EdgeFifoOffset);
+       PushEdgeFifo(EdgeFifo,a,c,EdgeFifoOffset);
+      end else begin
+       CodeAux:=Data^[0];
+       Data:=@Data^[1];
+       if CodeTri=$fe then begin
+        Fea:=0;
+       end else begin
+        Fea:=15;
+       end;
+       Feb:=CodeAux shr 4;
+       Fec:=CodeAux and $f;
+       if CodeAux=0 then begin
+        Next:=0;
+       end;
+       if Fea=0 then begin
+        a:=Next;
+        inc(Next);
+       end else begin
+        a:=0;
+       end;
+       if Feb=0 then begin
+        b:=Next;
+        inc(Next);
+       end else begin
+        b:=VertexFifo[(VertexFifoOffset-feb) and $f];
+       end;
+       if Fec=0 then begin
+        c:=Next;
+        inc(Next);
+       end else begin
+        c:=VertexFifo[(VertexFifoOffset-fec) and $f];
+       end;
+       if Fea=15 then begin
+        v:=DecodeVByte;
+        d:=(v shr 1) xor (-(v and 1));
+        Last:=Last+d;
+        a:=Last;
+       end;
+       if Feb=15 then begin
+        v:=DecodeVByte;
+        d:=(v shr 1) xor (-(v and 1));
+        Last:=Last+d;
+        b:=Last;
+       end;
+       if Fec=15 then begin
+        v:=DecodeVByte;
+        d:=(v shr 1) xor (-(v and 1));
+        Last:=Last+d;
+        c:=Last;
+       end;
+       WriteTriangle(Destination,Index,IndexSize,a,b,c);
+       PushVertexFifo(VertexFifo,a,VertexFifoOffset);
+       PushVertexFifo(VertexFifo,b,VertexFifoOffset,ord((Feb=0) or (Feb=15)) and 1);
+       PushVertexFifo(VertexFifo,c,VertexFifoOffset,ord((Fec=0) or (Fec=15)) and 1);
+       PushEdgeFifo(EdgeFifo,b,a,EdgeFifoOffset);
+       PushEdgeFifo(EdgeFifo,c,b,EdgeFifoOffset);
+       PushEdgeFifo(EdgeFifo,a,c,EdgeFifoOffset);
+      end;
+     end;
+     inc(Index,3);
+    end;
+    result:=Data=DataSafeEnd;
    end;
+  var Buffer:TPasGLTF.TBuffer;
   begin
-
-   TargetData:=@EXTMeshOptCompressionResult[0];
 
    Buffer:=fDocument.fBuffers[fEXTMeshOptCompression.fBuffer];
 
-   Stride:=fEXTMeshOptCompression.fByteStride;
+   if DecodeIndexBuffer(pointer(@EXTMeshOptCompressionResult[0]),
+                        fEXTMeshOptCompression.fCount,
+                        fEXTMeshOptCompression.fByteStride,
+                        @PPasGLTFUInt8Array(Buffer.fData.Memory)^[fEXTMeshOptCompression.fByteOffset],
+                        fEXTMeshOptCompression.fByteLength) then begin
 
-   Offset:=fEXTMeshOptCompression.fByteOffset;
-
-   BufferData:=Buffer.fData.Memory;
-
-   ElementCount:=fEXTMeshOptCompression.fCount;
-
-   Source:=@PPasGLTFUInt8Array(BufferData)^[Offset];
-
-   if (Source^[0]<>$e1) or ((ElementCount mod 3)<>0) or ((Stride<>2) and (Stride<>4)) then begin
+   end else begin
     raise EPasGLTFInvalidDocument.Create('Invalid document');
    end;
 
-   TriCount:=ElementCount div 3;
-
-   CodeOffs:=1;
-   DataOffs:=CodeOffs+TriCount;
-   CodeAuxOffs:=fEXTMeshOptCompression.fByteLength-16;
-
-   Next:=0;
-   Last:=0;
-
-   FillChar(EdgeFifo,SizeOf(EdgeFifo),#0);
-   FillChar(VertexFifo,SizeOf(VertexFifo),#0);
-
-   Code:=0;
-
-   DstOffs:=0;
-   for TriangleIndex:=0 to TPasGLTFSizeInt(TriCount)-1 do begin
-    if (CodeOffs>=0) and (CodeOffs<fEXTMeshOptCompression.fByteLength) then begin
-     Code:=Source^[CodeOffs];
-     inc(CodeOffs);
-    end else begin
-     raise EPasGLTFInvalidDocument.Create('Invalid document');
-    end;
-    b0:=Code shr 4;
-    b1:=Code and $f;
-    if b0<$f then begin
-     a:=EdgeFifo[(b0 shl 1) or 0];
-     b:=EdgeFifo[(b0 shl 1) or 1];
-     c:=-1;
-     case b1 of
-      $0:begin
-       c:=Next;
-       inc(Next);
-       VertexFifoPush(c);
-      end;
-      $1..$c:begin
-       c:=VertexFifo[b1];
-      end;
-      $d:begin
-       dec(Last);
-       c:=Last;
-       VertexFifoPush(c);
-      end;
-      $e:begin
-       inc(Last);
-       c:=Last;
-       VertexFifoPush(c);
-      end;
-      $f:begin
-       inc(Last,Dezig(ReadLEB128));
-       c:=Last;
-       VertexFifoPush(c);
-      end;
-      else begin
-       Assert(false);
-      end;
-     end;
-     EdgeFifoPush(b);
-     EdgeFifoPush(c);
-     EdgeFifoPush(c);
-     EdgeFifoPush(a);
-     case Stride of
-      2:Begin
-      if (DstOffs>=0) and (((DstOffs+3) shl 1)<=length(EXTMeshOptCompressionResult)) then begin
-        PPasGLTFUInt16Array(TargetData)^[DstOffs+0]:=a;
-        PPasGLTFUInt16Array(TargetData)^[DstOffs+1]:=b;
-        PPasGLTFUInt16Array(TargetData)^[DstOffs+2]:=c;
-        inc(DstOffs,3);
-       end else begin
-        raise EPasGLTFInvalidDocument.Create('Invalid document');
-       end;
-      end;
-      4:Begin
-       if (DstOffs>=0) and (((DstOffs+3) shl 2)<=length(EXTMeshOptCompressionResult)) then begin
-        PPasGLTFUInt32Array(TargetData)^[DstOffs+0]:=a;
-        PPasGLTFUInt32Array(TargetData)^[DstOffs+1]:=b;
-        PPasGLTFUInt32Array(TargetData)^[DstOffs+2]:=c;
-        inc(DstOffs,3);
-       end else begin
-        raise EPasGLTFInvalidDocument.Create('Invalid document');
-       end;
-      end;
-      else begin
-       Assert(false);
-      end;
-     end;
-    end else{if b0=$f then}begin
-     a:=-1;
-     b:=-1;
-     c:=-1;
-     if b1<$e then begin
-      if ((CodeAuxOffs+b1)>=0) and ((CodeAuxOffs+b1)<fEXTMeshOptCompression.fByteLength) then begin
-       e:=Source^[CodeAuxOffs+b1];
-      end else begin
-       raise EPasGLTFInvalidDocument.Create('Invalid document');
-      end;
-      z:=e shr 4;
-      w:=e and $f;
-      a:=Next;
-      inc(Next);
-      if z=0 then begin
-       b:=Next;
-       inc(Next);
-      end else begin
-       b:=VertexFifo[z-1];
-      end;
-      if w=0 then begin
-       c:=Next;
-       inc(Next);
-      end else begin
-       c:=VertexFifo[w-1];
-      end;
-      VertexFifoPush(a);
-      if z=0 then begin
-       VertexFifoPush(b);
-      end;
-      if w=0 then begin
-       VertexFifoPush(c);
-      end;
-     end else begin
-      if (DataOffs>=0) and (DataOffs<fEXTMeshOptCompression.fByteLength) then begin
-       e:=Source^[DataOffs];
-       inc(DataOffs);
-      end else begin
-       raise EPasGLTFInvalidDocument.Create('Invalid document');
-      end;
-      if e=0 then begin
-       Next:=0;
-      end;
-      z:=e shr 4;
-      w:=e and $f;
-      if b1=$e then begin
-       a:=Next;
-       inc(Next);
-      end else begin
-       inc(Last,Dezig(ReadLEB128));
-       a:=Last;
-      end;
-      if z=0 then begin
-       b:=Next;
-       inc(Next);
-      end else if z=$f then begin
-       inc(Last,Dezig(ReadLEB128));
-       b:=Last;
-      end else begin
-       b:=VertexFifo[z-1];
-      end;
-      if w=0 then begin
-       c:=Next;
-       inc(Next);
-      end else if w=$f then begin
-       inc(Last,Dezig(ReadLEB128));
-       c:=Last;
-      end else begin
-       c:=VertexFifo[w-1];
-      end;
-      VertexFifoPush(a);
-      if (z=0) or (z=$f) then begin
-       VertexFifoPush(b);
-      end;
-      if (w=0) or (w=$f) then begin
-       VertexFifoPush(c);
-      end;
-     end;
-     EdgeFifoPush(a);
-     EdgeFifoPush(b);
-     EdgeFifoPush(b);
-     EdgeFifoPush(c);
-     EdgeFifoPush(c);
-     EdgeFifoPush(a);
-     case Stride of
-      2:Begin
-      if (DstOffs>=0) and (((DstOffs+3) shl 1)<=length(EXTMeshOptCompressionResult)) then begin
-        PPasGLTFUInt16Array(TargetData)^[DstOffs+0]:=a;
-        PPasGLTFUInt16Array(TargetData)^[DstOffs+1]:=b;
-        PPasGLTFUInt16Array(TargetData)^[DstOffs+2]:=c;
-        inc(DstOffs,3);
-       end else begin
-        raise EPasGLTFInvalidDocument.Create('Invalid document');
-       end;
-      end;
-      4:Begin
-       if (DstOffs>=0) and (((DstOffs+3) shl 2)<=length(EXTMeshOptCompressionResult)) then begin
-        PPasGLTFUInt32Array(TargetData)^[DstOffs+0]:=a;
-        PPasGLTFUInt32Array(TargetData)^[DstOffs+1]:=b;
-        PPasGLTFUInt32Array(TargetData)^[DstOffs+2]:=c;
-        inc(DstOffs,3);
-       end else begin
-        raise EPasGLTFInvalidDocument.Create('Invalid document');
-       end;
-      end;
-      else begin
-       Assert(false);
-      end;
-     end;
-    end;
-   end;
-
   end;
-  procedure DecodeIndexSequence;
+  procedure DecodeIndexSequenceEx;
   var Stride,Offset,ElementCount,
       DataOffs:TPasGLTFSizeUInt;
       Index:TPasGLTFSizeInt;
@@ -4062,13 +4043,13 @@ var EXTMeshOptCompressionResult:TPasGLTFUInt8DynamicArray;
    SetLength(EXTMeshOptCompressionResult,fEXTMeshOptCompression.fCount*fEXTMeshOptCompression.fByteStride);
    case fEXTMeshOptCompression.fMode of
     TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionMode.Attributes:begin
-     DecodeVertexBuffer;
+     DecodeVertexBufferEx;
     end;
     TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionMode.Triangles:begin
-     DecodeIndexBuffer;
+     DecodeIndexBufferEx;
     end;
     TBufferView.TEXTMeshOptCompression.TEXTMeshOptCompressionMode.Indices:begin
-     DecodeIndexSequence;
+     DecodeIndexSequenceEx;
     end;
     else begin
      Assert(false);
