@@ -3968,7 +3968,7 @@ procedure TPasGLTF.TBufferView.TEXTMeshOptCompression.Decode;
    Last[1]:=0;
    Index:=0;
    while Index<IndexCount do begin
-    if Data>=DataSafeEnd then begin
+    if TPasGLTFPtrUInt(Data)>=TPasGLTFPtrUInt(DataSafeEnd) then begin
      result:=false;
      exit;
     end;
