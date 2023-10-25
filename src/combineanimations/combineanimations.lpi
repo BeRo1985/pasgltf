@@ -54,6 +54,14 @@
       <OtherUnitFiles Value="..;..\..\externals\pasdblstrutils\src;..\..\externals\pasjson\src"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <CodeGeneration>
+      <StackSize Value="67108864"/>
+    </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsDwarf3"/>
+      </Debugging>
+    </Linking>
   </CompilerOptions>
   <Debugging>
     <Exceptions>
