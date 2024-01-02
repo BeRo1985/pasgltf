@@ -13,6 +13,7 @@ uses SysUtils,
 var BaseGLTF:TPasGLTF.TDocument;
 
 procedure MergeGLTF(const aFileName:String);
+const NullBytes:array[0..3] of Byte=(0,0,0,0);
 type TUsedBufferSpan=record
       BufferIndex:TPasGLTFSizeInt;
       Offset:TPasGLTFSizeInt;
@@ -320,10 +321,32 @@ begin
      for UsedBufferSpanIndex:=0 to CountUsedBufferSpans-1 do begin
       SrcBuffer:=GLTF.Buffers[UsedBufferSpans[UsedBufferSpanIndex].BufferIndex];
       SrcBuffer.Data.Seek(UsedBufferSpans[UsedBufferSpanIndex].Offset,soBeginning);
-      DstBuffer.Data.CopyFrom(SrcBuffer.Data,UsedBufferSpans[UsedBufferSpanIndex].Size);
+     {begin
+       // Align to 4 bytes
+       Counter:=DstBuffer.ByteLength and 3;
+       if Counter<>0 then begin
+        Counter:=4-Counter;
+        DstBuffer.Data.Write(NullBytes,Counter);
+        DstBuffer.ByteLength:=DstBuffer.ByteLength+Counter;
+       end;        
+      end;}
       UsedBufferSpans[UsedBufferSpanIndex].OutputOffset:=DstBuffer.ByteLength;
-      DstBuffer.ByteLength:=DstBuffer.ByteLength+UsedBufferSpans[UsedBufferSpanIndex].Size;     
+      Counter:=UsedBufferSpans[UsedBufferSpanIndex].OutputOffset and 3;
+      if Counter<>0 then begin
+       inc(UsedBufferSpans[UsedBufferSpanIndex].OutputOffset,4-Counter);
+      end;
+      DstBuffer.Data.Seek(UsedBufferSpans[UsedBufferSpanIndex].OutputOffset,soBeginning);
+      DstBuffer.Data.CopyFrom(SrcBuffer.Data,UsedBufferSpans[UsedBufferSpanIndex].Size);
+      DstBuffer.ByteLength:=UsedBufferSpans[UsedBufferSpanIndex].OutputOffset+UsedBufferSpans[UsedBufferSpanIndex].Size;
      end; 
+
+     // Align to 4 bytes
+     Counter:=DstBuffer.Data.Size and 3;
+     if Counter<>0 then begin
+      Counter:=4-Counter;
+      DstBuffer.Data.Write(NullBytes,Counter);
+     end; 
+     DstBuffer.ByteLength:=DstBuffer.Data.Size;
 
     end; 
 
