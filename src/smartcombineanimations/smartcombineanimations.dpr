@@ -450,7 +450,11 @@ begin
      DstAnimation:=TPasGLTF.TAnimation.Create(BaseGLTF);
      try
 
-      DstAnimation.Name:=Animation.Name;
+      if Animation.Name='mixamo.com' then begin
+       DstAnimation.Name:=LowerCase(ChangeFileExt(ExtractFileName(aFileName),''));
+      end else begin
+       DstAnimation.Name:=Animation.Name;
+      end;
 
       if assigned(Animation.Extensions) then begin
        DstAnimation.Extensions.Merge(Animation.Extensions);
