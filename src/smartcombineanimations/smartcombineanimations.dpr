@@ -590,13 +590,16 @@ begin
   end;
  end;
 
+ InputDirectoryName:=IncludeTrailingPathDelimiter(InputDirectoryName);
+
  if InputFileList.Count>0 then begin
 
   InputFileList.Sort;
 
   // Search for base.glb or base.gltf
+  BaseInputFileName:='';
   for Index:=0 to InputFileList.Count-1 do begin
-   InputFileName:=InputFileList[Index];
+   InputFileName:=InputDirectoryName+InputFileList[Index];
    if ExtractFileName(InputFileName)='base.glb' then begin
     BaseInputFileName:=InputFileName;
     InputFileList.Delete(Index);    
@@ -630,7 +633,7 @@ begin
    end;
 
    for Index:=0 to InputFileList.Count-1 do begin
-    MergeGLTF(InputFileList[Index]);
+    MergeGLTF(InputDirectoryName+InputFileList[Index]);
    end;
 
    Stream:=TMemoryStream.Create;
